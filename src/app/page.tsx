@@ -31,65 +31,32 @@ import {
   FaComments,
   FaArrowLeft
 } from "react-icons/fa";
-// إعدادات API الأساسية
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337";
-// دالة لبناء رابط الوسائط
-function buildMediaUrl(path?: string | null) {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${STRAPI_URL}${path.startsWith("/") ? "" : "/"}${path}`;
-}
+import { fetchArrayFromSanity, SanityImage } from "@/lib/sanity";
+import imageUrlBuilder from '@sanity/image-url';
+import { client } from "@/lib/sanity";
+
 // تعريف واجهات البيانات
 interface EpisodeData {
-  id: string;
-  attributes?: {
-    title?: string;
-    slug?: string;
-    name?: string;
-    description?: string;
-    publishedAt?: string;
-    thumbnail?: {
-      data?: {
-        attributes?: {
-          url?: string;
-          formats?: {
-            medium?: { url?: string };
-            thumbnail?: { url?: string };
-            small?: { url?: string };
-          };
-        };
-      };
-      url?: string;
-    };
-  };
-  title?: string;
-  slug?: string;
-  name?: string;
+  _id: string;
+  title: string;
+  slug: { current: string };
   description?: string;
   publishedAt?: string;
-  thumbnail?: {
-    url?: string;
-    formats?: {
-      medium?: { url?: string };
-      thumbnail?: { url?: string };
-      small?: { url?: string };
-    };
+  thumbnail?: SanityImage;
+  season?: {
+    _id: string;
+    title: string;
+    slug: { current: string };
   };
 }
-interface FAQData {
-  id: string;
-  attributes?: {
-    question?: string;
-    answer?: string;
-  };
-  question?: string;
-  answer?: string;
-}
+
 interface FAQItem {
-  id: string;
+  _id: string;
   question: string;
   answer: string;
+  category?: string;
 }
+
 // متغيرات الحركة للعناصر
 const containerVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -103,6 +70,7 @@ const itemVariant = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
 };
+
 // متغيرات الحركة للأسئلة الشائعة
 const faqItemVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -112,6 +80,7 @@ const answerVariants = {
   closed: { opacity: 0, height: 0, overflow: "hidden" },
   open: { opacity: 1, height: "auto", overflow: "visible", transition: { duration: 0.3 } }
 };
+
 // مكون السؤال المتحرك
 const AnimatedQuestion = ({ question, answer, index }: { question: string; answer: string; index: number }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -165,6 +134,7 @@ const AnimatedQuestion = ({ question, answer, index }: { question: string; answe
     </motion.div>
   );
 };
+
 export default function Home() {
   // حالات المكون
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
@@ -176,15 +146,18 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const { user } = useUser();
   
+  // إنشاء imageBuilder مرة واحدة فقط
+  const imageBuilder = useMemo(() => imageUrlBuilder(client), []);
+  
   // مواقع الجزيئات المحسوبة مسبقًا
-  const particlePositions = [
+  const particlePositions = useMemo(() => [
     { top: "90%", left: "50%" },   // 0°
     { top: "75%", left: "93.3%" }, // 60°
     { top: "50%", left: "90%" },   // 120°
     { top: "25%", left: "93.3%" }, // 180°
     { top: "10%", left: "50%" },   // 240°
     { top: "25%", left: "6.7%" },  // 300°
-  ];
+  ], []);
   
   // روابط وسائل التواصل الاجتماعي
   const socialLinks = useMemo(() => [
@@ -258,21 +231,41 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
   
-  // تحميل الحلقات
+  // تحميل الحلقات من Sanity
   useEffect(() => {
     let mounted = true;
     async function loadEpisodes() {
       try {
-        const res = await fetch(
-          `${STRAPI_URL}/api/episodes?populate=thumbnail&sort[0]=publishedAt:desc&pagination[limit]=9`,
-          { cache: "no-store" }
-        );
-        const json = await res.json();
-        if (mounted) setEpisodes(json.data || []);
+        setLoading(true);
+        
+        // استعلام لجلب الحلقات من Sanity
+        const query = `*[_type == "episode"]{
+          _id,
+          title,
+          slug,
+          description,
+          thumbnail,
+          season->{
+            _id,
+            title,
+            slug
+          },
+          publishedAt
+        } | order(publishedAt desc)[0...9]`;
+        
+        // استخدم الدالة الجديدة
+        const data = await fetchArrayFromSanity<EpisodeData>(query);
+        
+        if (mounted) {
+          setEpisodes(data);
+          setLoading(false);
+        }
       } catch (err) {
         console.error("Error loading episodes:", err);
-      } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setEpisodes([]);
+          setLoading(false);
+        }
       }
     }
     loadEpisodes();
@@ -281,28 +274,34 @@ export default function Home() {
     };
   }, []);
   
-  // تحميل الأسئلة الشائعة
+  // تحميل الأسئلة الشائعة من Sanity
   useEffect(() => {
     let mounted = true;
     async function loadFaqs() {
       try {
-        const res = await fetch(`${STRAPI_URL}/api/faqs?populate=*`);
-        const json = await res.json();
+        setFaqLoading(true);
+        
+        // استعلام لجلب الأسئلة الشائعة من Sanity
+        const query = `*[_type == "faq"] | order(_createdAt desc)[0...4] {
+          _id,
+          question,
+          answer,
+          category
+        }`;
+        
+        // استخدم الدالة الجديدة
+        const data = await fetchArrayFromSanity<FAQItem>(query);
+        
         if (mounted) {
-          const items = (json.data ?? []).map((item: FAQData) => {
-            const attrs = item.attributes ?? item;
-            return {
-              id: item.id ?? Math.random().toString(36).slice(2, 9),
-              question: attrs.question ?? "",
-              answer: attrs.answer ?? "",
-            };
-          });
-          setFaqs(items.slice(0, 4));
+          setFaqs(data);
+          setFaqLoading(false);
         }
       } catch (err) {
         console.error("Error loading FAQs:", err);
-      } finally {
-        if (mounted) setFaqLoading(false);
+        if (mounted) {
+          setFaqs([]);
+          setFaqLoading(false);
+        }
       }
     }
     loadFaqs();
@@ -690,39 +689,14 @@ export default function Home() {
               className="py-1 relative"
             >
               {episodes.map((ep: EpisodeData) => {
-                const attrs = ep.attributes ?? ep;
-                const slug = attrs.slug ?? ep.id;
-                const title = (attrs.title ?? attrs.name ?? "حلقة")
-                  .toString()
-                  .trim();
-                
-                // تعريف نوع الصورة المباشرة
-                type DirectThumbnail = {
-                  url?: string;
-                  formats?: {
-                    medium?: { url?: string };
-                    thumbnail?: { url?: string };
-                    small?: { url?: string };
-                  };
-                };
-
-                // استخراج بيانات الصورة
-                const thumbRel = 
-                  attrs.thumbnail && 'data' in attrs.thumbnail
-                    ? (attrs.thumbnail as { data?: { attributes?: DirectThumbnail } }).data?.attributes
-                    : (attrs.thumbnail as DirectThumbnail | null) ?? null;
-
-                const thumbPath = 
-                  thumbRel?.formats?.medium?.url ??
-                  thumbRel?.formats?.thumbnail?.url ??
-                  thumbRel?.formats?.small?.url ??
-                  thumbRel?.url ??
-                  null;
-                
-                const thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
+                const slug = ep.slug.current;
+                const title = ep.title;
+                const thumbnailUrl = ep.thumbnail 
+                  ? imageBuilder.image(ep.thumbnail).width(500).height(300).url()
+                  : "/placeholder.png";
                 
                 return (
-                  <SwiperSlide key={ep.id} className="flex justify-center items-start">
+                  <SwiperSlide key={ep._id} className="flex justify-center items-start">
                     <motion.div
                       initial={{ opacity: 0, y: 12, scale: 0.995 }}
                       whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -936,7 +910,7 @@ export default function Home() {
                   >
                     {faqs.map((f, index) => (
                       <AnimatedQuestion 
-                        key={f.id} 
+                        key={f._id} 
                         question={f.question} 
                         answer={f.answer} 
                         index={index} 

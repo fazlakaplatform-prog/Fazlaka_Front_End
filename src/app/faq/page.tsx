@@ -1,44 +1,31 @@
-"use client";
+'use client';
 import React, { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337";
+import { fetchFromSanity } from "@/lib/sanity";
 
 type FaqItem = { 
-  id: string | number; 
+  id: string; 
   question: string; 
   answer: string;
   category?: string;
 };
 
-// تعريف نوع للبيانات القادمة من API مع دعم الحالتين
-type StrapiFaqItem = {
-  id: string | number;
-  attributes?: {
-    id?: string | number;
-    question?: string;
-    title?: string;
-    answer?: string;
-    content?: string;
-    category?: string;
-  };
-} & {
-  // دعم الحقول المباشرة في حال عدم وجود attributes
-  question?: string;
-  title?: string;
-  answer?: string;
-  content?: string;
+// تعريف واجهة للبيانات القادمة من Sanity
+interface SanityFaqItem {
+  _id: string;
+  question: string;
+  answer: string;
   category?: string;
-};
+}
 
-// مكون FAQ مع استخدام useSearchParams
+// مكون FAQ مع جلب البيانات من Sanity
 function FaqContent() {
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [faqLoading, setFaqLoading] = useState(true);
   const [faqError, setFaqError] = useState(false);
-  const [openFaq, setOpenFaq] = useState<string | number | null>(null);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredFaqs, setFilteredFaqs] = useState<FaqItem[]>([]);
   
@@ -50,55 +37,41 @@ function FaqContent() {
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [contentHeights, setContentHeights] = useState<Record<string, string>>({});
   
+  // جلب البيانات من Sanity
   useEffect(() => {
-    let mounted = true;
-    async function loadFaqs() {
+    const fetchFaqs = async () => {
       try {
-        const res = await fetch(`${STRAPI_URL}/api/faqs?populate=*`, {
-          cache: 'no-store'
-        });
-        if (!res.ok) throw new Error("Failed to fetch FAQs");
-        const json = await res.json();
+        setFaqLoading(true);
+        // استعلام لجلب جميع الأسئلة الشائعة من Sanity
+        const query = `*[_type == "faq"] | order(_createdAt desc) {
+          _id,
+          question,
+          answer,
+          category
+        }`;
         
-        // طباعة البيانات المستلمة للتصحيح
-        console.log("Strapi Response:", json);
+        // Fix: Explicitly type the response
+        const data = await fetchFromSanity(query) as SanityFaqItem[];
         
-        const items = (json.data ?? []).map((item: StrapiFaqItem) => {
-          // التعامل مع الحالتين: وجود attributes أو عدم وجوده
-          const attrs = item.attributes || item;
-          
-          // طباعة كل عنصر للتصحيح
-          console.log("Processing FAQ item:", item);
-          
-          return {
-            id: item.id ?? attrs.id ?? Math.random().toString(36).slice(2, 9),
-            question: attrs.question ?? attrs.title ?? "",
-            answer: attrs.answer ?? attrs.content ?? "",
-            category: attrs.category ?? "",
-          } as FaqItem;
-        });
+        // تحويل البيانات من Sanity إلى الشكل المتوقع
+        const formattedFaqs = data.map((item: SanityFaqItem) => ({
+          id: item._id,
+          question: item.question,
+          answer: item.answer,
+          category: item.category
+        }));
         
-        // طباعة العناصر المعالجة للتصحيح
-        console.log("Processed FAQs:", items);
-        
-        if (mounted) {
-          setFaqs(items);
-          setFilteredFaqs(items);
-          setFaqLoading(false);
-        }
-      } catch (err) {
-        console.error("Error loading FAQs:", err);
-        if (mounted) {
-          setFaqError(true);
-          setFaqLoading(false);
-        }
+        setFaqs(formattedFaqs);
+        setFilteredFaqs(formattedFaqs);
+        setFaqLoading(false);
+      } catch (error) {
+        console.error("Error fetching FAQs from Sanity:", error);
+        setFaqError(true);
+        setFaqLoading(false);
       }
-    }
-    
-    loadFaqs();
-    return () => {
-      mounted = false;
     };
+    
+    fetchFaqs();
   }, []);
   
   // Measure content heights after faqs render and on resize — keeps animation synchronized
@@ -123,7 +96,7 @@ function FaqContent() {
   useEffect(() => {
     if (faqIdFromSearch && faqs.length > 0) {
       // البحث عن السؤال بالمعرف المحدد
-      const faq = faqs.find(f => f.id.toString() === faqIdFromSearch);
+      const faq = faqs.find(f => f.id === faqIdFromSearch);
       if (faq) {
         setOpenFaq(faq.id);
         // التمرير إلى السؤال بعد فتحه
@@ -152,9 +125,9 @@ function FaqContent() {
     }
   }, [searchTerm, faqs]);
   
-  const toggleFaq = (id: string | number) => {
+  const toggleFaq = (id: string) => {
     // ensure measurement before opening to avoid jump
-    const el = contentRefs.current[id as string];
+    const el = contentRefs.current[id];
     if (el) {
       // force measurement
       const h = `${el.scrollHeight}px`;
@@ -167,15 +140,42 @@ function FaqContent() {
   const reloadFaqs = () => {
     setFaqLoading(true);
     setFaqError(false);
-    // سيتم إعادة تحميل البيانات بسبب تغيير حالة التحميل
-    setTimeout(() => {
-      window.location.reload();
-    }, 300);
+    
+    const fetchFaqs = async () => {
+      try {
+        const query = `*[_type == "faq"] | order(_createdAt desc) {
+          _id,
+          question,
+          answer,
+          category
+        }`;
+        
+        // Fix: Explicitly type the response
+        const data = await fetchFromSanity(query) as SanityFaqItem[];
+        
+        const formattedFaqs = data.map((item: SanityFaqItem) => ({
+          id: item._id,
+          question: item.question,
+          answer: item.answer,
+          category: item.category
+        }));
+        
+        setFaqs(formattedFaqs);
+        setFilteredFaqs(formattedFaqs);
+        setFaqLoading(false);
+      } catch (error) {
+        console.error("Error fetching FAQs from Sanity:", error);
+        setFaqError(true);
+        setFaqLoading(false);
+      }
+    };
+    
+    fetchFaqs();
   };
   
   // دالة لتحديث refs بشكل صحيح
-  const setContentRef = (id: string | number) => (el: HTMLDivElement | null) => {
-    contentRefs.current[id as string] = el;
+  const setContentRef = (id: string) => (el: HTMLDivElement | null) => {
+    contentRefs.current[id] = el;
   };
   
   return (
@@ -184,7 +184,7 @@ function FaqContent() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">الأسئلة الشائعة</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">إجابات على الاستفسارات الأكثر شيوعاً</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">إجابات على استفساراتكم حول قناتنا العلمية على يوتيوب</p>
           </div>
           <Link 
             href="/contact" 
@@ -305,7 +305,7 @@ function FaqContent() {
                   <div
                     ref={setContentRef(f.id)}
                     style={{
-                      maxHeight: isOpen ? contentHeights[f.id as string] ?? undefined : 0,
+                      maxHeight: isOpen ? contentHeights[f.id] ?? undefined : 0,
                       overflow: "hidden",
                       transition: reduceMotion ? undefined : "max-height 260ms ease, opacity 200ms ease",
                       opacity: isOpen ? 1 : 0,
@@ -354,6 +354,3 @@ export default function FaqPage() {
     </Suspense>
   );
 }
-
-// إضافة هذا السطر لتجنب المشاكل مع الـ Dynamic Server Usage
-export const dynamic = 'force-dynamic';

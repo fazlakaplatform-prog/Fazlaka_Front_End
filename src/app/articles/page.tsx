@@ -1,41 +1,47 @@
-// src/app/articles/page.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import ImageWithFallback from "@/components/ImageWithFallback";
-
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337";
+import { fetchFromSanity, urlFor } from "@/lib/sanity";
+import FavoriteButton from "@/components/FavoriteButton";
 
 // تعريف واجهات البيانات
-interface ImageFormat {
-  url?: string;
-  width?: number;
-  height?: number;
-}
-
-interface FeaturedImage {
-  url?: string;
-  formats?: {
-    thumbnail?: ImageFormat;
-    small?: ImageFormat;
-    medium?: ImageFormat;
-    large?: ImageFormat;
+interface Article {
+  _id: string;
+  title?: string;
+  excerpt?: string;
+  slug?: {
+    current: string;
+  };
+  featuredImage?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  episode?: {
+    _id: string;
+    title: string;
+    slug: {
+      current: string;
+    };
   };
 }
 
-interface Article {
-  id: number;
-  title?: string;
-  excerpt?: string;
-  slug?: string | number;
-  featuredImage?: FeaturedImage;
+// تعريف واجهة لصورة Sanity
+interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
+  };
 }
 
-function buildMediaUrl(path?: string) {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${STRAPI_URL}${path}`;
+function buildMediaUrl(image?: SanityImage) {
+  if (!image) return "/placeholder.png";
+  return urlFor(image) || "/placeholder.png";
 }
 
 function escapeRegExp(str = "") {
@@ -136,14 +142,31 @@ export default function ArticlesPageClient() {
       try {
         setLoading(true);
         const start = (currentPage - 1) * articlesPerPage;
-        const res = await fetch(
-          `${STRAPI_URL}/api/articles?populate=featuredImage&sort[0]=publishedAt:desc&pagination[start]=${start}&pagination[limit]=${articlesPerPage}`,
-          { cache: "no-cache", signal: controller.signal }
-        );
-        if (!res.ok) throw new Error(`Failed to fetch articles: ${res.status}`);
-        const json = await res.json();
-        setArticles(json.data || []);
-        setTotalPages(json.meta?.pagination?.pageCount || 1);
+        
+        // استعلام Sanity لجلب المقالات مع الحلقات المرتبطة
+        const query = `*[_type == "article"] | order(publishedAt desc) [${start}...${start + articlesPerPage}] {
+          _id,
+          title,
+          excerpt,
+          slug,
+          featuredImage {
+            _type,
+            asset
+          },
+          episode-> {
+            _id,
+            title,
+            slug
+          }
+        }`;
+        
+        const data = await fetchFromSanity(query) as Article[]; // Cast to Article[]
+        setArticles(Array.isArray(data) ? data : []); // Ensure it's an array
+        
+        // استعلام للحصول على العدد الإجمالي للصفحات
+        const countQuery = `count(*[_type == "article"])`;
+        const totalCount = await fetchFromSanity(countQuery) as number;
+        setTotalPages(Math.ceil(totalCount / articlesPerPage));
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         console.error(err);
@@ -232,7 +255,13 @@ export default function ArticlesPageClient() {
               </button>
             </div>
             
-            {/* رابط الحلقات */}
+            {/* رابط المفضلة والحلقات */}
+            <Link href="/favorites" className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition-colors flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              <span className="text-xs sm:text-sm">مفضلاتي</span>
+            </Link>
             <Link href="/episodes" className="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 transition-colors flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -247,132 +276,6 @@ export default function ArticlesPageClient() {
           {filteredArticles.length} نتيجة
         </div>
       </div>
-      
-      {/* نتائج البحث */}
-      {searchTerm.trim() ? (
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-            <div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">نتائج البحث عن</div>
-              <div className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                «{searchTerm}» <span className="text-sm text-gray-600 dark:text-gray-400">({filteredArticles.length})</span>
-              </div>
-            </div>
-            <button onClick={() => setSearchTerm("")} className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-600 self-start sm:self-auto">
-              مسح البحث
-            </button>
-          </div>
-          
-          {filteredArticles.length === 0 ? (
-            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 text-center text-gray-500 dark:text-gray-400">
-              لا توجد نتائج.
-            </div>
-          ) : (
-            <div>
-              {viewMode === "grid" ? (
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-                >
-                  {filteredArticles.map((article: Article) => {
-                    const slug = article.slug || article.id;
-                    const title = article.title || "مقال";
-                    const excerpt = article.excerpt || "";
-                    let thumbnailUrl = "/placeholder.png";
-                    if (article.featuredImage) {
-                      const thumb = article.featuredImage;
-                      const thumbPath =
-                        thumb?.formats?.medium?.url ??
-                        thumb?.formats?.thumbnail?.url ??
-                        thumb?.url ??
-                        thumb?.formats?.small?.url ??
-                        null;
-                      thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
-                    }
-                    return (
-                      <motion.article
-                        key={article.id}
-                        variants={cardVariants}
-                        whileHover={{ scale: 1.02 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        layout
-                        className="relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col bg-white dark:bg-gray-800"
-                      >
-                        <Link href={`/articles/${encodeURIComponent(String(slug))}`} className="block group">
-                          <div className="relative aspect-video bg-gray-100 dark:bg-gray-700">
-                            <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              whileHover={{ scale: 1.06 }}
-                              transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                            >
-                              <div className="bg-black/40 dark:bg-white/10 rounded-full p-2">
-                                <IconPlay className="h-6 w-6 text-white dark:text-gray-200" />
-                              </div>
-                            </motion.div>
-                          </div>
-                          <div className="p-3">
-                            <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{renderHighlighted(title, searchTerm)}</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{excerpt}</p>
-                          </div>
-                        </Link>
-                        <div className="mt-auto p-3 pt-1 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                            <IconArticles className="h-4 w-4" />
-                          </div>
-                        </div>
-                      </motion.article>
-                    );
-                  })}
-                </motion.div>
-              ) : (
-                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
-                  {filteredArticles.map((article: Article) => {
-                    const slug = article.slug || article.id;
-                    const title = article.title || "مقال";
-                    const excerpt = article.excerpt || "";
-                    let thumbnailUrl = "/placeholder.png";
-                    if (article.featuredImage) {
-                      const thumb = article.featuredImage;
-                      const thumbPath =
-                        thumb?.formats?.medium?.url ??
-                        thumb?.formats?.thumbnail?.url ??
-                        thumb?.url ??
-                        thumb?.formats?.small?.url ??
-                        null;
-                      thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
-                    }
-                    return (
-                      <motion.div
-                        key={article.id}
-                        variants={cardVariants}
-                        whileHover={{ scale: 1.01 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        layout
-                        className="flex gap-3 items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden p-3 hover:shadow transition bg-white dark:bg-gray-800"
-                      >
-                        <Link href={`/articles/${encodeURIComponent(String(slug))}`} className="flex items-center gap-3 flex-1 group">
-                          <div className="relative w-24 h-16 sm:w-32 sm:h-20 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
-                            <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="240px" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{renderHighlighted(title, searchTerm)}</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{excerpt}</p>
-                          </div>
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : null}
       
       {/* قائمة المقالات */}
       <div className="space-y-4">
@@ -393,23 +296,17 @@ export default function ArticlesPageClient() {
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             >
               {filteredArticles.map((article: Article) => {
-                const slug = article.slug || article.id;
+                const slug = article.slug?.current || article._id;
                 const title = article.title || "مقال";
                 const excerpt = article.excerpt || "";
+                const episode = article.episode; // الحلقة المرتبطة
                 let thumbnailUrl = "/placeholder.png";
                 if (article.featuredImage) {
-                  const thumb = article.featuredImage;
-                  const thumbPath =
-                    thumb?.formats?.medium?.url ??
-                    thumb?.formats?.thumbnail?.url ??
-                    thumb?.url ??
-                    thumb?.formats?.small?.url ??
-                    null;
-                  thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
+                  thumbnailUrl = buildMediaUrl(article.featuredImage);
                 }
                 return (
                   <motion.article
-                    key={article.id}
+                    key={article._id}
                     variants={cardVariants}
                     initial="hidden"
                     animate="visible"
@@ -435,12 +332,22 @@ export default function ArticlesPageClient() {
                       <div className="p-3">
                         <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{renderHighlighted(title, searchTerm)}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{excerpt}</p>
+                        
+                        {/* عرض الحلقة المرتبطة */}
+                        {episode && (
+                          <div className="mt-2 flex items-center gap-1">
+                            <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
+                              حلقة: {episode.title}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </Link>
                     <div className="mt-auto p-3 pt-1 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                       <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                         <IconArticles className="h-4 w-4" />
                       </div>
+                      <FavoriteButton contentId={article._id} contentType="article" />
                     </div>
                   </motion.article>
                 );
@@ -449,23 +356,17 @@ export default function ArticlesPageClient() {
           ) : (
             <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
               {filteredArticles.map((article: Article) => {
-                const slug = article.slug || article.id;
+                const slug = article.slug?.current || article._id;
                 const title = article.title || "مقال";
                 const excerpt = article.excerpt || "";
+                const episode = article.episode; // الحلقة المرتبطة
                 let thumbnailUrl = "/placeholder.png";
                 if (article.featuredImage) {
-                  const thumb = article.featuredImage;
-                  const thumbPath =
-                    thumb?.formats?.medium?.url ??
-                    thumb?.formats?.thumbnail?.url ??
-                    thumb?.url ??
-                    thumb?.formats?.small?.url ??
-                    null;
-                  thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
+                  thumbnailUrl = buildMediaUrl(article.featuredImage);
                 }
                 return (
                   <motion.div
-                    key={article.id}
+                    key={article._id}
                     variants={cardVariants}
                     initial="hidden"
                     animate="visible"
@@ -481,8 +382,20 @@ export default function ArticlesPageClient() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{renderHighlighted(title, searchTerm)}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{excerpt}</p>
+                        
+                        {/* عرض الحلقة المرتبطة */}
+                        {episode && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
+                              حلقة: {episode.title}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </Link>
+                    <div className="flex-shrink-0">
+                      <FavoriteButton contentId={article._id} contentType="article" />
+                    </div>
                   </motion.div>
                 );
               })}

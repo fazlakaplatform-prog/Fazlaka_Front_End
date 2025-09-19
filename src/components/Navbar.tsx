@@ -1,3 +1,4 @@
+// app/components/Navbar.tsx
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -5,45 +6,136 @@ import Image from "next/image";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { buildMediaUrl } from "@/lib/utils";
+import { fetchFromSanity, urlFor } from "@/lib/sanity";
+
 // تعريف واجهة لنتائج البحث
 interface SearchResult {
-  slug?: string;
-  id: string | number;
-  type: string;
-  title?: string;
-  thumbnail?: string;
+  _id: string;
+  _type: "episode" | "article" | "faq" | "playlist" | "season" | "teamMember" | "terms" | "privacy";
+  title: string;
+  slug?: {
+    current: string;
+  };
+  excerpt?: string;
+  description?: string;
+  answer?: string;
+  role?: string;
+  thumbnail?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  featuredImage?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  image?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  season?: {
+    _id: string;
+    title: string;
+    slug: {
+      current: string;
+    };
+  };
+  episodeCount?: number;
+  category?: string;
+  content?: PortableTextBlock[]; // للشروط والأحكام وسياسة الخصوصية
+  sectionType?: string; // للشروط والأحكام وسياسة الخصوصية
+  imageUrl?: string; // لقوائم التشغيل
+  question?: string; // للأسئلة الشائعة
+  name?: string; // لأعضاء الفريق
+  bio?: string; // لأعضاء الفريق
+  episode?: { // إضافة خاصية episode بشكل صريح
+    _id: string;
+    title: string;
+    slug: {
+      current: string;
+    };
+  };
 }
-// تعريف نوع لبيانات الأفاتار
-type AvatarRaw = 
-  | string 
-  | ((...args: unknown[]) => string) 
-  | { url?: string; imageUrl?: string } 
-  | string[];
-// دالة موحدة للتوجيه - معدلة لاستخدام التوجيه الجديد للأسئلة الشائعة والعناصر الجديدة
-const getHrefForResult = (result: SearchResult) => {
-  const idOrSlug = result.slug ?? result.id;
-  const encoded = encodeURIComponent(String(idOrSlug));
-  switch (result.type) {
-    case "episode":
-      return `/episodes/${encoded}`;
-    case "faq":
-      return `/faq?faq=${encoded}`;
-    case "playlist":
-      return `/playlists/${encoded}`;
-    case "season":
-      return `/seasons/${encoded}`;
-    case "teamMember":
-      return `/team/${encoded}`;
-    case "terms":
-      return `/terms-conditions`;
-    case "privacy":
-      return `/privacy-policy`;
-    default:
-      return "#";
+
+// واجهة لكتل Portable Text
+interface PortableTextBlock {
+  _type: 'block';
+  children: PortableTextSpan[];
+}
+
+interface PortableTextSpan {
+  text: string;
+}
+
+// تعريف واجهة لصورة Sanity
+interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
+  };
+}
+
+// واجهة خاصة بنتائج الأسئلة الشائعة
+interface FaqResult extends SearchResult {
+  _type: "faq";
+  question: string;
+  answer: string;
+  category?: string;
+}
+
+// واجهة خاصة بنتائج أعضاء الفريق
+interface TeamMemberResult extends SearchResult {
+  _type: "teamMember";
+  name: string;
+  role?: string;
+  slug?: { current: string };
+  image?: SanityImage;
+  bio?: string;
+}
+
+function buildSearchMediaUrl(image?: SanityImage): string {
+  if (!image) return "/placeholder.png";
+  return urlFor(image) || "/placeholder.png";
+}
+
+function escapeRegExp(str = ""): string {
+  if (!str) return "";
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderHighlighted(text: string, q: string): React.ReactNode {
+  if (!q) return <>{text}</>;
+  try {
+    const re = new RegExp(`(${escapeRegExp(q)})`, "ig");
+    const parts = text.split(re);
+    return (
+      <>
+        {parts.map((part, i) =>
+          re.test(part) ? (
+            <mark key={i} className="bg-yellow-100 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 rounded px-0.5">
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  } catch {
+    return <>{text}</>;
   }
-};
-// مكون SearchBar المعدل
+}
+
+// مكون SearchBar المحدث للعمل مع Sanity
 const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -89,12 +181,221 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data);
-        setShowResults(true);
+      // جلب البيانات من Sanity
+      const episodesQuery = `*[_type == "episode"]{
+        _id,
+        _type,
+        title,
+        slug,
+        description,
+        thumbnail,
+        season->{
+          _id,
+          title,
+          slug
+        }
+      }`;
+      
+      const articlesQuery = `*[_type == "article"]{
+        _id,
+        _type,
+        title,
+        slug,
+        excerpt,
+        featuredImage,
+        episode->{
+          _id,
+          title,
+          slug
+        }
+      }`;
+      
+      const playlistsQuery = `*[_type == "playlist"]{
+        _id,
+        _type,
+        title,
+        slug,
+        description,
+        "imageUrl": image.asset->url
+      }`;
+      
+      const faqsQuery = `*[_type == "faq"]{
+        _id,
+        _type,
+        question,
+        answer,
+        category
+      }`;
+      
+      const seasonsQuery = `*[_type == "season"]{
+        _id,
+        _type,
+        title,
+        slug,
+        thumbnail
+      }`;
+      
+      const teamMembersQuery = `*[_type == "teamMember"]{
+        _id,
+        _type,
+        name,
+        role,
+        slug,
+        image,
+        bio
+      }`;
+      
+      // استعلامات جديدة للشروط والأحكام وسياسة الخصوصية
+      const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
+        _id,
+        _type,
+        title,
+        content,
+        lastUpdated
+      }`;
+      
+      const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
+        _id,
+        _type,
+        title,
+        content,
+        lastUpdated
+      }`;
+      
+      const [
+        episodesData, 
+        articlesData, 
+        playlistsData, 
+        faqsData, 
+        seasonsData, 
+        teamMembersData, 
+        termsData, 
+        privacyData
+      ] = await Promise.all([
+        fetchFromSanity(episodesQuery),
+        fetchFromSanity(articlesQuery),
+        fetchFromSanity(playlistsQuery),
+        fetchFromSanity(faqsQuery),
+        fetchFromSanity(seasonsQuery),
+        fetchFromSanity(teamMembersQuery),
+        fetchFromSanity(termsQuery),
+        fetchFromSanity(privacyQuery)
+      ]);
+      
+      // تحويل البيانات إلى الأنواع المناسبة
+      const episodes = episodesData as SearchResult[];
+      const articles = articlesData as SearchResult[];
+      const playlists = playlistsData as SearchResult[];
+      const seasons = seasonsData as SearchResult[];
+      const terms = termsData as SearchResult | null;
+      const privacy = privacyData as SearchResult | null;
+      
+      // حساب عدد الحلقات لكل موسم
+      const episodesCountQuery = `*[_type == "episode"]{
+        season->{_id}
+      }`;
+      const episodesCountData = await fetchFromSanity(episodesCountQuery);
+      const episodesDataCount = episodesCountData as { season?: { _id: string } }[];
+      
+      const episodeCounts: Record<string, number> = {};
+      episodesDataCount.forEach((ep) => {
+        if (ep.season?._id) {
+          episodeCounts[ep.season._id] = (episodeCounts[ep.season._id] || 0) + 1;
+        }
+      });
+      
+      // إضافة عدد الحلقات لكل موسم
+      const seasonsWithCount = seasons.map(season => ({
+        ...season,
+        episodeCount: episodeCounts[season._id] || 0
+      }));
+      
+      // تحويل الأسئلة الشائعة إلى نفس تنسيق النتائج الأخرى
+      const faqs = (faqsData as FaqResult[]).map(faq => ({
+        ...faq,
+        title: faq.question,
+        excerpt: faq.answer
+      }));
+      
+      // تحويل أعضاء الفريق إلى نفس تنسيق النتائج الأخرى
+      const teamMembers = (teamMembersData as TeamMemberResult[]).map(member => ({
+        ...member,
+        title: member.name,
+        excerpt: member.bio
+      }));
+      
+      // إضافة الشروط والأحكام وسياسة الخصوصية إذا كانت موجودة
+      const termsAndPrivacy: SearchResult[] = [];
+      if (terms) {
+        termsAndPrivacy.push({
+          ...terms,
+          _type: "terms",
+          slug: { current: "terms-conditions" }
+        });
       }
+      
+      if (privacy) {
+        termsAndPrivacy.push({
+          ...privacy,
+          _type: "privacy",
+          slug: { current: "privacy-policy" }
+        });
+      }
+      
+      // دمج جميع النتائج
+      const allResults = [
+        ...episodes,
+        ...articles,
+        ...playlists,
+        ...faqs,
+        ...seasonsWithCount,
+        ...teamMembers,
+        ...termsAndPrivacy
+      ];
+      
+      // فلترة النتائج حسب البحث
+      const q = searchQuery.trim().toLowerCase();
+      const filteredResults = allResults.filter((result) => {
+        const title = (result.title || "").toString().toLowerCase();
+        
+        // البحث في محتوى الشروط والأحكام وسياسة الخصوصية
+        let excerpt = (result.excerpt || "").toString().toLowerCase();
+        
+        // إذا كان النتيجة من نوع الأسئلة الشائعة، ابحث في الإجابة
+        if (result._type === "faq" && (result as FaqResult).answer) {
+          excerpt = ((result as FaqResult).answer || "").toString().toLowerCase();
+        }
+        
+        // إذا كان النتيجة من نوع أعضاء الفريق، ابحث في الدور الوظيفي
+        if (result._type === "teamMember" && (result as TeamMemberResult).role) {
+          excerpt = ((result as TeamMemberResult).role || "").toString().toLowerCase();
+        }
+        
+        // إذا كان النتيجة من نوع الشروط والأحكام أو سياسة الخصوصية، ابحث في المحتوى أيضاً
+        if ((result._type === "terms" || result._type === "privacy") && result.content) {
+          try {
+            // استخراج النص من محتوى Portable Text
+            const contentText = result.content
+              .filter((block: PortableTextBlock) => block._type === "block")
+              .map((block: PortableTextBlock) => 
+                block.children
+                  .map((child: PortableTextSpan) => child.text)
+                  .join("")
+              )
+              .join(" ")
+              .toLowerCase();
+            
+            excerpt = contentText;
+          } catch (error) {
+            console.error("Error extracting content text:", error);
+          }
+        }
+        
+        return title.includes(q) || excerpt.includes(q);
+      });
+      
+      setResults(filteredResults);
+      setShowResults(true);
     } catch (error) {
       console.error("Search error:", error);
     } finally {
@@ -143,8 +444,33 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
     setShowResults(false);
     setQuery("");
     
-    // استخدام الدالة الموحدة للتوجيه
-    const href = getHrefForResult(result);
+    // تحديد الرابط المناسب حسب نوع النتيجة
+    const getLink = () => {
+      const idOrSlug = result.slug?.current ?? result._id;
+      const encoded = encodeURIComponent(String(idOrSlug));
+      switch (result._type) {
+        case "episode":
+          return `/episodes/${encoded}`;
+        case "article":
+          return `/articles/${encoded}`;
+        case "playlist":
+          return `/playlists/${encoded}`;
+        case "faq":
+          return `/faq?faq=${encoded}`;
+        case "season":
+          return `/seasons/${encoded}`;
+        case "teamMember":
+          return `/team/${encoded}`;
+        case "terms":
+          return `/terms-conditions`;
+        case "privacy":
+          return `/privacy-policy`;
+        default:
+          return "#";
+      }
+    };
+    
+    const href = getLink();
     router.push(href);
     
     if (!initialExpanded) {
@@ -162,11 +488,11 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
             </svg>
           </div>
         );
-      case "faq":
+      case "article":
         return (
           <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl shadow-sm">
             <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
             </svg>
           </div>
         );
@@ -178,34 +504,42 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
             </svg>
           </div>
         );
-      case "season":
+      case "faq":
         return (
           <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl shadow-sm">
             <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+      case "season":
+        return (
+          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
         );
       case "teamMember":
         return (
-          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
         );
       case "terms":
         return (
-          <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
         );
       case "privacy":
         return (
-          <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
@@ -213,7 +547,7 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
       default:
         return (
           <div className="p-2 bg-gray-100 dark:bg-gray-700/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -221,7 +555,55 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
     }
   };
   
-  // عرض مختلف للموبايل - نفس شكل الكمبيوتر
+  // تحديد الصورة المناسبة حسب نوع النتيجة
+  const getImageUrl = (result: SearchResult) => {
+    if (result.thumbnail) return buildSearchMediaUrl(result.thumbnail);
+    if (result.featuredImage) return buildSearchMediaUrl(result.featuredImage);
+    if (result.image) return buildSearchMediaUrl(result.image);
+    if (result._type === "playlist" && result.imageUrl) {
+      return result.imageUrl;
+    }
+    
+    // صور افتراضية للشروط والأحكام وسياسة الخصوصية
+    if (result._type === "terms") {
+      return "/images/terms-default.jpg";
+    }
+    if (result._type === "privacy") {
+      return "/images/privacy-default.jpg";
+    }
+    
+    return "/placeholder.png";
+  };
+  
+  // تحديد النص المناسب للعرض
+  const getDisplayText = (result: SearchResult) => {
+    if (result.excerpt) return result.excerpt;
+    if (result.description) return result.description;
+    if (result._type === "faq" && (result as FaqResult).answer) return (result as FaqResult).answer || "";
+    if (result._type === "teamMember" && (result as TeamMemberResult).role) return (result as TeamMemberResult).role || "";
+    
+    // استخراج نص من محتوى الشروط والأحكام وسياسة الخصوصية
+    if ((result._type === "terms" || result._type === "privacy") && result.content) {
+      try {
+        return result.content
+          .filter((block: PortableTextBlock) => block._type === "block")
+          .slice(0, 2) // أخذ أول فقرتين فقط
+          .map((block: PortableTextBlock) => 
+            block.children
+              .map((child: PortableTextSpan) => child.text)
+              .join("")
+          )
+          .join(" ")
+          .substring(0, 200) + "..."; // اقتطاع النص
+      } catch (error) {
+        console.error("Error extracting content text:", error);
+        return "";
+      }
+    }
+    
+    return "";
+  };
+  
   return (
     <div className="relative" ref={searchRef}>
       <form 
@@ -287,31 +669,35 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
                 </div>
                 {results.slice(0, 5).map((result) => (
                   <div
-                    key={`${result.type}-${result.id}`}
+                    key={`${result._type}-${result._id}`}
                     className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150 flex items-center gap-3"
                     onClick={() => handleResultClick(result)}
                   >
                     <div className="flex-shrink-0">
-                      {getIcon(result.type)}
+                      {getIcon(result._type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {result.title}
+                        {renderHighlighted(result.title || "", query)}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {result.type === "episode" && "حلقة"}
-                        {result.type === "faq" && "سؤال شائع"}
-                        {result.type === "playlist" && "قائمة تشغيل"}
-                        {result.type === "season" && "موسم"}
-                        {result.type === "teamMember" && "عضو الفريق"}
-                        {result.type === "terms" && "شروط وأحكام"}
-                        {result.type === "privacy" && "سياسة الخصوصية"}
+                        {result._type === "episode" && "حلقة"}
+                        {result._type === "article" && "مقال"}
+                        {result._type === "playlist" && "قائمة تشغيل"}
+                        {result._type === "faq" && "سؤال شائع"}
+                        {result._type === "season" && "موسم"}
+                        {result._type === "teamMember" && "عضو الفريق"}
+                        {result._type === "terms" && "شروط وأحكام"}
+                        {result._type === "privacy" && "سياسة الخصوصية"}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                        {renderHighlighted(getDisplayText(result), query)}
                       </p>
                     </div>
-                    {result.thumbnail && (
+                    {getImageUrl(result) && (
                       <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden">
                         <Image
-                          src={buildMediaUrl(result.thumbnail)}
+                          src={getImageUrl(result)}
                           alt={result.title || ""}
                           width={40}
                           height={40}
@@ -319,8 +705,8 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
                           onError={(e) => {
                             console.error("Image load error in search results:", {
                               src: e.currentTarget.src,
-                              thumbnail: result.thumbnail,
-                              builtUrl: buildMediaUrl(result.thumbnail)
+                              thumbnail: getImageUrl(result),
+                              builtUrl: getImageUrl(result)
                             });
                             e.currentTarget.style.display = 'none';
                           }}
@@ -355,6 +741,7 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
     </div>
   );
 };
+
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -427,37 +814,25 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY, isMobile]);
   
-  function resolveAvatarRaw(raw: AvatarRaw): string | undefined {
+  function resolveAvatarRaw(raw: string | undefined): string | undefined {
     if (!raw) return undefined;
     try {
       if (typeof raw === "string") return raw;
-      if (typeof raw === "function") {
-        try {
-          return raw({ size: 128 });
-        } catch {
-          return raw();
-        }
-      }
-      if (Array.isArray(raw) && raw.length) return raw[0];
-      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-        if (raw.url) return raw.url;
-        if (raw.imageUrl) return raw.imageUrl;
-      }
+      return undefined;
     } catch {
       return undefined;
     }
-    return undefined;
   }
   
-  const rawAvatarCandidate = user?.imageUrl;
+  const rawAvatarCandidate = user?.imageUrl as string | undefined;
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(
-    () => resolveAvatarRaw(rawAvatarCandidate as AvatarRaw)
+    () => resolveAvatarRaw(rawAvatarCandidate)
   );
   
   useEffect(() => {
     setAvatarSrc(
       resolveAvatarRaw(
-        (user?.imageUrl) as AvatarRaw
+        (user?.imageUrl as string | undefined)
       )
     );
   }, [user]);
@@ -526,7 +901,6 @@ export default function Navbar() {
       router.push("/");
     }, 300);
   };
-  
   
   const toggleMobileContent = () => {
     setMobileContentOpen(!mobileContentOpen);

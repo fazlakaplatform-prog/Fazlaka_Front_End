@@ -2,57 +2,76 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ImageWithFallback";
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? process.env.STRAPI_URL ?? "http://localhost:1337";
+import { fetchFromSanity, urlFor } from "@/lib/sanity";
+
 // تعريف الواجهات
 interface Thumbnail {
-  formats?: {
-    medium?: { url: string };
-    thumbnail?: { url: string };
-  };
-  url?: string;
-  data?: {
-    attributes: Thumbnail;
+  _type: "image";
+  asset: {
+    _ref: string;
+    _type: "reference";
   };
 }
+
 interface Season {
-  id: number;
+  _id: string;
+  _type: "season";
   title?: string;
   name?: string;
-  slug?: string | number;
+  slug?: {
+    current: string;
+    _type: "slug";
+  };
   thumbnail?: Thumbnail;
-  attributes?: {
-    title?: string;
-    name?: string;
-    slug?: string | number;
-    thumbnail?: Thumbnail;
-  };
+  description?: string;
+  publishedAt?: string;
 }
+
 interface Episode {
-  id: number;
+  _id: string;
+  _type: "episode";
   season?: {
-    id?: number;
-    data?: {
-      id?: number;
-    };
-    attributes?: {
-      id?: number;
-    };
-  };
-  attributes?: {
-    season?: {
-      id?: number;
-      data?: {
-        id?: number;
-      };
-    };
+    _ref: string;
+    _type: "reference";
   };
 }
-function buildMediaUrl(path?: string) {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${STRAPI_URL}${path}`;
+
+// Define the type for the URL builder object
+interface ImageUrlBuilder {
+  width(width: number): ImageUrlBuilder;
+  url(): string;
 }
-/** Normalize string for searching (remove diacritics, non letters/numbers, lowercase) */
+
+function buildMediaUrl(thumbnail?: Thumbnail) {
+  if (!thumbnail) return "/placeholder.png";
+  
+  const imageUrl = urlFor(thumbnail);
+  
+  // Handle if urlFor returns a string directly
+  if (typeof imageUrl === 'string') {
+    return imageUrl;
+  }
+  
+  // Handle if urlFor returns a builder object
+  if (typeof imageUrl === 'object' && imageUrl !== null) {
+    try {
+      // Cast to our builder type and use width method
+      const builder = imageUrl as ImageUrlBuilder;
+      return builder.width(500).url() || "/placeholder.png";
+    } catch {
+      // Fallback to direct url method if width fails
+      try {
+        return (imageUrl as ImageUrlBuilder).url() || "/placeholder.png";
+      } catch {
+        return "/placeholder.png";
+      }
+    }
+  }
+  
+  return "/placeholder.png";
+}
+
+/** Normalize string for searching */
 function normalizeForSearch(s?: string) {
   if (!s) return "";
   try {
@@ -68,31 +87,10 @@ function normalizeForSearch(s?: string) {
     return s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
   }
 }
-// دالة مساعدة لاستخراج مسار الصورة المصغرة
-function getThumbnailPath(season: Season): string | undefined {
-  // الحالة الأولى: الصورة في data.attributes
-  if (season.thumbnail?.data?.attributes) {
-    const ta = season.thumbnail.data.attributes;
-    return ta.formats?.medium?.url ?? ta.formats?.thumbnail?.url ?? ta.url;
-  }
-  
-  // الحالة الثانية: الصورة مباشرة في thumbnail
-  if (season.thumbnail) {
-    const t = season.thumbnail;
-    return t.formats?.medium?.url ?? t.formats?.thumbnail?.url ?? t.url;
-  }
-  
-  // الحالة الثالثة: الصورة في attributes.thumbnail
-  if (season.attributes?.thumbnail) {
-    const ta = season.attributes.thumbnail;
-    return ta.formats?.medium?.url ?? ta.formats?.thumbnail?.url ?? ta.url;
-  }
-  
-  return undefined;
-}
+
 export default function SeasonsPageClient() {
   const [seasons, setSeasons] = useState<Season[]>([]);
-  const [episodeCounts, setEpisodeCounts] = useState<Record<string | number, number>>({});
+  const [episodeCounts, setEpisodeCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // UI states
@@ -111,43 +109,39 @@ export default function SeasonsPageClient() {
     async function load() {
       try {
         setLoading(true);
-        const seasonsRes = await fetch(`${STRAPI_URL}/api/seasons?populate=thumbnail&sort[0]=publishedAt:desc`, { cache: "no-store" });
-        if (!seasonsRes.ok) {
-          const t = await seasonsRes.text();
-          throw new Error(`Failed to fetch seasons: ${seasonsRes.status} - ${t}`);
-        }
-        const seasonsJson = await seasonsRes.json();
-        const seasonsData: Season[] = seasonsJson?.data ?? [];
         
-        const episodesRes = await fetch(`${STRAPI_URL}/api/episodes?populate=season&pagination[limit]=1000`, { cache: "no-store" });
-        if (!episodesRes.ok) {
-          const t = await episodesRes.text();
-          throw new Error(`Failed to fetch episodes: ${episodesRes.status} - ${t}`);
-        }
-        const episodesJson = await episodesRes.json();
-        const episodesData: Episode[] = episodesJson?.data ?? [];
+        // Fetch seasons from Sanity
+        const seasonsQuery = `*[_type == "season"] | order(publishedAt desc) {
+          _id,
+          title,
+          name,
+          slug,
+          thumbnail,
+          description,
+          publishedAt
+        }`;
+        
+        const seasonsData: Season[] = await fetchFromSanity(seasonsQuery);
+        
+        // Fetch episodes from Sanity
+        const episodesQuery = `*[_type == "episode"] {
+          _id,
+          season->{_id}
+        }`;
+        
+        const episodesData: Episode[] = await fetchFromSanity(episodesQuery);
         
         // Count episodes per season
-        const counts: Record<string | number, number> = {};
+        const counts: Record<string, number> = {};
         episodesData.forEach((ep: Episode) => {
-          // استخراج معرف الموسم بطريقة آمنة
-          const seasonId = 
-            ep.attributes?.season?.data?.id ?? 
-            ep.attributes?.season?.id ?? 
-            ep.season?.data?.id ?? 
-            ep.season?.id;
-            
+          // Use _ref instead of _id for the season reference
+          const seasonId = ep.season?._ref;
           if (seasonId) {
             counts[seasonId] = (counts[seasonId] || 0) + 1;
           }
         });
         
-        // Normalize seasons
-        const normalizedSeasons: Season[] = seasonsData.map((s: Season) => 
-          s.attributes ? { id: s.id, ...s.attributes } : s
-        );
-        
-        setSeasons(normalizedSeasons);
+        setSeasons(seasonsData);
         setEpisodeCounts(counts);
         setError(null);
       } catch (err: unknown) {
@@ -175,9 +169,10 @@ export default function SeasonsPageClient() {
     if (!q) return seasons;
     return seasons.filter((s: Season) => {
       const title = normalizeForSearch(s.title ?? s.name ?? "");
-      const slug = normalizeForSearch(String(s.slug ?? ""));
-      const idStr = normalizeForSearch(String(s.id ?? ""));
-      return title.includes(q) || slug.includes(q) || idStr.includes(q);
+      const slug = normalizeForSearch(s.slug?.current ?? "");
+      const idStr = normalizeForSearch(s._id ?? "");
+      const description = normalizeForSearch(s.description ?? "");
+      return title.includes(q) || slug.includes(q) || idStr.includes(q) || description.includes(q);
     });
   }, [seasons, debouncedSearch]);
   
@@ -200,7 +195,6 @@ export default function SeasonsPageClient() {
           <p className="text-sm text-gray-600 dark:text-gray-400">قائمة المواسم وعدد الحلقات لكل موسم</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {/* زر جديد: جميع الحلقات */}
           <Link href="/episodes" className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 transition whitespace-nowrap">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -212,7 +206,7 @@ export default function SeasonsPageClient() {
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="ابحث عن موسم (العنوان، الوصف، slug أو رقم)..."
+              placeholder="ابحث عن موسم..."
               className="w-full pl-10 pr-10 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400 outline-none transition"
               aria-label="ابحث عن موسم"
             />
@@ -255,7 +249,8 @@ export default function SeasonsPageClient() {
           </div>
         </div>
       </div>
-      {/* Dedicated search results area: appears only when user searched */}
+      
+      {/* Search results area */}
       {isSearching ? (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -289,12 +284,12 @@ export default function SeasonsPageClient() {
             ) : viewMode === "grid" ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map((season: Season) => {
-                  const slug = season.slug ?? season.id;
+                  const slug = season.slug?.current ?? season._id;
                   const title = season.title ?? season.name ?? "موسم";
-                  const thumbnailUrl = buildMediaUrl(getThumbnailPath(season));
-                  const count = episodeCounts[season.id] || episodeCounts[season?.id?.toString?.()] || 0;
+                  const thumbnailUrl = buildMediaUrl(season.thumbnail);
+                  const count = episodeCounts[season._id] || 0;
                   return (
-                    <Link key={season.id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <Link key={season._id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                       <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-48 object-cover bg-gray-100 dark:bg-gray-700" />
                       <div className="p-4">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
@@ -307,12 +302,12 @@ export default function SeasonsPageClient() {
             ) : (
               <div className="space-y-4">
                 {filtered.map((season: Season) => {
-                  const slug = season.slug ?? season.id;
+                  const slug = season.slug?.current ?? season._id;
                   const title = season.title ?? season.name ?? "موسم";
-                  const thumbnailUrl = buildMediaUrl(getThumbnailPath(season));
-                  const count = episodeCounts[season.id] || episodeCounts[season?.id?.toString?.()] || 0;
+                  const thumbnailUrl = buildMediaUrl(season.thumbnail);
+                  const count = episodeCounts[season._id] || 0;
                   return (
-                    <Link key={season.id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="flex gap-4 items-center border rounded-lg p-3 hover:shadow transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <Link key={season._id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="flex gap-4 items-center border rounded-lg p-3 hover:shadow transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                       <div className="w-36 h-24 flex-shrink-0 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
                         <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
                       </div>
@@ -328,7 +323,8 @@ export default function SeasonsPageClient() {
           </div>
         </div>
       ) : null}
-      {/* Main seasons list (shown only when not searching) */}
+      
+      {/* Main seasons list */}
       {!isSearching && (
         <div className={`${fadeIn ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}>
           {seasons.length === 0 ? (
@@ -336,12 +332,12 @@ export default function SeasonsPageClient() {
           ) : viewMode === "grid" ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {seasons.map((season: Season) => {
-                const slug = season.slug ?? season.id;
+                const slug = season.slug?.current ?? season._id;
                 const title = season.title ?? season.name ?? "موسم";
-                const thumbnailUrl = buildMediaUrl(getThumbnailPath(season));
-                const count = episodeCounts[season.id] || episodeCounts[season?.id?.toString?.()] || 0;
+                const thumbnailUrl = buildMediaUrl(season.thumbnail);
+                const count = episodeCounts[season._id] || 0;
                 return (
-                  <Link key={season.id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <Link key={season._id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="block border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                     <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-48 object-cover bg-gray-100 dark:bg-gray-700" />
                     <div className="p-4">
                       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
@@ -354,12 +350,12 @@ export default function SeasonsPageClient() {
           ) : (
             <div className="space-y-4">
               {seasons.map((season: Season) => {
-                const slug = season.slug ?? season.id;
+                const slug = season.slug?.current ?? season._id;
                 const title = season.title ?? season.name ?? "موسم";
-                const thumbnailUrl = buildMediaUrl(getThumbnailPath(season));
-                const count = episodeCounts[season.id] || episodeCounts[season?.id?.toString?.()] || 0;
+                const thumbnailUrl = buildMediaUrl(season.thumbnail);
+                const count = episodeCounts[season._id] || 0;
                 return (
-                  <Link key={season.id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="flex gap-4 items-center border rounded-lg p-3 hover:shadow transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <Link key={season._id} href={`/seasons/${encodeURIComponent(String(slug))}`} className="flex gap-4 items-center border rounded-lg p-3 hover:shadow transition bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                     <div className="w-36 h-24 flex-shrink-0 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
                       <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
                     </div>

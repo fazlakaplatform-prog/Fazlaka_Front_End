@@ -2,33 +2,16 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { fetchPlaylists, Playlist } from "@/lib/sanity";
 
-// تعريف الأنواع
-interface Thumbnail {
-  url: string;
-  formats?: {
-    thumbnail?: {
-      url: string;
-    };
-  };
-}
-
-interface Playlist {
-  id: number;
-  slug: string;
-  title: string;
-  thumbnail?: Thumbnail;
-}
-
-interface Episode {
-  id: number;
-  thumbnail?: Thumbnail;
-  playlists?: Playlist[];
-}
-
-interface ApiResponse {
-  data: Episode[];
-}
+// تعريف نوع موسع للتعامل مع الصور المختلفة
+type PlaylistWithImage = Playlist & {
+  imageUrl?: string;
+  image?: { url?: string };
+  coverImage?: { url?: string };
+  thumbnail?: { url?: string };
+  cover?: { asset?: { url?: string } };
+};
 
 const PlaylistsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,28 +20,11 @@ const PlaylistsPage = () => {
   const [loading, setLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
   
-  // استخدام متغير البيئة مع قيمة افتراضية للتطوير المحلي
-  const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
-
   useEffect(() => {
-    async function fetchPlaylists() {
+    async function fetchPlaylistsData() {
       try {
-        const res = await fetch(`${strapiUrl}/api/episodes?populate=*`);
-        const data: ApiResponse = await res.json();
-        const playlistsMap: Record<string, Playlist> = {};
-        
-        data.data.forEach((episode: Episode) => {
-          episode.playlists?.forEach((pl: Playlist) => {
-            if (!playlistsMap[pl.slug]) {
-              playlistsMap[pl.slug] = {
-                ...pl,
-                thumbnail: episode.thumbnail,
-              };
-            }
-          });
-        });
-        
-        setPlaylists(Object.values(playlistsMap));
+        const data = await fetchPlaylists();
+        setPlaylists(data);
       } catch (error) {
         console.error("Error fetching playlists:", error);
       } finally {
@@ -66,8 +32,8 @@ const PlaylistsPage = () => {
       }
     }
     
-    fetchPlaylists();
-  }, [strapiUrl]);
+    fetchPlaylistsData();
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -91,6 +57,19 @@ const PlaylistsPage = () => {
   if (playlists.length === 0) {
     return <p className="text-center mt-10 text-gray-600 dark:text-gray-400">لا توجد قوائم حاليًا</p>;
   }
+
+  // دالة للحصول على رابط الصورة من كائن Playlist
+  const getImageUrl = (playlist: Playlist): string | null => {
+    const playlistWithImage = playlist as PlaylistWithImage;
+    
+    if (playlistWithImage.imageUrl) return playlistWithImage.imageUrl;
+    if (playlistWithImage.image?.url) return playlistWithImage.image.url;
+    if (playlistWithImage.coverImage?.url) return playlistWithImage.coverImage.url;
+    if (playlistWithImage.thumbnail?.url) return playlistWithImage.thumbnail.url;
+    if (playlistWithImage.cover?.asset?.url) return playlistWithImage.cover.asset.url;
+    
+    return null;
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-[60vh]">
@@ -177,53 +156,59 @@ const PlaylistsPage = () => {
           <p className="text-center mt-10 text-gray-600 dark:text-gray-400">لا توجد نتائج مطابقة للبحث</p>
         ) : viewMode === "grid" ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredPlaylists.map((playlist) => (
-              <Link
-                key={playlist.id}
-                href={`/playlists/${playlist.slug}`}
-                className="block border rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-              >
-                {playlist.thumbnail && (
-                  <div className="w-full h-48 relative">
-                    <Image
-                      src={playlist.thumbnail.formats?.thumbnail?.url || playlist.thumbnail.url}
-                      alt={playlist.title}
-                      fill
-                      className="object-cover bg-gray-100 dark:bg-gray-700 transition-transform duration-300 hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
+            {filteredPlaylists.map((playlist) => {
+              const imageUrl = getImageUrl(playlist);
+              return (
+                <Link
+                  key={playlist._id || playlist.slug?.current}
+                  href={`/playlists/${playlist.slug?.current}`}
+                  className="block border rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                >
+                  {imageUrl && (
+                    <div className="w-full h-48 relative">
+                      <Image
+                        src={imageUrl}
+                        alt={playlist.title}
+                        fill
+                        className="object-cover bg-gray-100 dark:bg-gray-700 transition-transform duration-300 hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                  )}
+                  <div className="p-4">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{playlist.title}</h2>
                   </div>
-                )}
-                <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{playlist.title}</h2>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredPlaylists.map((playlist) => (
-              <Link
-                key={playlist.id}
-                href={`/playlists/${playlist.slug}`}
-                className="flex gap-4 items-center border rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-              >
-                {playlist.thumbnail && (
-                  <div className="w-32 h-20 relative">
-                    <Image
-                      src={playlist.thumbnail.formats?.thumbnail?.url || playlist.thumbnail.url}
-                      alt={playlist.title}
-                      fill
-                      className="object-cover rounded-lg bg-gray-100 dark:bg-gray-700 transition-transform duration-300 hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
+            {filteredPlaylists.map((playlist) => {
+              const imageUrl = getImageUrl(playlist);
+              return (
+                <Link
+                  key={playlist._id || playlist.slug?.current}
+                  href={`/playlists/${playlist.slug?.current}`}
+                  className="flex gap-4 items-center border rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                >
+                  {imageUrl && (
+                    <div className="w-32 h-20 relative">
+                      <Image
+                        src={imageUrl}
+                        alt={playlist.title}
+                        fill
+                        className="object-cover rounded-lg bg-gray-100 dark:bg-gray-700 transition-transform duration-300 hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{playlist.title}</h2>
                   </div>
-                )}
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{playlist.title}</h2>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

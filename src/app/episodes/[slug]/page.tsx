@@ -1,131 +1,192 @@
-// src/app/episodes/[slug]/page.tsx
 "use client";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, JSX } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import { defaultSchema } from "hast-util-sanitize";
 import { useParams, useRouter } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import Image from "next/image";
-// Swiper
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-// Components
+
+import { client } from "@/lib/sanity";
+import imageUrlBuilder from '@sanity/image-url';
 import FavoriteButton from "@/components/FavoriteButton";
-// Icons
-import { FaPlay, FaShare, FaArrowLeft, FaClock, FaComment, FaStar, FaFileAlt } from "react-icons/fa";
 
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "https://growing-acoustics-35909e61eb.strapiapp.com";
+import { FaPlay, FaShare, FaArrowLeft, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive } from "react-icons/fa";
 
-// تعريف الأنواع
-interface Thumbnail {
-  url?: string;
-  formats?: {
-    small?: { url?: string };
-    thumbnail?: { url?: string };
-    medium?: { url?: string };
-    large?: { url?: string };
+const builder = imageUrlBuilder(client);
+
+// تعريف الأنواع مباشرة في الملف
+interface SanityImage {
+  _type: "image";
+  asset: {
+    _ref: string;
+    _type: "reference";
   };
 }
 
 interface Season {
-  id: number | string;
+  _id: string;
   title: string;
-  slug?: string;
-  thumbnail?: Thumbnail | null;
+  slug?: { current: string };
+  thumbnail?: SanityImage | string;
 }
 
 interface Episode {
-  id: number;
-  documentId: string;
-  title?: string;
-  name?: string;
-  slug?: string;
-  description?: string;
-  content?: string;
+  _id: string;
+  title: string;
+  slug: { current: string };
+  description?: string | SanityBlock[];
+  content?: string | SanityBlock[];
   videoUrl?: string;
-  url?: string;
-  thumbnail?: Thumbnail | null;
-  season?: Season | null;
+  thumbnail?: SanityImage | string;
+  season?: Season;
   articles?: Article[];
 }
 
 interface Article {
-  id: number;
+  _id: string;
   title: string;
-  slug: string;
-  excerpt: string;
-  featuredImage: Thumbnail | null;
-}
-
-interface SuggestedItem {
-  id: number | string;
-  title: string;
-  slug: number | string;
-  thumb: string;
-}
-
-interface ArticleItem {
-  id: number | string;
-  title: string;
-  slug: number | string;
-  excerpt: string;
-  featuredImage: string;
+  slug: { current: string };
+  excerpt?: string;
+  featuredImage?: SanityImage | string;
 }
 
 interface Comment {
-  id: number | string;
-  attributes?: {
-    content?: string;
-    name?: string;
-    createdAt?: string;
-  };
-  content?: string;
-  name?: string;
-  createdAt?: string | Date;
+  _id: string;
+  name: string;
+  content: string;
+  createdAt: string;
 }
 
-// أنواع لعناصر Markdown
-interface MarkdownNode {
-  type: string;
-  tagName?: string;
-  children?: MarkdownNode[];
+interface SanityBlock {
+  _type: "block";
+  style?: string;
+  listItem?: string;
+  level?: number;
+  children?: SanitySpan[];
 }
 
-interface MarkdownParagraphProps {
-  children?: React.ReactNode;
-  node?: MarkdownNode;
+interface SanitySpan {
+  text?: string;
+  marks?: string[];
+  _type?: "span" | "link";
+  href?: string;
 }
 
-// تعريف نوع props لمكون الصورة في Markdown - متوافق مع ReactMarkdown
-interface MarkdownImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-  src?: string | Blob;
-  alt?: string;
-  width?: number | string;
-  height?: number | string;
-}
-
-// Schema for markdown
-const schema = {
-  ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames || []), "u"],
-  attributes: {
-    ...defaultSchema.attributes,
-    u: [],
-  },
-};
-
-function buildMediaUrl(path?: string): string {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${STRAPI_URL}${path}`;
+// دالة محسّنة لتحويل محتوى الكتل من Sanity إلى نص مع الحفاظ على جميع التنسيقات
+function blocksToText(blocks: SanityBlock[]): string {
+  if (!blocks || !Array.isArray(blocks)) {
+    return '';
+  }
+  
+  return blocks
+    .map(block => {
+      if (block._type !== 'block' || !block.children) {
+        return '';
+      }
+      
+      let markdown = '';
+      
+      // معالجة العناوين
+      if (block.style === 'h1') {
+        markdown += '# ';
+      } else if (block.style === 'h2') {
+        markdown += '## ';
+      } else if (block.style === 'h3') {
+        markdown += '### ';
+      } else if (block.style === 'h4') {
+        markdown += '#### ';
+      } else if (block.style === 'h5') {
+        markdown += '##### ';
+      } else if (block.style === 'h6') {
+        markdown += '###### ';
+      }
+      
+      // معالجة القوائم
+      if (block.listItem) {
+        let prefix = '';
+        // التحقق من نوع القائمة
+        if (block.listItem === 'bullet') {
+          prefix = '- ';
+        } else if (block.listItem === 'number') {
+          prefix = '1. '; // استخدام تنسيق القائمة المرتبة
+        }
+        
+        // إضافة المسافات البادئة حسب مستوى التداخل
+        if (block.level && block.level > 1) {
+          prefix = '  '.repeat(block.level - 1) + prefix;
+        }
+        markdown += prefix;
+      }
+      
+      // معالجة الاقتباسات
+      if (block.style === 'blockquote') {
+        // تقسيم النص إلى أسطر وإضافة > لكل سطر
+        const lines = block.children
+          .map((child) => child.text || '')
+          .join(' ')
+          .split('\n');
+        
+        return lines.map(line => `> ${line}`).join('\n');
+      }
+      
+      // معالجة الكود البرمجي
+      if (block.style === 'code') {
+        markdown += '```\n';
+      }
+      
+      // إضافة النص مع التنسيقات
+      markdown += block.children
+        .map((child) => {
+          let text = child.text || '';
+          
+          // إضافة تنسيقات النص
+          if (child.marks) {
+            child.marks.forEach((mark) => {
+              if (mark === 'strong') {
+                text = `**${text}**`;
+              } else if (mark === 'em') {
+                text = `*${text}*`;
+              } else if (mark === 'underline') {
+                text = `<u>${text}</u>`;
+              } else if (mark === 'code') {
+                text = `\`${text}\``;
+              } else if (mark === 'strike') {
+                text = `~~${text}~~`;
+              }
+            });
+          }
+          
+          // إضافة الروابط
+          if (child._type === 'link' && child.href) {
+            text = `[${text}](${child.href})`;
+          }
+          
+          return text;
+        })
+        .join('');
+      
+      // إغلاق الكود البرمجي
+      if (block.style === 'code') {
+        markdown += '\n```';
+      }
+      
+      // إضافة سطر جديد بعد الكتل
+      if (block.style !== 'code') {
+        markdown += '\n';
+      }
+      
+      return markdown;
+    })
+    .join('\n');
 }
 
 function toEmbed(url: string): string {
@@ -158,14 +219,19 @@ function CommentsClient({
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const { user } = useUser();
   
   const fetchComments = useCallback(async () => {
     try {
-      // تعديل الرابط بناءً على نوع المحتوى (مقال أو حلقة)
-      const res = await fetch(`/api/comments?${type}Id=${contentId}`);
-      const json = await res.json();
-      setComments(json.data || []);
+      const query = `*[_type == "comment" && ${type}._ref == $contentId]{
+        _id,
+        name,
+        content,
+        createdAt
+      } | order(createdAt desc)`;
+      const comments = await client.fetch(query, { contentId });
+      setComments(comments);
     } catch (err) {
       console.error("Error fetching comments:", err);
     }
@@ -178,6 +244,7 @@ function CommentsClient({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setSuccessMsg(null);
     if (!content.trim()) {
       setErrorMsg("اكتب تعليقاً قبل الإرسال.");
       return;
@@ -188,46 +255,64 @@ function CommentsClient({
     }
     setLoading(true);
     
-    // استخدام documentId مباشرة بدون تحويل لرقم
-    const payload = {
-      content,
-      // تعديل الحقل بناءً على نوع المحتوى
-      ...(type === "article" ? { articleId: contentId } : { episodeId: contentId }),
-      name: user.firstName || (user.fullName as string) || "مستخدم",
-      email: user.emailAddresses?.[0]?.emailAddress || "",
-    };
-    
-    console.log("Sending payload:", payload); // للت debugging
-    
     try {
-      const res = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      // محاولة استخدام API route أولاً
+      const apiResponse = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content,
+          name: user.firstName || (user.fullName as string) || "مستخدم",
+          email: user.emailAddresses?.[0]?.emailAddress || "",
+          [type]: contentId,
+        }),
       });
-      const text = await res.text();
-      let json: Record<string, unknown> | null = null;
-      try {
-        json = text ? JSON.parse(text) : null;
-      } catch {
-        json = { raw: text };
-      }
-      if (res.ok) {
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        console.log("Comment created via API:", data);
+        setSuccessMsg("تم إرسال تعليقك بنجاح!");
         setContent("");
         fetchComments();
-      } else {
-        console.error("خطأ في الإرسال:", res.status, json);
-        if (json && typeof json === 'object' && 'details' in json) {
-          setErrorMsg("فشل الإرسال — تفاصيل: " + JSON.stringify(json.details));
-        } else if (json && typeof json === 'object' && 'error' in json) {
-          setErrorMsg("فشل الإرسال — " + JSON.stringify(json.error));
-        } else {
-          setErrorMsg(`فشل الإرسال (${res.status})`);
-        }
+        setLoading(false);
+        return;
       }
+
+      // إذا فشلت API route، نحاول مباشرة مع Sanity
+      const newComment = {
+        _type: "comment",
+        name: user.firstName || (user.fullName as string) || "مستخدم",
+        email: user.emailAddresses?.[0]?.emailAddress || "",
+        content,
+        createdAt: new Date().toISOString(),
+        [type]: {
+          _type: "reference",
+          _ref: contentId
+        }
+      };
+      
+      console.log("Sending comment directly to Sanity:", newComment);
+      
+      // استخدام client.create مع التوكن الصحيح
+      const result = await client.create(newComment);
+      console.log("Comment created directly:", result);
+      
+      setSuccessMsg("تم إرسال تعليقك بنجاح!");
+      setContent("");
+      fetchComments();
     } catch (err: unknown) {
       console.error("خطأ غير متوقع في الإرسال:", err);
-      setErrorMsg("حدث خطأ غير متوقع أثناء الإرسال.");
+      if (err instanceof Error) {
+        if (err.message.includes("Insufficient permissions")) {
+          setErrorMsg("ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة.");
+        } else {
+          setErrorMsg(`حدث خطأ غير متوقع أثناء الإرسال: ${err.message}`);
+        }
+      } else {
+        setErrorMsg("حدث خطأ غير متوقع أثناء الإرسال.");
+      }
     } finally {
       setLoading(false);
     }
@@ -258,7 +343,7 @@ function CommentsClient({
             disabled={loading}
             aria-label="تعليق"
           />
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <button
               type="submit"
               disabled={loading}
@@ -274,20 +359,21 @@ function CommentsClient({
             {errorMsg && (
               <p className="text-sm text-red-600 dark:text-red-400 break-words max-w-xl">{errorMsg}</p>
             )}
+            {successMsg && (
+              <p className="text-sm text-green-600 dark:text-green-400 break-words max-w-xl">{successMsg}</p>
+            )}
           </div>
         </form>
       </SignedIn>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
         {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">لا توجد تعليقات بعد.</p>}
         {comments.map((c: Comment) => {
-          const contentText = c.attributes?.content ?? c.content ?? "";
-          const author = c.attributes?.name ?? c.name ?? "مستخدم";
-          const createdAt = new Date(c.attributes?.createdAt ?? c.createdAt ?? Date.now());
+          const createdAt = new Date(c.createdAt);
           return (
-            <div key={c.id?.toString() ?? `${createdAt.getTime()}`} className="py-3">
-              <p className="text-sm text-gray-700 dark:text-gray-200">{contentText}</p>
+            <div key={c._id} className="py-3">
+              <p className="text-sm text-gray-700 dark:text-gray-200">{c.content}</p>
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                <span>{author}</span>
+                <span>{c.name}</span>
                 <span> · </span>
                 <time dateTime={createdAt.toISOString()}>{createdAt.toLocaleString()}</time>
               </div>
@@ -303,10 +389,10 @@ export default function EpisodeDetailPageClient() {
   const params = useParams();
   const router = useRouter();
   const rawSlug = params?.slug;
-  const slugOrId = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
+  const slug = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
   const [episode, setEpisode] = useState<Episode | null>(null);
-  const [suggested, setSuggested] = useState<SuggestedItem[]>([]);
-  const [articles, setArticles] = useState<ArticleItem[]>([]);
+  const [suggested, setSuggested] = useState<Episode[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -318,6 +404,421 @@ export default function EpisodeDetailPageClient() {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 400], [0, 100]);
   
+  // دالة للتعامل مع صور Sanity بشكل صحيح
+  const getThumbnailUrl = (thumbnail?: SanityImage | string, width?: number, height?: number) => {
+    if (!thumbnail) return "/placeholder.png";
+    
+    if (typeof thumbnail === 'string') {
+      return thumbnail;
+    }
+    
+    try {
+      let imageUrl = builder.image(thumbnail);
+      
+      if (width && height) {
+        imageUrl = imageUrl.width(width).height(height);
+      }
+      
+      return imageUrl.url();
+    } catch (error) {
+      console.error("Error generating Sanity image URL:", error);
+      return "/placeholder.png";
+    }
+  };
+  
+  // دالة لتحديد ما إذا كان النص يحتوي على رابط فيديو
+  const isVideoUrl = (text: string) => {
+    const videoUrlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/|.*\.(?:mp4|webm|ogg))[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
+    return videoUrlRegex.test(text);
+  };
+
+  // دالة لتحديد ما إذا كان النص يحتوي على رابط PDF
+  const isPdfUrl = (text: string) => {
+    const pdfUrlRegex = /(https?:\/\/(?:www\.)?(?:drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+|.*\.pdf)[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
+    return pdfUrlRegex.test(text);
+  };
+
+  // دالة لتحديد ما إذا كان النص يحتوي على رابط صورة
+  const isImageUrl = (text: string) => {
+    const imageUrlRegex = /(https?:\/\/(?:www\.)?(?:.*\.(?:jpg|jpeg|png|gif|webp|svg))[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
+    return imageUrlRegex.test(text);
+  };
+
+  // دالة لتحويل رابط Google Drive إلى رابط عرض مباشر
+  const getDirectGoogleDriveLink = (url: string) => {
+    // تحويل روابط Google Drive إلى روابط عرض مباشر
+    const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch) {
+      const fileId = driveMatch[1];
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+    
+    // إذا كان الرابط ينتهي بـ .pdf، نرجعه كما هو
+    if (url.toLowerCase().endsWith('.pdf')) {
+      return url;
+    }
+    
+    // إذا لم يكن أي من الأنواع المعروفة، نرجع الرابط الأصلي
+    return url;
+  };
+
+  // دالة لعرض الفيديو بناءً على الرابط
+  const renderVideo = (url: string) => {
+    // YouTube
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      let videoId = '';
+      if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('v=')[1].split('&')[0];
+      } else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+      }
+      
+      return (
+        <div className="my-6">
+          <div className="relative overflow-hidden rounded-xl shadow-lg" style={{ paddingBottom: '56.25%' }}>
+            <iframe
+              className="absolute top-0 left-0 w-full h-full"
+              src={`https://www.youtube.com/embed/${videoId}`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      );
+    }
+    
+    // Vimeo
+    if (url.includes('vimeo.com')) {
+      const videoId = url.split('vimeo.com/')[1].split('?')[0];
+      
+      return (
+        <div className="my-6">
+          <div className="relative overflow-hidden rounded-xl shadow-lg" style={{ paddingBottom: '56.25%' }}>
+            <iframe
+              className="absolute top-0 left-0 w-full h-full"
+              src={`https://player.vimeo.com/video/${videoId}`}
+              title="Vimeo video player"
+              frameBorder="0"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      );
+    }
+    
+    // فيديو مباشر (mp4, webm, ogg)
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return (
+        <div className="my-6">
+          <video
+            className="w-full rounded-xl shadow-lg"
+            controls
+            preload="metadata"
+          >
+            <source src={url} type={`video/${url.split('.').pop()}`} />
+            متصفحك لا يدعم تشغيل الفيديو.
+          </video>
+        </div>
+      );
+    }
+    
+    // إذا لم يكن أي من الأنواع المعروفة، عرض رابط
+    return (
+      <a 
+        href={url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-blue-600 dark:text-blue-400 hover:underline"
+      >
+        {url}
+      </a>
+    );
+  };
+
+  // دالة لعرض PDF بناءً على الرابط
+  const renderPdf = (url: string) => {
+    const directUrl = getDirectGoogleDriveLink(url);
+    
+    return (
+      <div className="my-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white shadow-lg">
+              <FaFileAlt className="text-sm" />
+            </div>
+            <h3 className="text-lg font-bold">عرض المستند</h3>
+          </div>
+          <a 
+            href={url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
+          >
+            <FaGoogleDrive />
+            <span>فتح في Google Drive</span>
+          </a>
+        </div>
+        <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700" style={{ paddingBottom: '75%' }}>
+          <iframe
+            className="absolute top-0 left-0 w-full h-full"
+            src={directUrl}
+            title="PDF viewer"
+            frameBorder="0"
+            allow="autoplay"
+          ></iframe>
+        </div>
+      </div>
+    );
+  };
+
+  // دالة لعرض الصورة بناءً على الرابط
+  const renderImage = (url: string | SanityImage) => {
+    // إذا كان الرابط هو كائن صورة من Sanity
+    if (typeof url === 'object' && url !== null) {
+      try {
+        const imageUrl = builder.image(url).width(800).height(450).url();
+        url = imageUrl;
+      } catch (error) {
+        console.error("Error processing Sanity image:", error);
+        return "/placeholder.png";
+      }
+    }
+    
+    return (
+      <div className="my-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+              <FaImage className="text-sm" />
+            </div>
+            <h3 className="text-lg font-bold">صورة</h3>
+          </div>
+          <a 
+            href={url as string} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
+          >
+            <FaImage />
+            <span>فتح الصورة</span>
+          </a>
+        </div>
+        <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700">
+          <Image
+            src={url as string}
+            alt="صورة من المحتوى"
+            width={800}
+            height={450}
+            className="w-full h-auto object-contain"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // مكون مخصص لعرض الروابط في ReactMarkdown
+  const LinkRenderer = ({ href, children, ...props }: {href?: string; children?: React.ReactNode}) => {
+    if (!href) return <span {...props}>{children}</span>;
+    
+    // التحقق إذا كان الرابط هو فيديو
+    if (isVideoUrl(href)) {
+      return renderVideo(href);
+    }
+    
+    // التحقق إذا كان الرابط هو PDF
+    if (isPdfUrl(href)) {
+      return renderPdf(href);
+    }
+    
+    // التحقق إذا كان الرابط هو صورة
+    if (isImageUrl(href)) {
+      return renderImage(href);
+    }
+    
+    // إذا لم يكن أي من الأنواع، عرض الرابط كالمعتاد
+    return (
+      <a 
+        href={href} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="text-blue-600 dark:text-blue-400 hover:underline"
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  };
+
+  // دالة محسّنة لمعالجة المحتوى مع الحفاظ على جميع التنسيقات
+  const processContent = (content: string) => {
+    if (!content) return [];
+    
+    // معالجة الروابط المضمنة في النص دون تقسيم المحتوى
+    const processedContent = content.replace(
+      /(https?:\/\/[^\s]+)/g,
+      (match) => {
+        if (isVideoUrl(match)) return match;
+        if (isPdfUrl(match)) return match;
+        if (isImageUrl(match)) return match;
+        return `[${match}](${match})`;
+      }
+    );
+    
+    // تقسيم المحتوى إلى أجزاء منفصلة بناءً على العناصر التي لا يمكن أن تكون داخل فقرات
+    const codeBlockRegex = /```([\s\S]*?)```/g;
+    const parts = processedContent.split(codeBlockRegex);
+    const codeBlocks: string[] = [];
+    let processedText = parts[0];
+    
+    // استخراج كتل الكود
+    for (let i = 1; i < parts.length; i += 2) {
+      codeBlocks.push(parts[i]);
+      processedText += `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+      if (i + 1 < parts.length) {
+        processedText += parts[i + 1];
+      }
+    }
+    
+    // تقسيم النص إلى فقرات
+    const paragraphs = processedText.split(/\n\n+/);
+    
+    const result: JSX.Element[] = [];
+    
+    paragraphs.forEach((paragraph, index) => {
+      if (!paragraph.trim()) return;
+      
+      // استبدال كتل الكود المستخرجة
+      let processedParagraph = paragraph;
+      codeBlocks.forEach((codeBlock, codeIndex) => {
+        const match = new RegExp(`__CODE_BLOCK_${codeIndex}__`).exec(paragraph);
+        if (match) {
+          // إذا كانت الفقرة تحتوي فقط على كتلة كود
+          if (paragraph.trim() === `__CODE_BLOCK_${codeIndex}__`) {
+            result.push(
+              <div key={`code-${index}-${codeIndex}`} className="my-4">
+                <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
+                  <code>
+                    {codeBlock}
+                  </code>
+                </pre>
+              </div>
+            );
+            return;
+          }
+          
+          // إذا كانت الفقرة تحتوي على كتلة كود مع نص آخر
+          const parts = paragraph.split(`__CODE_BLOCK_${codeIndex}__`);
+          processedParagraph = parts.join(`__CODE_BLOCK_PLACEHOLDER_${codeIndex}__`);
+        }
+      });
+      
+      // إذا كانت الفقرة تحتوي على كتل كود، نعرضها بشكل منفصل
+      if (processedParagraph.includes('__CODE_BLOCK_PLACEHOLDER_')) {
+        const parts = processedParagraph.split(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g);
+        
+        parts.forEach((part, partIndex) => {
+          if (partIndex % 2 === 0) {
+            // هذا جزء نص عادي
+            if (part.trim()) {
+              // تقسيم الجزء النصي إلى أسطر
+              const lines = part.split('\n');
+              
+              lines.forEach((line, lineIndex) => {
+                if (line.trim()) {
+                  result.push(
+                    <div key={`text-${index}-${partIndex}-${lineIndex}`} className="mb-4">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                        components={{
+                          a: LinkRenderer,
+                          strong: ({ ...props }) => <strong className="font-bold" {...props} />,
+                          em: ({ ...props }) => <em className="italic" {...props} />,
+                          u: ({ ...props }) => <u className="underline" {...props} />,
+                          code: ({ inline, children, ...props }: {inline?: boolean; children?: React.ReactNode}) => {
+                            if (inline) {
+                              return (
+                                <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                            return <code {...props}>{children}</code>;
+                          },
+                          // منع إنشاء فقرات متداخلة
+                          p: ({ children, ...props }) => <span {...props}>{children}</span>,
+                        }}
+                      >
+                        {line}
+                      </ReactMarkdown>
+                    </div>
+                  );
+                }
+              });
+            }
+          } else {
+            // هذا جزء كتلة كود
+            const codeIndex = parseInt(part);
+            result.push(
+              <div key={`code-${index}-${codeIndex}`} className="my-4">
+                <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
+                  <code>
+                    {codeBlocks[codeIndex]}
+                  </code>
+                </pre>
+              </div>
+            );
+          }
+        });
+        
+        return;
+      }
+      
+      // إذا كانت الفقرة لا تحتوي على كتل كود، نعرضها بشكل طبيعي
+      // تقسيم الفقرة إلى أسطر
+      const lines = processedParagraph.split('\n');
+      
+      lines.forEach((line, lineIndex) => {
+        if (line.trim()) {
+          result.push(
+            <div key={`text-${index}-${lineIndex}`} className="mb-4">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                components={{
+                  a: LinkRenderer,
+                  strong: ({ ...props }) => <strong className="font-bold" {...props} />,
+                  em: ({ ...props }) => <em className="italic" {...props} />,
+                  u: ({ ...props }) => <u className="underline" {...props} />,
+                  code: ({ inline, children, ...props }: {inline?: boolean; children?: React.ReactNode}) => {
+                    if (inline) {
+                      return (
+                        <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                    return <code {...props}>{children}</code>;
+                  },
+                  // منع إنشاء فقرات متداخلة
+                  p: ({ children, ...props }) => <span {...props}>{children}</span>,
+                }}
+              >
+                {line}
+              </ReactMarkdown>
+            </div>
+          );
+        }
+      });
+    });
+    
+    return result;
+  };
+  
   useEffect(() => {
     let mounted = true;
     async function load() {
@@ -327,97 +828,53 @@ export default function EpisodeDetailPageClient() {
       setSuggested([]);
       setArticles([]);
       try {
-        if (!slugOrId) {
+        if (!slug) {
           setError("لم يتم تحديد الحلقة");
           setLoading(false);
           return;
         }
-        // تحديث الاستعلام ليشمل المقالات المرتبطة
-        const qSlug = `${STRAPI_URL}/api/episodes?filters[slug][$eq]=${encodeURIComponent(
-          slugOrId
-        )}&populate[0]=thumbnail&populate[1]=season.thumbnail&populate[2]=articles.featuredImage`;
-        const res = await fetch(qSlug);
-        let ep: Episode | null = null;
-        if (res.ok) {
-          const j = await res.json();
-          ep = j.data?.[0] ?? null;
-        }
-        if (!ep) {
-          const maybeId = Number(slugOrId);
-          if (!Number.isNaN(maybeId)) {
-            const resId = await fetch(
-              `${STRAPI_URL}/api/episodes/${maybeId}?populate[0]=thumbnail&populate[1]=season.thumbnail&populate[2]=articles.featuredImage`
-            );
-            if (resId.ok) {
-              const j = await resId.json();
-              ep = j.data ?? null;
-            }
+        
+        // Fetch episode with related articles
+        const episodeQuery = `*[_type == "episode" && slug.current == $slug][0]{
+          _id,
+          title,
+          slug,
+          description,
+          content,
+          videoUrl,
+          thumbnail,
+          season->{
+            _id,
+            title,
+            slug,
+            thumbnail
+          },
+          articles[]-> {
+            _id,
+            title,
+            slug,
+            excerpt,
+            featuredImage
           }
-        }
+        }`;
+        const ep = await client.fetch(episodeQuery, { slug });
+        
         if (!ep) throw new Error("الحلقة غير موجودة");
-        const built = ep;
         
-        // suggested
-        const qAll = `${STRAPI_URL}/api/episodes?filters[id][$ne]=${
-          built.id
-        }&populate=thumbnail&pagination[limit]=20&sort=createdAt:desc`;
-        const resAll = await fetch(qAll);
-        let arr: SuggestedItem[] = [];
-        if (resAll.ok) {
-          const j = await resAll.json();
-          arr = (j.data ?? []).map((it: Episode) => {
-            const epTitle = it.title ?? it.name ?? `حلقة ${it.id}`;
-            let epThumb = "/placeholder.png";
-            if (it.thumbnail) {
-              const eThumb = it.thumbnail;
-              const eThumbPath =
-                eThumb?.formats?.thumbnail?.url ??
-                eThumb?.formats?.small?.url ??
-                eThumb?.url ??
-                null;
-              epThumb = buildMediaUrl(eThumbPath ?? undefined);
-            }
-            return {
-              id: it.id,
-              title: epTitle,
-              slug: it.slug ?? it.id,
-              thumb: epThumb,
-            };
-          });
-        }
-        
-        // جلب المقالات المرتبطة
-        let articlesArr: ArticleItem[] = [];
-        if (built.articles && built.articles.length > 0) {
-          articlesArr = built.articles.map((article: Article) => {
-            const articleTitle = article.title || "مقال";
-            const articleSlug = article.slug || article.id;
-            const articleExcerpt = article.excerpt || "";
-            let articleThumbnailUrl = "/placeholder.png";
-            if (article.featuredImage) {
-              const articleThumb = article.featuredImage;
-              const articleThumbPath =
-                articleThumb?.formats?.medium?.url ??
-                articleThumb?.formats?.thumbnail?.url ??
-                articleThumb?.url ??
-                articleThumb?.formats?.small?.url ??
-                null;
-              articleThumbnailUrl = buildMediaUrl(articleThumbPath ?? undefined);
-            }
-            return {
-              id: article.id,
-              title: articleTitle,
-              slug: articleSlug,
-              excerpt: articleExcerpt,
-              featuredImage: articleThumbnailUrl,
-            };
-          });
-        }
+        // Fetch suggested episodes
+        const suggestedQuery = `*[_type == "episode" && _id != $id && !(_id in path("drafts.**"))][0...20]{
+          _id,
+          title,
+          slug,
+          thumbnail
+        } | order(_createdAt desc)`;
+        const suggestedEpisodes = await client.fetch(suggestedQuery, { id: ep._id });
         
         if (mounted) {
-          setEpisode(built);
-          setSuggested(arr);
-          setArticles(articlesArr);
+          setEpisode(ep);
+          setSuggested(suggestedEpisodes);
+          // Set articles from the episode query (only related articles)
+          setArticles(ep.articles || []);
           setLoading(false);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -428,11 +885,12 @@ export default function EpisodeDetailPageClient() {
         }
       }
     }
+    
     load();
     return () => {
       mounted = false;
     };
-  }, [slugOrId]);
+  }, [slug]);
   
   if (loading)
     return (
@@ -456,37 +914,21 @@ export default function EpisodeDetailPageClient() {
     );
   if (!episode) return <div className="p-8 text-center">لم تُعثر على الحلقة.</div>;
   
-  const title = episode.title ?? episode.name ?? "بدون عنوان";
-  const description = episode.description ?? "";
-  const videoUrl = episode.videoUrl ?? episode.url ?? "";
+  const title = episode.title || "بدون عنوان";
+  const description = episode.description || "";
+  const content = episode.content || "";
+  const videoUrl = episode.videoUrl || "";
   const embedUrl = toEmbed(videoUrl);
   const season = episode.season;
-  const seasonTitle = season?.title ?? "بدون موسم";
-  const seasonSlug = season?.slug ?? season?.id;
+  const seasonTitle = season?.title || "بدون موسم";
+  const seasonSlug = season?.slug?.current || season?._id;
   
-  let thumbnailUrl = "/placeholder.png";
-  if (episode.thumbnail) {
-    const thumb = episode.thumbnail;
-    const thumbPath =
-      thumb?.formats?.large?.url ??
-      thumb?.formats?.medium?.url ??
-      thumb?.formats?.thumbnail?.url ??
-      thumb?.url ??
-      null;
-    thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
-  }
+  const thumbnailUrl = getThumbnailUrl(episode.thumbnail, 1200, 630);
+  const seasonThumbnailUrl = getThumbnailUrl(season?.thumbnail, 400, 300);
   
-  let seasonThumbnailUrl = "/placeholder.png";
-  if (season && season.thumbnail) {
-    const sThumb = season.thumbnail;
-    const sThumbPath =
-      sThumb?.formats?.large?.url ??
-      sThumb?.formats?.medium?.url ??
-      sThumb?.formats?.thumbnail?.url ??
-      sThumb?.url ??
-      null;
-    seasonThumbnailUrl = buildMediaUrl(sThumbPath ?? undefined);
-  }
+  // معالجة المحتوى
+  const processedDescription = processContent(typeof description === 'string' ? description : blocksToText(description));
+  const processedContent = content ? processContent(typeof content === 'string' ? content : blocksToText(content)) : [];
   
   return (
     <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen">
@@ -605,7 +1047,7 @@ export default function EpisodeDetailPageClient() {
               {/* Action Buttons */}
               <div className="mt-4 md:mt-6 flex flex-wrap items-center gap-3 md:gap-4">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <FavoriteButton episodeId={episode.id} />
+                  <FavoriteButton contentId={episode._id} contentType="episode" />
                 </motion.div>
                 
                 {typeof navigator !== "undefined" && navigator.share && (
@@ -648,64 +1090,39 @@ export default function EpisodeDetailPageClient() {
               
               <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
                 <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-blue-100 dark:border-gray-700 backdrop-blur-md">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]}
-                    components={{
-                      p: ({ children, node }: MarkdownParagraphProps) => {
-                        // التحقق مما إذا كانت الفقرة تحتوي على صورة فقط
-                        const isImageOnly = node?.children?.every(
-                          (child: MarkdownNode) => child.type === 'element' && child.tagName === 'img'
-                        );
-                        
-                        if (isImageOnly) {
-                          // إذا كانت تحتوي على صورة فقط، عرضها بدون غلاف الفقرة
-                          return <>{children}</>;
-                        }
-                        
-                        // خلاف ذلك، عرض كفقرة عادية
-                        return <p className="mb-4">{children}</p>;
-                      },
-                      img: ({ src, alt, width, height, ...props }: MarkdownImageProps) => {
-                        // تحويل src إلى string إذا كان Blob
-                        const imageSrc = typeof src === 'string' ? src : 
-                                        (src instanceof Blob ? URL.createObjectURL(src) : "/placeholder.png");
-                        
-                        // تحويل width و height إلى النوع المطلوب
-                        const imageWidth = typeof width === 'number' ? width : 
-                                          (typeof width === 'string' && /^\d+$/.test(width) ? parseInt(width) : 800);
-                        
-                        const imageHeight = typeof height === 'number' ? height : 
-                                          (typeof height === 'string' && /^\d+$/.test(height) ? parseInt(height) : 450);
-                        
-                        return (
-                          <div className="my-4 md:my-6 overflow-hidden rounded-xl md:rounded-2xl shadow-xl transform transition-all duration-500 hover:scale-105 hover:shadow-2xl p-1" 
-                               style={{ 
-                                 background: 'linear-gradient(135deg, #3b82f6, #1d4ed8, #2563eb, #1e40af, #f59e0b, #d97706, #b45309, #92400e)',
-                                 backgroundSize: '400% 400%',
-                                 animation: 'blueGoldGradient 12s ease infinite',
-                               }}>
-                            <div className="rounded-lg md:rounded-xl overflow-hidden h-full w-full">
-                              <Image 
-                                src={imageSrc} 
-                                alt={alt || ""} 
-                                width={imageWidth}
-                                height={imageHeight}
-                                className="w-full h-full object-cover"
-                                {...props}
-                              />
-                            </div>
-                          </div>
-                        );
-                      }
-                    }}
-                  >
-                    {description}
-                  </ReactMarkdown>
+                  {processedDescription}
                 </div>
               </div>
             </div>
           </motion.section>
+          
+          {/* CONTENT SECTION */}
+          {processedContent.length > 0 && (
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border border-gray-100 dark:border-gray-700 overflow-hidden"
+            >
+              <div className="mb-4 md:mb-6">
+                <div className="flex items-center gap-3 mb-4 md:mb-6">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-green-500 to-teal-600 flex items-center justify-center text-white shadow-lg">
+                    <FaPlay className="text-xs md:text-sm" />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-700 bg-clip-text text-transparent">
+                    المحتوى
+                  </h2>
+                  <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
+                </div>
+                
+                <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
+                  <div className="bg-gradient-to-br from-green-50/50 to-teal-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-green-100 dark:border-gray-700 backdrop-blur-md">
+                    {processedContent}
+                  </div>
+                </div>
+              </div>
+            </motion.section>
+          )}
           
           {/* SEASON SECTION */}
           <motion.section 
@@ -813,10 +1230,11 @@ export default function EpisodeDetailPageClient() {
                     nextEl: navNextRef.current,
                   }}
                   onBeforeInit={(swiper) => {
-                    // @ts-expect-error - Swiper navigation types are not compatible with useRef
-                    swiper.params.navigation.prevEl = navPrevRef.current;
-                    // @ts-expect-error - Swiper navigation types are not compatible with useRef
-                    swiper.params.navigation.nextEl = navNextRef.current;
+                    // Fix: Properly type check and assign navigation parameters
+                    if (swiper.params.navigation && typeof swiper.params.navigation !== 'boolean') {
+                      swiper.params.navigation.prevEl = navPrevRef.current;
+                      swiper.params.navigation.nextEl = navNextRef.current;
+                    }
                   }}
                   pagination={{
                     clickable: true,
@@ -829,50 +1247,54 @@ export default function EpisodeDetailPageClient() {
                   speed={600}
                   className="py-6 md:py-8 overflow-visible"
                 >
-                  {suggested.map((item) => (
-                    <SwiperSlide key={String(item.id)} className="overflow-visible px-1 md:px-2">
-                      <motion.div
-                        whileHover={{ 
-                          y: -10, 
-                          scale: 1.03,
-                        }}
-                        transition={{ duration: 0.3 }}
-                        className="h-full"
-                      >
-                        <Link
-                          href={`/episodes/${encodeURIComponent(String(item.slug))}`}
-                          className="block bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 h-full flex flex-col group border border-gray-200 dark:border-gray-700"
+                  {suggested.map((item) => {
+                    const thumbnailUrl = getThumbnailUrl(item.thumbnail, 400, 300);
+                    
+                    return (
+                      <SwiperSlide key={item._id} className="overflow-visible px-1 md:px-2">
+                        <motion.div
+                          whileHover={{ 
+                            y: -10, 
+                            scale: 1.03,
+                          }}
+                          transition={{ duration: 0.3 }}
+                          className="h-full"
                         >
-                          <div className="relative h-40 md:h-48 overflow-hidden flex-shrink-0">
-                            <Image
-                              src={item.thumb}
-                              alt={item.title}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-110"
-                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                              <motion.div 
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg"
-                              >
-                                <FaPlay className="text-white text-base md:text-lg ml-1" />
-                              </motion.div>
+                          <Link
+                            href={`/episodes/${item.slug.current}`}
+                            className="block bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 h-full flex flex-col group border border-gray-200 dark:border-gray-700"
+                          >
+                            <div className="relative h-40 md:h-48 overflow-hidden flex-shrink-0">
+                              <Image
+                                src={thumbnailUrl}
+                                alt={item.title}
+                                fill
+                                className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <motion.div 
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg"
+                                >
+                                  <FaPlay className="text-white text-base md:text-lg ml-1" />
+                                </motion.div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="p-4 flex-grow">
-                            <h3 className="text-base md:text-lg font-bold mb-2 line-clamp-2">{item.title}</h3>
-                            <div className="flex items-center justify-between mt-3 md:mt-4">
-                              <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
-                                حلقة
-                              </span>
+                            <div className="p-4 flex-grow">
+                              <h3 className="text-base md:text-lg font-bold mb-2 line-clamp-2">{item.title}</h3>
+                              <div className="flex items-center justify-between mt-3 md:mt-4">
+                                <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
+                                  حلقة
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        </Link>
-                      </motion.div>
-                    </SwiperSlide>
-                  ))}
+                          </Link>
+                        </motion.div>
+                      </SwiperSlide>
+                    );
+                  })}
                 </Swiper>
                 
                 <div className="custom-pagination flex justify-center mt-4 md:mt-6 gap-2" />
@@ -898,37 +1320,64 @@ export default function EpisodeDetailPageClient() {
                 <div className="flex-grow h-px bg-gradient-to-r from-teal-200 to-transparent"></div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {articles.map((article) => (
-                  <motion.div
-                    key={String(article.id)}
-                    whileHover={{ scale: 1.02 }}
-                    className="rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700"
-                  >
-                    <Link href={`/articles/${encodeURIComponent(String(article.slug))}`} className="block">
-                      <div className="flex gap-3 p-3">
-                        <div className="relative w-24 h-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {articles.map((article) => {
+                  const thumbnailUrl = getThumbnailUrl(article.featuredImage, 400, 300);
+                  const articleUrl = `/articles/${encodeURIComponent(String(article.slug.current))}`;
+                  
+                  return (
+                    <motion.div
+                      key={article._id}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300"
+                    >
+                      <Link href={articleUrl} className="block">
+                        <div className="relative h-40 md:h-48 overflow-hidden">
                           <Image
-                            src={article.featuredImage}
+                            src={thumbnailUrl}
                             alt={article.title}
                             fill
-                            className="object-cover"
-                            sizes="96px"
+                            className="object-cover transition-transform duration-500 hover:scale-110"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <motion.div 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg"
+                            >
+                              <FaPlay className="text-white text-base md:text-lg ml-1" />
+                            </motion.div>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{article.title}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
+                        <div className="p-4">
+                          <h3 className="text-lg font-bold mb-2">{article.title}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
                             {article.excerpt || "اقرأ المزيد..."}
                           </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full">
+                              مقال
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                router.push(articleUrl);
+                              }}
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              قراءة المقال
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </div>
               
-              <div className="mt-4 text-center">
+              <div className="mt-6 text-center">
                 <Link 
                   href="/articles" 
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:opacity-90 transition-opacity"
@@ -956,8 +1405,7 @@ export default function EpisodeDetailPageClient() {
               <div className="flex-grow h-px bg-gradient-to-r from-yellow-200 to-transparent"></div>
             </div>
             
-            {/* استخدام documentId بدل id */}
-            <CommentsClient contentId={episode.documentId} type="episode" />
+            <CommentsClient contentId={episode._id} type="episode" />
           </motion.section>
         </div>
       </div>

@@ -1,80 +1,47 @@
+// app/team/page.tsx
 import React from "react";
 import Link from "next/link";
-import Image from "next/image"; // استيراد مكون Image من Next.js
+import Image from "next/image";
+import { urlFor, fetchFromSanity } from '@/lib/sanity';
 
 interface Member {
-  id: number;
+  _id: string;
   name: string;
   role?: string;
-  slug?: string;
-  photo?: { 
-    url?: string;
-    formats?: {
-      small?: { url: string };
-      medium?: { url: string };
-      large?: { url: string };
-      thumbnail?: { url: string };
+  slug: {
+    current: string;
+  };
+  image?: {
+    _type: "image";
+    asset: {
+      _ref: string;
+      _type: "reference";
     };
   };
 }
 
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337";
-
 async function getMembers(): Promise<Member[]> {
-  const res = await fetch(`${STRAPI_URL}/api/team-members?populate=photo`, { cache: "no-store" });
-  const data = await res.json();
-  return data.data || [];
-}
-
-// دالة مساعدة للحصول على رابط الصورة
-function getPhotoUrl(photo?: { 
-  url?: string;
-  formats?: {
-    small?: { url: string };
-    medium?: { url: string };
-    large?: { url: string };
-    thumbnail?: { url: string };
-  };
-}): string {
-  if (!photo) return "/placeholder.png";
+  const query = `*[_type == "teamMember"]{
+    _id,
+    name,
+    role,
+    slug,
+    image{
+      _type,
+      asset{
+        _ref,
+        _type
+      }
+    }
+  }`;
   
-  // التحقق من وجود تنسيقات مختلفة للصورة
-  const formats = photo.formats;
-  if (formats) {
-    // استخدام التنسيق المتوسط إذا كان متاحًا
-    if (formats.medium?.url) {
-      return formats.medium.url.startsWith('http') 
-        ? formats.medium.url 
-        : `${STRAPI_URL}${formats.medium.url}`;
-    }
-    // استخدام التنسيق الكبير إذا كان متاحًا
-    if (formats.large?.url) {
-      return formats.large.url.startsWith('http') 
-        ? formats.large.url 
-        : `${STRAPI_URL}${formats.large.url}`;
-    }
-    // استخدام التنسيق الصغير إذا كان متاحًا
-    if (formats.small?.url) {
-      return formats.small.url.startsWith('http') 
-        ? formats.small.url 
-        : `${STRAPI_URL}${formats.small.url}`;
-    }
-    // استخدام التنسيق المصغر إذا كان متاحًا
-    if (formats.thumbnail?.url) {
-      return formats.thumbnail.url.startsWith('http') 
-        ? formats.thumbnail.url 
-        : `${STRAPI_URL}${formats.thumbnail.url}`;
-    }
+  try {
+    const members = await fetchFromSanity(query) as Member[];
+    return members || [];
+  } catch (error) {
+    console.error("Error fetching team members:", error);
+    return [];
   }
-  
-  // استخدام الرابط الأصلي إذا لم تكن هناك تنسيقات
-  if (photo.url) {
-    return photo.url.startsWith('http') 
-      ? photo.url 
-      : `${STRAPI_URL}${photo.url}`;
-  }
-  
-  return "/placeholder.png";
 }
 
 const TeamPage = async () => {
@@ -90,8 +57,8 @@ const TeamPage = async () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
         {members.map((member, index) => (
           <Link 
-            key={member.id} 
-            href={`/team/${member.slug}`}
+            key={member._id} 
+            href={`/team/${member.slug.current}`}
             className="group"
           >
             <div 
@@ -105,12 +72,11 @@ const TeamPage = async () => {
               {/* صورة العضو */}
               <div className="relative mb-4 overflow-hidden rounded-full mx-auto w-32 h-32 border-4 border-white dark:border-gray-700 shadow-md">
                 <Image
-                  src={getPhotoUrl(member.photo)}
+                  src={member.image ? urlFor(member.image) : "/placeholder.png"}
                   alt={member.name}
                   width={128}
                   height={128}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  unoptimized
                 />
               </div>
               

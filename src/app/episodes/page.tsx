@@ -2,41 +2,38 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import ImageWithFallback from "@/components/ImageWithFallback";
+import Image from "next/image";
+import { urlFor, fetchFromSanity } from "@/lib/sanity";
 import FavoriteButton from "@/components/FavoriteButton";
 
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337";
-
-// تعريف الأنواع
-interface Thumbnail {
-  url?: string;
-  formats?: {
-    small?: { url?: string };
-    thumbnail?: { url?: string };
-    medium?: { url?: string };
+// تعريف أنواع البيانات محلياً بدلاً من استيرادها من ملف @/types غير الموجود
+interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
   };
 }
 
 interface Season {
+  _id: string;
   title: string;
+  slug: {
+    current: string;
+  };
+  thumbnail?: SanityImage;
 }
 
 interface Episode {
-  id: number;
-  title?: string;
-  slug?: string;
-  thumbnail?: Thumbnail | null;
-  season?: Season | null;
-}
-
-interface ApiResponse {
-  data: Episode[];
-}
-
-function buildMediaUrl(path?: string): string {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${STRAPI_URL}${path}`;
+  _id: string;
+  title: string;
+  slug: {
+    current: string;
+  };
+  description?: string;
+  thumbnail?: SanityImage;
+  season?: Season;
+  publishedAt?: string;
 }
 
 function escapeRegExp(str = ""): string {
@@ -72,7 +69,6 @@ const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.06 } },
 };
-
 const cardVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
@@ -128,6 +124,80 @@ function IconList({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+// Helper function to get image URL with proper dimensions
+function getImageUrl(image?: SanityImage, width?: number, height?: number): string {
+  if (!image) return "/placeholder.png";
+  
+  try {
+    // Get the URL from urlFor
+    const imageUrl = urlFor(image);
+    
+    // If it's a string, return it directly
+    if (typeof imageUrl === 'string') {
+      return imageUrl;
+    }
+    
+    // If it's an object with a url method, try to use it
+    if (imageUrl && typeof imageUrl === 'object') {
+      // Check if it has the required methods
+      const obj = imageUrl as Record<string, unknown>;
+      
+      if (typeof obj.url === 'function') {
+        // Create a simple builder interface
+        const builder = {
+          url: () => {
+            try {
+              return (obj.url as () => string)();
+            } catch {
+              return "/placeholder.png";
+            }
+          },
+          width: (w: number) => {
+            if (typeof obj.width === 'function') {
+              try {
+                (obj.width as (w: number) => unknown)(w);
+              } catch {
+                // Ignore errors
+              }
+            }
+            return builder;
+          },
+          height: (h: number) => {
+            if (typeof obj.height === 'function') {
+              try {
+                (obj.height as (h: number) => unknown)(h);
+              } catch {
+                // Ignore errors
+              }
+            }
+            return builder;
+          }
+        };
+        
+        // Apply dimensions if provided
+        if (width !== undefined) {
+          builder.width(width);
+        }
+        if (height !== undefined) {
+          builder.height(height);
+        }
+        
+        return builder.url();
+      }
+    }
+    
+    // Fallback: try to convert to string
+    try {
+      return String(imageUrl);
+    } catch {
+      return "/placeholder.png";
+    }
+  } catch (error) {
+    console.error("Error generating image URL:", error);
+    return "/placeholder.png";
+  }
+}
+
 export default function EpisodesPageClient() {
   const [episodesBySeason, setEpisodesBySeason] = useState<Record<string, Episode[]>>({});
   const [loading, setLoading] = useState(true);
@@ -137,36 +207,77 @@ export default function EpisodesPageClient() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController();
     async function load() {
       try {
         setLoading(true);
-        const res = await fetch(
-          `${STRAPI_URL}/api/episodes?populate=season&populate=thumbnail&sort[0]=publishedAt:desc`,
-          { cache: "no-cache", signal: controller.signal }
-        );
-        if (!res.ok) throw new Error(`Failed to fetch episodes: ${res.status}`);
-        const json: ApiResponse = await res.json();
-        const items = json.data || [];
+        setError(null);
+        
+        console.log("Environment variables check:");
+        console.log("Project ID:", process.env.NEXT_PUBLIC_SANITY_PROJECT_ID);
+        console.log("Dataset:", process.env.NEXT_PUBLIC_SANITY_DATASET);
+        console.log("API Token:", process.env.SANITY_API_TOKEN ? "Set" : "Not set");
+        
+        // التحقق من وجود متغيرات البيئة
+        if (!process.env.NEXT_PUBLIC_SANITY_PROJECT_ID) {
+          throw new Error("NEXT_PUBLIC_SANITY_PROJECT_ID is not defined");
+        }
+        
+        if (!process.env.NEXT_PUBLIC_SANITY_DATASET) {
+          throw new Error("NEXT_PUBLIC_SANITY_DATASET is not defined");
+        }
+        
+        // Fetch seasons
+        const seasonsQuery = `*[_type == "season"]{
+          _id,
+          title,
+          slug,
+          thumbnail
+        }`;
+        console.log("Fetching seasons with query:", seasonsQuery);
+        
+        const seasons = await fetchFromSanity<Season[]>(seasonsQuery);
+        console.log("Seasons loaded:", seasons);
+        
+        // Fetch episodes with season references
+        const episodesQuery = `*[_type == "episode"]{
+          _id,
+          title,
+          slug,
+          description,
+          thumbnail,
+          season->{
+            _id,
+            title,
+            slug,
+            thumbnail
+          },
+          publishedAt
+        } | order(publishedAt desc)`;
+        console.log("Fetching episodes with query:", episodesQuery);
+        
+        const episodes = await fetchFromSanity<Episode[]>(episodesQuery);
+        console.log("Episodes loaded:", episodes);
+        
         const grouped: Record<string, Episode[]> = {};
-        items.forEach((ep: Episode) => {
+        episodes.forEach((ep: Episode) => {
           const seasonTitle = ep.season?.title || "بدون موسم";
           if (!grouped[seasonTitle]) grouped[seasonTitle] = [];
           grouped[seasonTitle].push(ep);
         });
+        
         setEpisodesBySeason(grouped);
         const first = Object.keys(grouped)[0];
         if (first) setOpenSeasons({ [first]: true });
       } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        console.error(err);
-        setError("حدث خطأ في تحميل البيانات");
+        console.error("Error loading data:", err);
+        const errorMessage = err instanceof Error ? err.message : "خطأ غير معروف";
+        setError("حدث خطأ في تحميل البيانات: " + errorMessage);
       } finally {
         setLoading(false);
       }
     }
+    
     load();
-    return () => controller.abort();
   }, []);
 
   function toggleSeason(title: string) {
@@ -180,7 +291,7 @@ export default function EpisodesPageClient() {
     Object.entries(episodesBySeason).forEach(([season, episodes]) => {
       const matches = episodes.filter((ep: Episode) => {
         const title = (ep.title || "").toString().toLowerCase();
-        return title.includes(q); // البحث في العناوين فقط
+        return title.includes(q);
       });
       if (matches.length > 0) out[season] = matches;
     });
@@ -204,7 +315,7 @@ export default function EpisodesPageClient() {
       <div className="flex flex-col gap-4 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100">جميع الحلقات</h1>
         
-        {/* مربع البحث والأزرار - تحسين للموبايل */}
+        {/* مربع البحث والأزرار */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full shadow-sm px-3 py-2 border border-gray-100 dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-200 flex-grow">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -231,7 +342,7 @@ export default function EpisodesPageClient() {
             ) : null}
           </div>
           
-          {/* أزرار التحكم - تحسين للموبايل */}
+          {/* أزرار التحكم */}
           <div className="flex gap-2">
             {/* أزرار تغيير العرض */}
             <div className="inline-flex items-center rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
@@ -261,7 +372,7 @@ export default function EpisodesPageClient() {
               </button>
             </div>
             
-            {/* روابط المفضلة والمواسم - مع إظهار النص في الموبايل */}
+            {/* روابط المفضلة والمواسم */}
             <Link href="/favorites" className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition-colors flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -277,7 +388,7 @@ export default function EpisodesPageClient() {
           </div>
         </div>
         
-        {/* عدد النتائج - تحسين للموبايل */}
+        {/* عدد النتائج */}
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {totalResults} نتيجة
         </div>
@@ -312,31 +423,28 @@ export default function EpisodesPageClient() {
                   className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
                 >
                   {searchResults.map((ep: Episode) => {
-                    const slug = ep.slug || ep.id;
+                    const slug = ep.slug.current;
                     const title = ep.title || "حلقة";
-                    let thumbnailUrl = "/placeholder.png";
-                    if (ep.thumbnail) {
-                      const thumb = ep.thumbnail;
-                      const thumbPath =
-                        thumb?.formats?.medium?.url ??
-                        thumb?.formats?.thumbnail?.url ??
-                        thumb?.url ??
-                        thumb?.formats?.small?.url ??
-                        null;
-                      thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
-                    }
+                    const thumbnailUrl = getImageUrl(ep.thumbnail, 500, 300);
+                    
                     return (
                       <motion.article
-                        key={ep.id}
+                        key={ep._id}
                         variants={cardVariants}
                         whileHover={{ scale: 1.02 }}
                         transition={{ type: "spring", stiffness: 300, damping: 20 }}
                         layout
                         className="relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col bg-white dark:bg-gray-800"
                       >
-                        <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="block group">
+                        <Link href={`/episodes/${slug}`} className="block group">
                           <div className="relative aspect-video bg-gray-100 dark:bg-gray-700">
-                            <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                            <Image 
+                              src={thumbnailUrl} 
+                              alt={title} 
+                              fill
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
+                            />
                             <motion.div
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
@@ -357,7 +465,7 @@ export default function EpisodesPageClient() {
                           <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                             <IconEpisodes className="h-4 w-4" />
                           </div>
-                          <FavoriteButton episodeId={ep.id} />
+                          <FavoriteButton contentId={ep._id} contentType="episode" />
                         </div>
                       </motion.article>
                     );
@@ -366,38 +474,35 @@ export default function EpisodesPageClient() {
               ) : (
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
                   {searchResults.map((ep: Episode) => {
-                    const slug = ep.slug || ep.id;
+                    const slug = ep.slug.current;
                     const title = ep.title || "حلقة";
-                    let thumbnailUrl = "/placeholder.png";
-                    if (ep.thumbnail) {
-                      const thumb = ep.thumbnail;
-                      const thumbPath =
-                        thumb?.formats?.medium?.url ??
-                        thumb?.formats?.thumbnail?.url ??
-                        thumb?.url ??
-                        thumb?.formats?.small?.url ??
-                        null;
-                      thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
-                    }
+                    const thumbnailUrl = getImageUrl(ep.thumbnail, 240, 160);
+                    
                     return (
                       <motion.div
-                        key={ep.id}
+                        key={ep._id}
                         variants={cardVariants}
                         whileHover={{ scale: 1.01 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
                         layout
                         className="flex gap-3 items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden p-3 hover:shadow transition bg-white dark:bg-gray-800"
                       >
-                        <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="flex items-center gap-3 flex-1 group">
+                        <Link href={`/episodes/${slug}`} className="flex items-center gap-3 flex-1 group">
                           <div className="relative w-24 h-16 sm:w-32 sm:h-20 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
-                            <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="240px" />
+                            <Image 
+                              src={thumbnailUrl} 
+                              alt={title} 
+                              fill
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                              sizes="240px" 
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{renderHighlighted(title, searchTerm)}</h3>
                           </div>
                         </Link>
                         <div className="flex-shrink-0">
-                          <FavoriteButton episodeId={ep.id} />
+                          <FavoriteButton contentId={ep._id} contentType="episode" />
                         </div>
                       </motion.div>
                     );
@@ -409,7 +514,7 @@ export default function EpisodesPageClient() {
         </div>
       ) : null}
       
-      {/* قائمة المواسم - تحسين للموبايل */}
+      {/* قائمة المواسم */}
       <div className="space-y-4">
         {seasons.length === 0 ? (
           <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
@@ -471,22 +576,13 @@ export default function EpisodesPageClient() {
                     >
                       <motion.div layout className={`py-4 ${viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-3"}`}>
                         {episodes.map((ep: Episode) => {
-                          const slug = ep.slug || ep.id;
+                          const slug = ep.slug.current;
                           const title = ep.title || "حلقة";
-                          let thumbnailUrl = "/placeholder.png";
-                          if (ep.thumbnail) {
-                            const thumb = ep.thumbnail;
-                            const thumbPath =
-                              thumb?.formats?.medium?.url ??
-                              thumb?.formats?.thumbnail?.url ??
-                              thumb?.url ??
-                              thumb?.formats?.small?.url ??
-                              null;
-                            thumbnailUrl = buildMediaUrl(thumbPath ?? undefined);
-                          }
+                          const thumbnailUrl = getImageUrl(ep.thumbnail, 500, 300);
+                          
                           return viewMode === "grid" ? (
                             <motion.article
-                              key={ep.id}
+                              key={ep._id}
                               variants={cardVariants}
                               initial="hidden"
                               animate="visible"
@@ -495,9 +591,15 @@ export default function EpisodesPageClient() {
                               layout
                               className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col bg-white dark:bg-gray-800"
                             >
-                              <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="block group">
+                              <Link href={`/episodes/${slug}`} className="block group">
                                 <div className="relative aspect-video bg-gray-100 dark:bg-gray-700">
-                                  <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                                  <Image 
+                                    src={thumbnailUrl} 
+                                    alt={title} 
+                                    fill
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
+                                  />
                                   <motion.div
                                     initial={{ opacity: 0 }}
                                     whileHover={{ opacity: 1, scale: 1.02 }}
@@ -517,12 +619,12 @@ export default function EpisodesPageClient() {
                                 <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                                   <IconEpisodes className="h-4 w-4" />
                                 </div>
-                                <FavoriteButton episodeId={ep.id} />
+                                <FavoriteButton contentId={ep._id} contentType="episode" />
                               </div>
                             </motion.article>
                           ) : (
                             <motion.div
-                              key={ep.id}
+                              key={ep._id}
                               variants={cardVariants}
                               initial="hidden"
                               animate="visible"
@@ -531,16 +633,22 @@ export default function EpisodesPageClient() {
                               layout
                               className="flex gap-3 items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden p-3 hover:shadow transition bg-white dark:bg-gray-800"
                             >
-                              <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="flex items-center gap-3 flex-1 group">
+                              <Link href={`/episodes/${slug}`} className="flex items-center gap-3 flex-1 group">
                                 <div className="relative w-24 h-16 sm:w-32 sm:h-20 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
-                                  <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="240px" />
+                                  <Image 
+                                    src={thumbnailUrl} 
+                                    alt={title} 
+                                    fill
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                                    sizes="240px" 
+                                  />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2">{renderHighlighted(title, searchTerm)}</h3>
                                 </div>
                               </Link>
                               <div className="flex-shrink-0">
-                                <FavoriteButton episodeId={ep.id} />
+                                <FavoriteButton contentId={ep._id} contentType="episode" />
                               </div>
                             </motion.div>
                           );

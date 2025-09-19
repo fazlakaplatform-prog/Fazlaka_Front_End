@@ -4,121 +4,30 @@ import Link from "next/link";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import FavoriteButton from "@/components/FavoriteButton";
 import { motion, Variants } from "framer-motion";
-
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "https://growing-acoustics-35909e61eb.strapiapp.com";
-
-function buildMediaUrl(path?: string) {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${STRAPI_URL}${path}`;
-}
+import { fetchPlaylistBySlug } from "@/lib/sanity";
 
 // تعريف الواجهات
-interface Thumbnail {
-  url: string;
-  formats?: {
-    medium?: {
-      url: string;
-    };
-    thumbnail?: {
-      url: string;
-    };
-    small?: {
-      url: string;
-    };
-  };
-}
-
 interface Playlist {
-  id: number;
-  slug: string;
+  _id: string;
+  slug: { current: string };
   title: string;
   description?: string;
+  imageUrl?: string;
+  episodes?: Episode[];
 }
 
 interface Episode {
-  id: number;
-  slug?: string;
-  title?: string;
-  thumbnail?: Thumbnail | { data?: { attributes?: Thumbnail } };
-  playlists?: Playlist[] | { data?: Playlist[] } | { attributes?: Playlist[] };
-  attributes?: {
-    playlists?: Playlist[] | { data?: Playlist[] };
-    [key: string]: unknown;
-  };
-}
-
-interface ApiResponse {
-  data: Episode[];
+  _id: string;
+  slug: { current: string };
+  title: string;
+  imageUrl?: string;
+  content?: Record<string, unknown>;
+  videoUrl?: string;
+  publishedAt?: string;
 }
 
 interface Props {
   params: Promise<{ id: string }>;
-}
-
-// دالة مساعدة لاستخراج قوائم التشغيل من الحلقة
-function extractPlaylists(episode: Episode): Playlist[] {
-  // الحالة الأولى: playlists عبارة عن مصفوفة مباشرة
-  if (Array.isArray(episode.playlists)) {
-    return episode.playlists as Playlist[];
-  }
-  
-  // الحالة الثانية: playlists تحتوي على خاصية data
-  if (episode.playlists && typeof episode.playlists === 'object' && 'data' in episode.playlists) {
-    const data = (episode.playlists as { data?: Playlist[] }).data;
-    if (Array.isArray(data)) {
-      return data;
-    }
-  }
-  
-  // الحالة الثالثة: البحث في attributes
-  if (episode.attributes?.playlists) {
-    if (Array.isArray(episode.attributes.playlists)) {
-      return episode.attributes.playlists as Playlist[];
-    }
-    
-    if (typeof episode.attributes.playlists === 'object' && 'data' in episode.attributes.playlists) {
-      const data = (episode.attributes.playlists as { data?: Playlist[] }).data;
-      if (Array.isArray(data)) {
-        return data;
-      }
-    }
-  }
-  
-  return [];
-}
-
-// دالة مساعدة لاستخراج slug من قائمة تشغيل
-function extractPlaylistSlug(playlist: Playlist | { attributes?: Playlist }): string | undefined {
-  if ('slug' in playlist) {
-    return (playlist as Playlist).slug;
-  }
-  if ('attributes' in playlist && playlist.attributes) {
-    return (playlist as { attributes: Playlist }).attributes.slug;
-  }
-  return undefined;
-}
-
-// دالة مساعدة لاستخراج مسار الصورة المصغرة
-function extractThumbnailPath(thumbnail?: Thumbnail | { data?: { attributes?: Thumbnail } }): string | undefined {
-  if (!thumbnail) return undefined;
-  
-  // الحالة الأولى: thumbnail هو كائن Thumbnail مباشر
-  if ('url' in thumbnail && 'formats' in thumbnail) {
-    const t = thumbnail as Thumbnail;
-    return t?.formats?.medium?.url ?? t?.formats?.thumbnail?.url ?? t?.url ?? t?.formats?.small?.url;
-  }
-  
-  // الحالة الثانية: thumbnail يحتوي على خاصية data
-  if (typeof thumbnail === 'object' && 'data' in thumbnail && thumbnail.data) {
-    const data = thumbnail.data as { attributes?: Thumbnail };
-    if (data.attributes) {
-      const ta = data.attributes as Thumbnail;
-      return ta?.formats?.medium?.url ?? ta?.formats?.thumbnail?.url ?? ta?.url;
-    }
-  }
-  
-  return undefined;
 }
 
 export default function PlaylistDetails({ params }: Props) {
@@ -126,55 +35,50 @@ export default function PlaylistDetails({ params }: Props) {
   const id = resolvedParams.id;
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    const fetchEpisodes = async () => {
+    const fetchPlaylist = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${STRAPI_URL}/api/episodes?populate=*&sort[0]=publishedAt:desc`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-        const data: ApiResponse = await res.json();
-        const items = data.data || [];
-        const filtered = items.filter((ep: Episode) => {
-          const pls = extractPlaylists(ep);
-          return pls.some(p => extractPlaylistSlug(p) === id);
-        });
-        const normalized = filtered.map((ep: Episode) => ep.attributes ? { id: ep.id, ...ep.attributes } : ep);
-        setEpisodes(normalized);
-        if (normalized.length > 0) {
-          const first = normalized[0];
-          const pls = extractPlaylists(first);
-          const pl = pls.find(p => extractPlaylistSlug(p) === id) || null;
-          setPlaylist(pl);
-        } else {
-          setPlaylist(null);
+        const data = await fetchPlaylistBySlug(id);
+        
+        // Validate data before setting state
+        if (!data) {
+          setError("القائمة غير موجودة");
+          setLoading(false);
+          return;
         }
+        
+        // Ensure required fields exist
+        if (!data._id || !data.title || !data.slug?.current) {
+          setError("بيانات القائمة غير صالحة");
+          setLoading(false);
+          return;
+        }
+        
+        setPlaylist(data as Playlist);
         setLoading(false);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
-        console.error("Error fetching episodes:", err);
-        setError("حدث خطأ أثناء تحميل الحلقات");
+        console.error("Error fetching playlist:", err);
+        setError("حدث خطأ أثناء تحميل القائمة");
         setLoading(false);
       }
     };
-    fetchEpisodes();
+    fetchPlaylist();
     return () => controller.abort();
   }, [id]);
   
   // تعديل منطق البحث ليبحث في العناوين فقط
-  const filteredEpisodes = episodes.filter((episode) => {
+  const filteredEpisodes = playlist?.episodes?.filter((episode) => {
     const title = (episode.title || "").toString().toLowerCase();
     const q = searchTerm.toLowerCase();
     return title.includes(q);
-  });
+  }) || [];
   
   // دالة لمسح البحث
   const clearSearch = () => {
@@ -283,7 +187,7 @@ export default function PlaylistDetails({ params }: Props) {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              <span>{episodes.length} حلقة</span>
+              <span>{playlist.episodes?.length || 0} حلقة</span>
             </div>
           </div>
         </div>
@@ -377,12 +281,11 @@ export default function PlaylistDetails({ params }: Props) {
           animate="visible"
         >
           {filteredEpisodes.map((ep, idx) => {
-            const slug = encodeURIComponent(ep.slug ?? ep.id);
-            const thumbPath = extractThumbnailPath(ep.thumbnail);
-            const thumbnailUrl = buildMediaUrl(thumbPath);
+            const slug = encodeURIComponent(ep.slug.current);
+            const thumbnailUrl = ep.imageUrl || "/placeholder.png";
             return (
               <motion.article
-                key={ep.id}
+                key={ep._id}
                 custom={idx}
                 variants={cardVariants}
                 whileHover="hover"
@@ -418,7 +321,7 @@ export default function PlaylistDetails({ params }: Props) {
                   </div>
                 </Link>
                 <div className="p-3 pt-0 flex items-center justify-end border-t border-gray-100 dark:border-gray-700">
-                  <FavoriteButton episodeId={ep.id} />
+                  <FavoriteButton contentId={ep._id} contentType="episode" />
                 </div>
               </motion.article>
             );
@@ -432,12 +335,11 @@ export default function PlaylistDetails({ params }: Props) {
           animate="visible"
         >
           {filteredEpisodes.map((ep, idx) => {
-            const slug = encodeURIComponent(ep.slug ?? ep.id);
-            const thumbPath = extractThumbnailPath(ep.thumbnail);
-            const thumbnailUrl = buildMediaUrl(thumbPath);
+            const slug = encodeURIComponent(ep.slug.current);
+            const thumbnailUrl = ep.imageUrl || "/placeholder.png";
             return (
               <motion.div
-                key={ep.id}
+                key={ep._id}
                 custom={idx}
                 variants={listVariants}
                 whileHover="hover"
@@ -456,7 +358,7 @@ export default function PlaylistDetails({ params }: Props) {
                   </div>
                 </Link>
                 <div className="flex-shrink-0">
-                  <FavoriteButton episodeId={ep.id} />
+                  <FavoriteButton contentId={ep._id} contentType="episode" />
                 </div>
               </motion.div>
             );

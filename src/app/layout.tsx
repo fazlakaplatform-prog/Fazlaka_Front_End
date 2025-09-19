@@ -7,6 +7,11 @@ import "./globals.css";
 export const metadata = {
   title: "فذلكه",
   description: "موقع فذلكه",
+  icons: {
+    icon: '/logo.ico',        // أو '/favicon.ico' إذا سميت الملف هكذا
+    shortcut: '/logo.ico',    // اختصار (favicon قديم)
+    apple: '/logo.ico'        // لأجهزة Apple (يمكن استبداله بصيغة PNG مناسبة)
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

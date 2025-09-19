@@ -6,29 +6,24 @@ import {
   FaYoutube, FaInstagram, FaFacebookF, FaTiktok 
 } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
+import { urlFor, fetchFromSanity } from '@/lib/sanity';
 
 // Interfaces
-interface PhotoFormat { 
-  url: string; 
-}
-
-interface Photo {
-  url?: string;
-  formats?: {
-    small?: PhotoFormat;
-    medium?: PhotoFormat;
-    large?: PhotoFormat;
-    thumbnail?: PhotoFormat;
-  };
-}
-
 interface Member {
-  id: number;
+  _id: string;
   name: string;
   role?: string;
   bio?: string;
-  slug?: string;
-  photo?: Photo | null;
+  slug: {
+    current: string;
+  };
+  image?: {
+    _type: "image";
+    asset: {
+      _ref: string;
+      _type: "reference";
+    };
+  };
 }
 
 // Social links
@@ -41,14 +36,26 @@ const socialLinks = [
 ];
 
 // APIs
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337";
-
 async function getMembers(): Promise<Member[]> {
+  // Note: image projection matches the working team page to ensure asset._ref is available
+  const query = `*[_type == "teamMember"]{
+    _id,
+    name,
+    role,
+    bio,
+    slug,
+    image{
+      _type,
+      asset{
+        _ref,
+        _type
+      }
+    }
+  }`;
+  
   try {
-    const response = await fetch(`${STRAPI_URL}/api/team-members?populate=photo`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-    const data = await response.json();
-    return data.data || [];
+    const members = await fetchFromSanity<Member[]>(query);
+    return members || [];
   } catch (error) {
     console.error("Error fetching team members:", error);
     return [];
@@ -70,19 +77,17 @@ async function getSubscribers(): Promise<number | null> {
 
 async function getEpisodesCount(): Promise<number> {
   try {
-    const response = await fetch(`${STRAPI_URL}/api/episodes`, { cache: "no-store" });
-    if (!response.ok) throw new Error();
-    const data = await response.json();
-    return data.meta.pagination.total || 0;
+    const query = `count(*[_type == "episode"])`;
+    const count = await fetchFromSanity<number>(query);
+    return count || 0;
   } catch { return 0; }
 }
 
 async function getPlaylistsCount(): Promise<number> {
   try {
-    const response = await fetch(`${STRAPI_URL}/api/playlists`, { cache: "no-store" });
-    if (!response.ok) throw new Error();
-    const data = await response.json();
-    return data.meta.pagination.total || 0;
+    const query = `count(*[_type == "playlist"])`;
+    const count = await fetchFromSanity<number>(query);
+    return count || 0;
   } catch { return 0; }
 }
 
@@ -107,26 +112,32 @@ const StatCard = ({ icon, title, value, bgColor, iconColor }: StatCardProps) => 
 
 interface MemberCardProps {
   member: Member;
-  photoUrl: string;
 }
 
-const MemberCard = ({ member, photoUrl }: MemberCardProps) => (
-  <Link
-    href={`/team/${member.slug || "#"}`}
-    className="flex flex-col items-center p-6 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md hover:shadow-xl transition-transform duration-500 hover:-translate-y-2 animate-zoomIn bg-white dark:bg-gray-800"
-  >
-    <Image 
-      src={photoUrl} 
-      alt={member.name} 
-      width={128} 
-      height={128}
-      className="w-32 h-32 rounded-full object-cover mb-4 shadow-lg" 
-      unoptimized // إضافة هذا الخاصية لتجاوز مشاكل التهيئة
-    />
-    <h3 className="text-xl font-semibold">{member.name}</h3>
-    {member.role && <p className="text-gray-600 dark:text-gray-400 mt-1">{member.role}</p>}
-  </Link>
-);
+const MemberCard = ({ member }: MemberCardProps) => {
+  // safe guard: only build URL when asset exists; otherwise fallback to placeholder
+  const imageUrl = member.image && member.image.asset && member.image.asset._ref
+    ? urlFor(member.image) // urlFor already returns a fully-built URL in your project helper
+    : "/placeholder.png";
+  
+  return (
+    <Link
+      href={`/team/${member.slug.current}`}
+      className="flex flex-col items-center p-6 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md hover:shadow-xl transition-transform duration-500 hover:-translate-y-2 animate-zoomIn bg-white dark:bg-gray-800"
+    >
+      <Image 
+        src={imageUrl}
+        alt={member.name}
+        width={128}
+        height={128}
+        unoptimized
+        className="w-32 h-32 rounded-full object-cover mb-4 shadow-lg" 
+      />
+      <h3 className="text-xl font-semibold">{member.name}</h3>
+      {member.role && <p className="text-gray-600 dark:text-gray-400 mt-1">{member.role}</p>}
+    </Link>
+  );
+};
 
 const AboutPage = async () => {
   const [members, subscribers, episodesCount, playlistsCount] = await Promise.all([
@@ -135,28 +146,6 @@ const AboutPage = async () => {
     getEpisodesCount(),
     getPlaylistsCount(),
   ]);
-
-  const getPhotoUrl = (photo?: Photo | null): string => {
-    if (!photo) return "/placeholder.png";
-    const order = ["medium", "large", "thumbnail"] as const;
-    for (const f of order) {
-      const format = photo.formats?.[f];
-      if (format?.url) {
-        // إذا كان الرابط يبدأ بـ http، نستخدمه كما هو
-        if (format.url.startsWith('http')) {
-          return format.url;
-        }
-        return `${STRAPI_URL}${format.url}`;
-      }
-    }
-    if (photo.url) {
-      if (photo.url.startsWith('http')) {
-        return photo.url;
-      }
-      return `${STRAPI_URL}${photo.url}`;
-    }
-    return "/placeholder.png";
-  };
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl text-gray-900 dark:text-gray-100">
@@ -169,14 +158,6 @@ const AboutPage = async () => {
         {subscribers !== null && (
           <StatCard icon={<FaUsers />} title="عدد المشتركين" value={subscribers.toLocaleString()} bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100" iconColor="text-yellow-600" />
         )}
-      </div>
-      
-      {/* YouTube Subscribers Display */}
-      <div className="text-center my-6 bg-gradient-to-r from-red-50 to-orange-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg animate-fadeIn">
-        <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-gray-200">عدد المشتركين في قناتنا على يوتيوب</h2>
-        <p className="text-xl font-semibold text-red-600 dark:text-red-400">
-          {subscribers !== null ? subscribers.toLocaleString() : "جارٍ التحميل..."}
-        </p>
       </div>
       
       {/* Philosophy */}
@@ -252,8 +233,8 @@ const AboutPage = async () => {
         {members.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-8 max-w-5xl mx-auto">
             {members.map((member, idx) => (
-              <div key={member.id} className="animate-fadeInUp" style={{ animationDelay: `${idx * 150}ms` }}>
-                <MemberCard member={member} photoUrl={getPhotoUrl(member.photo)} />
+              <div key={member._id} className="animate-fadeInUp" style={{ animationDelay: `${idx * 150}ms` }}>
+                <MemberCard member={member} />
               </div>
             ))}
           </div>
