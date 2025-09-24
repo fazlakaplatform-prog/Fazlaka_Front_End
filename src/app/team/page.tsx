@@ -625,7 +625,7 @@ const TeamPage = async () => {
   
   return (
     <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
-      <div className="container mx-auto px-4 py-16 max-w-6xl">
+      <div className="container mx-auto px-4 pt-24 pb-16 max-w-6xl">
         {/* الهيرو */}
         <HeroSection />
         

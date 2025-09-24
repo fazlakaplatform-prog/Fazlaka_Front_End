@@ -587,7 +587,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-24 pb-12 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
@@ -598,7 +598,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   
   if (!member) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 flex items-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-24 pb-12 flex items-center">
         <div className="container mx-auto px-4 text-center">
           <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-xl p-6 md:p-8 max-w-md mx-auto">
             <div className="mb-6">
@@ -677,7 +677,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   const hasSocialMedia = member.socialMedia && member.socialMedia.length > 0;
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 md:py-12">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-xl overflow-hidden">
           {/* تخطيط أفقي للهيرو والوصف */}
