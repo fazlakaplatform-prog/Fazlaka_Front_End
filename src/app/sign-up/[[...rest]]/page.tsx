@@ -65,7 +65,7 @@ export default function SignUpPage() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-500 px-4 sm:px-6 pt-24 pb-16 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-500 px-4 sm:px-6 pt-32 pb-16 relative overflow-hidden">
       {/* دوائر زخرفية متحركة فقط */}
       <div className="absolute top-10 left-10 w-40 h-40 rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-2xl animate-pulse shadow-xl shadow-blue-500/10"></div>
       <div className="absolute bottom-20 right-10 w-60 h-60 rounded-full bg-gradient-to-r from-purple-400/15 to-blue-400/15 blur-3xl animate-pulse shadow-xl shadow-purple-500/10"></div>
@@ -76,77 +76,207 @@ export default function SignUpPage() {
       
       <div className="w-full max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col lg:flex-row gap-10 items-center justify-center">
-          {/* قسم التسجيل */}
-          <div className={`w-full lg:w-2/5 p-4 sm:p-6 md:p-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-blue-500/20 border border-gray-200 dark:border-gray-800 transition-all duration-700 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'} order-1 lg:order-2`}>
-            <div className="text-center mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">إنشاء حساب جديد</h1>
-              <p className="text-gray-600 dark:text-gray-400">انضم إلى مجتمعنا العلمي اليوم</p>
+          {/* قسم التسجيل - تم تعديله للموبايل */}
+          <div className={`w-full lg:w-2/5 transition-all duration-700 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'} order-1 lg:order-2`}>
+            {/* في الموبايل: مكون Clerk مباشرة بدون حاوية */}
+            <div className="lg:hidden w-full">
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">إنشاء حساب جديد</h1>
+                <p className="text-gray-600 dark:text-gray-400">انضم إلى مجتمعنا العلمي اليوم</p>
+              </div>
+              
+              <SignUp
+                path="/sign-up"
+                routing="path"
+                signInUrl="/sign-in"
+                appearance={{
+                  elements: {
+                    rootBox: "mx-auto w-full max-w-md",
+                    card: "bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-blue-500/20 border border-gray-200 dark:border-gray-800 w-full",
+                    headerTitle: "hidden",
+                    headerSubtitle: "hidden",
+                    socialButtonsBlockButton: 
+                      "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors duration-200",
+                    formFieldLabel: "text-gray-700 dark:text-gray-300 font-medium",
+                    formFieldInput: 
+                      "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200",
+                    formButtonPrimary: 
+                      "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105",
+                    footer: "hidden",
+                    dividerRow: "text-gray-500 dark:text-gray-400 before:bg-gray-300 dark:before:bg-gray-600 after:bg-gray-300 dark:after:bg-gray-600",
+                    dividerText: "bg-transparent px-2",
+                    identityPreviewText: "text-gray-900 dark:text-white",
+                    identityPreviewEditButton: "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300",
+                    codeInputField: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
+                    codeInputFieldFocused: "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400",
+                    codeInputFieldFilled: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
+                    input: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
+                    inputFocused: "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400",
+                  },
+                  variables: {
+                    colorPrimary: "#2563eb",
+                    colorText: "rgb(75 85 99)",
+                    colorTextSecondary: "rgb(107 114 128)",
+                    colorBackground: "#ffffff",
+                    colorInputBackground: "#ffffff",
+                    colorInputText: "rgb(17 24 39)",
+                    colorTextOnPrimaryBackground: "#ffffff",
+                  }
+                }}
+              />
+
+              {/* إشعار الموافقة على الشروط للموبايل - محسّن */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="mt-8 relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur-lg"></div>
+                <div className="relative bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 p-5 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+                  <div className="flex items-start mb-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-2 rounded-lg shadow-md">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <h3 className="mr-3 text-lg font-bold text-gray-800 dark:text-white">الموافقة على الشروط</h3>
+                  </div>
+                  <p className="text-gray-700 dark:text-gray-300 text-center mb-3">
+                    بالتسجيل في حساب جديد، أنت توافق على:
+                  </p>
+                  <div className="flex flex-col sm:flex-row justify-center gap-3">
+                    <motion.a
+                      href="/privacy-policy"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      سياسة الخصوصية
+                    </motion.a>
+                    <motion.a
+                      href="/terms-conditions"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      شروط الخدمة
+                    </motion.a>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* رابط تسجيل الدخول للموبايل - محسّن */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                className="mt-8 text-center"
+              >
+                <div className="inline-block relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-md opacity-30"></div>
+                  <p className="relative text-gray-600 dark:text-gray-400 mb-3">
+                    لديك حساب بالفعل؟
+                  </p>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Link
+                      href="/sign-in"
+                      className="relative inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 group overflow-hidden"
+                    >
+                      <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-700 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                      <span className="relative flex items-center">
+                        تسجيل الدخول
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    </Link>
+                  </motion.div>
+                </div>
+              </motion.div>
             </div>
             
-            <SignUp
-              path="/sign-up"
-              routing="path"
-              signInUrl="/sign-in"
-              appearance={{
-                elements: {
-                  rootBox: "mx-auto shadow-lg dark:shadow-blue-500/30 dark:shadow-xl",
-                  card: "bg-transparent shadow-none dark:shadow-blue-500/20",
-                  headerTitle: "hidden",
-                  headerSubtitle: "hidden",
-                  socialButtonsBlockButton: 
-                    "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors duration-200",
-                  formFieldLabel: "text-gray-700 dark:text-gray-300 font-medium",
-                  formFieldInput: 
-                    "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200",
-                  formButtonPrimary: 
-                    "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105",
-                  footer: "hidden",
-                  dividerRow: "text-gray-500 dark:text-gray-400 before:bg-gray-300 dark:before:bg-gray-600 after:bg-gray-300 dark:after:bg-gray-600",
-                  dividerText: "bg-transparent px-2",
-                  identityPreviewText: "text-gray-900 dark:text-white",
-                  identityPreviewEditButton: "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300",
-                  codeInputField: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
-                  codeInputFieldFocused: "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400",
-                  codeInputFieldFilled: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
-                  input: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
-                  inputFocused: "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400",
-                },
-                variables: {
-                  colorPrimary: "#2563eb",
-                  colorText: "rgb(75 85 99)",
-                  colorTextSecondary: "rgb(107 114 128)",
-                  colorBackground: "#ffffff",
-                  colorInputBackground: "#ffffff",
-                  colorInputText: "rgb(17 24 39)",
-                  colorTextOnPrimaryBackground: "#ffffff",
-                }
-              }}
-            />
+            {/* في الشاشات الكبيرة: مكون Clerk داخل الحاوية */}
+            <div className="hidden lg:block p-4 sm:p-6 md:p-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-blue-500/20 border border-gray-200 dark:border-gray-800 transition-all duration-700 transform">
+              <div className="text-center mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">إنشاء حساب جديد</h1>
+                <p className="text-gray-600 dark:text-gray-400">انضم إلى مجتمعنا العلمي اليوم</p>
+              </div>
+              
+              <SignUp
+                path="/sign-up"
+                routing="path"
+                signInUrl="/sign-in"
+                appearance={{
+                  elements: {
+                    rootBox: "mx-auto shadow-lg dark:shadow-blue-500/30 dark:shadow-xl",
+                    card: "bg-transparent shadow-none dark:shadow-blue-500/20",
+                    headerTitle: "hidden",
+                    headerSubtitle: "hidden",
+                    socialButtonsBlockButton: 
+                      "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors duration-200",
+                    formFieldLabel: "text-gray-700 dark:text-gray-300 font-medium",
+                    formFieldInput: 
+                      "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200",
+                    formButtonPrimary: 
+                      "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105",
+                    footer: "hidden",
+                    dividerRow: "text-gray-500 dark:text-gray-400 before:bg-gray-300 dark:before:bg-gray-600 after:bg-gray-300 dark:after:bg-gray-600",
+                    dividerText: "bg-transparent px-2",
+                    identityPreviewText: "text-gray-900 dark:text-white",
+                    identityPreviewEditButton: "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300",
+                    codeInputField: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
+                    codeInputFieldFocused: "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400",
+                    codeInputFieldFilled: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
+                    input: "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white",
+                    inputFocused: "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400",
+                  },
+                  variables: {
+                    colorPrimary: "#2563eb",
+                    colorText: "rgb(75 85 99)",
+                    colorTextSecondary: "rgb(107 114 128)",
+                    colorBackground: "#ffffff",
+                    colorInputBackground: "#ffffff",
+                    colorInputText: "rgb(17 24 39)",
+                    colorTextOnPrimaryBackground: "#ffffff",
+                  }
+                }}
+              />
 
-            {/* إشعار الموافقة على الشروط */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
-                بالتسجيل في حساب جديد، أنت توافق على 
-                <Link href="/privacy-policy" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium mx-1 transition-colors duration-200">
-                  سياسة الخصوصية
-                </Link>
-                و
-                <Link href="/terms-conditions" className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-medium mx-1 transition-colors duration-200">
-                  شروط الخدمة
-                </Link>
-              </p>
-            </div>
+              {/* إشعار الموافقة على الشروط */}
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
+                  بالتسجيل في حساب جديد، أنت توافق على 
+                  <Link href="/privacy-policy" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium mx-1 transition-colors duration-200">
+                    سياسة الخصوصية
+                  </Link>
+                  و
+                  <Link href="/terms-conditions" className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-medium mx-1 transition-colors duration-200">
+                    شروط الخصوصية
+                  </Link>
+                </p>
+              </div>
 
-            <div className="mt-6 sm:mt-8 text-center pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-gray-600 dark:text-gray-400">
-                لديك حساب بالفعل؟{" "}
-                <Link
-                  href="/sign-in"
-                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200"
-                >
-                  تسجيل الدخول
-                </Link>
-              </p>
+              <div className="mt-6 sm:mt-8 text-center pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-gray-600 dark:text-gray-400">
+                  لديك حساب بالفعل؟{" "}
+                  <Link
+                    href="/sign-in"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200"
+                  >
+                    تسجيل الدخول
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
           
@@ -314,7 +444,7 @@ export default function SignUpPage() {
         
         .dark [data-clerk-component="codeInput"] input:focus {
           border-color: rgb(96 165 250) !important;
-          box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5) !important;
+          box-shadow: 0 0 0 2px rgba(96, 165,250, 0.5) !important;
         }
       `}</style>
     </div>

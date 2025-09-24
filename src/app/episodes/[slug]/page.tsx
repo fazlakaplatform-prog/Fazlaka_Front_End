@@ -936,7 +936,7 @@ export default function EpisodeDetailPageClient() {
       <header className="relative w-full overflow-hidden shadow-2xl">
         <motion.div
           style={{ y }}
-          className="relative h-[50vh] md:h-[60vh]"
+          className="relative h-[50vh] md:h-[70vh]"
         >
           <motion.div
             className="w-full h-full object-cover"
@@ -981,22 +981,6 @@ export default function EpisodeDetailPageClient() {
               </div>
             </motion.div>
           </div>
-        </motion.div>
-        
-        {/* Back Button */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="absolute top-4 md:top-6 left-4 md:left-6 z-10"
-        >
-          <Link
-            href="/episodes"
-            className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 bg-gradient-to-r from-black/40 to-black/60 backdrop-blur-lg rounded-full text-white hover:from-black/60 hover:to-black/80 transition-all duration-300 shadow-lg border border-white/10 hover:border-white/20"
-          >
-            <FaArrowLeft className="text-base md:text-lg" />
-            <span className="font-medium text-sm md:text-base">العودة للحلقات</span>
-          </Link>
         </motion.div>
       </header>
       

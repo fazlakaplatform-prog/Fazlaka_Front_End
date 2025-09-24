@@ -65,7 +65,7 @@ export default function SignInPage() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-500 px-4 sm:px-6 pt-24 pb-16 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-500 px-4 sm:px-6 pt-32 pb-16 relative overflow-hidden">
       {/* دوائر زخرفية متحركة فقط */}
       <div className="absolute top-10 left-10 w-40 h-40 rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-2xl animate-pulse shadow-xl shadow-blue-500/10"></div>
       <div className="absolute bottom-20 right-10 w-60 h-60 rounded-full bg-gradient-to-r from-purple-400/15 to-blue-400/15 blur-3xl animate-pulse shadow-xl shadow-purple-500/10"></div>
@@ -76,69 +76,158 @@ export default function SignInPage() {
       
       <div className="w-full max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col lg:flex-row gap-10 items-center justify-center">
-          {/* قسم تسجيل الدخول */}
-          <div className={`w-full lg:w-2/5 p-4 sm:p-6 md:p-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-blue-500/20 border border-gray-200 dark:border-gray-800 transition-all duration-700 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'} order-1 lg:order-2`}>
-            <div className="text-center mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">تسجيل الدخول</h1>
-              <p className="text-gray-600 dark:text-gray-200">مرحباً بعودتك إلى مجتمعنا العلمي</p>
+          {/* قسم تسجيل الدخول - تم تعديله للموبايل */}
+          <div className={`w-full lg:w-2/5 transition-all duration-700 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-20 opacity-0'} order-1 lg:order-2`}>
+            {/* في الموبايل: مكون Clerk مباشرة بدون حاوية */}
+            <div className="lg:hidden w-full">
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">تسجيل الدخول</h1>
+                <p className="text-gray-600 dark:text-gray-200">مرحباً بعودتك إلى مجتمعنا العلمي</p>
+              </div>
+              
+              <SignIn
+                path="/sign-in"
+                routing="path"
+                signUpUrl="/sign-up"
+                appearance={{
+                  elements: {
+                    rootBox: "mx-auto w-full max-w-md",
+                    card: "bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-blue-500/20 border border-gray-200 dark:border-gray-800 w-full",
+                    headerTitle: "hidden",
+                    headerSubtitle: "hidden",
+                    socialButtonsBlockButton: 
+                      "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors duration-200",
+                    formFieldLabel: "text-gray-700 dark:text-gray-200 font-medium",
+                    formFieldInput: 
+                      "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white !rounded-lg !focus:ring-2 !focus:ring-blue-500 !focus:border-blue-500 transition-colors duration-200",
+                    formButtonPrimary: 
+                      "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105",
+                    footer: "hidden",
+                    dividerRow: "text-gray-500 dark:text-gray-300 before:bg-gray-300 dark:before:bg-gray-600 after:bg-gray-300 dark:after:bg-gray-600",
+                    dividerText: "bg-transparent px-2",
+                    identityPreviewText: "text-gray-900 dark:text-white",
+                    identityPreviewEditButton: "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300",
+                    codeInputField: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white",
+                    codeInputFieldFocused: "!border-blue-500 dark:!border-blue-400 !ring-2 !ring-blue-500 dark:!ring-blue-400",
+                    codeInputFieldFilled: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white",
+                    input: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white !rounded-lg",
+                    inputFocused: "!border-blue-500 dark:!border-blue-400 !ring-2 !ring-blue-500 dark:!ring-blue-400",
+                    // تأكد من ظهور حقل البريد الإلكتروني
+                    formField: "mb-4",
+                    form: "space-y-4",
+                    // إضافة أنماط خاصة بحقل البريد الإلكتروني
+                    emailField: "!block",
+                    emailInput: "!w-full !px-4 !py-3 !text-base !bg-white dark:!bg-gray-700 !border !border-gray-300 dark:!border-gray-600 !rounded-lg !focus:ring-2 !focus:ring-blue-500 !focus:border-blue-500 !text-gray-900 dark:!text-white",
+                  },
+                  variables: {
+                    colorPrimary: "#2563eb",
+                    colorText: "rgb(75 85 99)",
+                    colorTextSecondary: "rgb(107 114 128)",
+                    colorBackground: "#ffffff",
+                    colorInputBackground: "#ffffff",
+                    colorInputText: "rgb(17 24 39)",
+                    colorTextOnPrimaryBackground: "#ffffff",
+                  }
+                }}
+              />
+
+              {/* رابط إنشاء حساب جديد للموبايل - محسّن */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                className="mt-8 text-center"
+              >
+                <div className="inline-block relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-md opacity-30"></div>
+                  <p className="relative text-gray-600 dark:text-gray-200 mb-3">
+                    لسه ماعندكش حساب؟
+                  </p>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Link
+                      href="/sign-up"
+                      className="relative inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 group overflow-hidden"
+                    >
+                      <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-700 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                      <span className="relative flex items-center">
+                        اعمل حساب جديد
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    </Link>
+                  </motion.div>
+                </div>
+              </motion.div>
             </div>
             
-            <SignIn
-              path="/sign-in"
-              routing="path"
-              signUpUrl="/sign-up"
-              appearance={{
-                elements: {
-                  rootBox: "mx-auto shadow-lg dark:shadow-blue-500/30 dark:shadow-xl",
-                  card: "bg-transparent shadow-none dark:shadow-blue-500/20",
-                  headerTitle: "hidden",
-                  headerSubtitle: "hidden",
-                  socialButtonsBlockButton: 
-                    "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors duration-200",
-                  formFieldLabel: "text-gray-700 dark:text-gray-200 font-medium",
-                  formFieldInput: 
-                    "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white !rounded-lg !focus:ring-2 !focus:ring-blue-500 !focus:border-blue-500 transition-colors duration-200",
-                  formButtonPrimary: 
-                    "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105",
-                  footer: "hidden",
-                  dividerRow: "text-gray-500 dark:text-gray-300 before:bg-gray-300 dark:before:bg-gray-600 after:bg-gray-300 dark:after:bg-gray-600",
-                  dividerText: "bg-transparent px-2",
-                  identityPreviewText: "text-gray-900 dark:text-white",
-                  identityPreviewEditButton: "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300",
-                  codeInputField: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white",
-                  codeInputFieldFocused: "!border-blue-500 dark:!border-blue-400 !ring-2 !ring-blue-500 dark:!ring-blue-400",
-                  codeInputFieldFilled: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white",
-                  input: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white !rounded-lg",
-                  inputFocused: "!border-blue-500 dark:!border-blue-400 !ring-2 !ring-blue-500 dark:!ring-blue-400",
-                  // تأكد من ظهور حقل البريد الإلكتروني
-                  formField: "mb-4",
-                  form: "space-y-4",
-                  // إضافة أنماط خاصة بحقل البريد الإلكتروني
-                  emailField: "!block",
-                  emailInput: "!w-full !px-4 !py-3 !text-base !bg-white dark:!bg-gray-700 !border !border-gray-300 dark:!border-gray-600 !rounded-lg !focus:ring-2 !focus:ring-blue-500 !focus:border-blue-500 !text-gray-900 dark:!text-white",
-                },
-                variables: {
-                  colorPrimary: "#2563eb",
-                  colorText: "rgb(75 85 99)",
-                  colorTextSecondary: "rgb(107 114 128)",
-                  colorBackground: "#ffffff",
-                  colorInputBackground: "#ffffff",
-                  colorInputText: "rgb(17 24 39)",
-                  colorTextOnPrimaryBackground: "#ffffff",
-                }
-              }}
-            />
+            {/* في الشاشات الكبيرة: مكون Clerk داخل الحاوية */}
+            <div className="hidden lg:block p-4 sm:p-6 md:p-8 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-2xl shadow-xl dark:shadow-2xl dark:shadow-blue-500/20 border border-gray-200 dark:border-gray-800 transition-all duration-700 transform">
+              <div className="text-center mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">تسجيل الدخول</h1>
+                <p className="text-gray-600 dark:text-gray-200">مرحباً بعودتك إلى مجتمعنا العلمي</p>
+              </div>
+              
+              <SignIn
+                path="/sign-in"
+                routing="path"
+                signUpUrl="/sign-up"
+                appearance={{
+                  elements: {
+                    rootBox: "mx-auto shadow-lg dark:shadow-blue-500/30 dark:shadow-xl",
+                    card: "bg-transparent shadow-none dark:shadow-blue-500/20",
+                    headerTitle: "hidden",
+                    headerSubtitle: "hidden",
+                    socialButtonsBlockButton: 
+                      "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors duration-200",
+                    formFieldLabel: "text-gray-700 dark:text-gray-200 font-medium",
+                    formFieldInput: 
+                      "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white !rounded-lg !focus:ring-2 !focus:ring-blue-500 !focus:border-blue-500 transition-colors duration-200",
+                    formButtonPrimary: 
+                      "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105",
+                    footer: "hidden",
+                    dividerRow: "text-gray-500 dark:text-gray-300 before:bg-gray-300 dark:before:bg-gray-600 after:bg-gray-300 dark:after:bg-gray-600",
+                    dividerText: "bg-transparent px-2",
+                    identityPreviewText: "text-gray-900 dark:text-white",
+                    identityPreviewEditButton: "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300",
+                    codeInputField: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white",
+                    codeInputFieldFocused: "!border-blue-500 dark:!border-blue-400 !ring-2 !ring-blue-500 dark:!ring-blue-400",
+                    codeInputFieldFilled: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white",
+                    input: "!bg-white dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600 !text-gray-900 dark:!text-white !rounded-lg",
+                    inputFocused: "!border-blue-500 dark:!border-blue-400 !ring-2 !ring-blue-500 dark:!ring-blue-400",
+                    // تأكد من ظهور حقل البريد الإلكتروني
+                    formField: "mb-4",
+                    form: "space-y-4",
+                    // إضافة أنماط خاصة بحقل البريد الإلكتروني
+                    emailField: "!block",
+                    emailInput: "!w-full !px-4 !py-3 !text-base !bg-white dark:!bg-gray-700 !border !border-gray-300 dark:!border-gray-600 !rounded-lg !focus:ring-2 !focus:ring-blue-500 !focus:border-blue-500 !text-gray-900 dark:!text-white",
+                  },
+                  variables: {
+                    colorPrimary: "#2563eb",
+                    colorText: "rgb(75 85 99)",
+                    colorTextSecondary: "rgb(107 114 128)",
+                    colorBackground: "#ffffff",
+                    colorInputBackground: "#ffffff",
+                    colorInputText: "rgb(17 24 39)",
+                    colorTextOnPrimaryBackground: "#ffffff",
+                  }
+                }}
+              />
 
-            <div className="mt-6 sm:mt-8 text-center pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-gray-600 dark:text-gray-200">
-                لسه ماعندكش حساب؟{" "}
-                <Link
-                  href="/sign-up"
-                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200"
-                >
-                  اعمل حساب جديد
-                </Link>
-              </p>
+              <div className="mt-6 sm:mt-8 text-center pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-gray-600 dark:text-gray-200">
+                  لسه ماعندكش حساب؟{" "}
+                  <Link
+                    href="/sign-up"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors duration-200"
+                  >
+                    اعمل حساب جديد
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
           

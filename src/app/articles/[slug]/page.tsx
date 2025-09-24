@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 // Icons
-import { FaPlay, FaArrowLeft, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaHeart } from "react-icons/fa";
+import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaHeart, FaCalendarAlt, FaFolder, FaVideo } from "react-icons/fa";
 // Sanity
 import { client, urlForImage } from "@/lib/sanity";
 // Components
@@ -48,9 +48,38 @@ interface Article {
       };
     };
   };
+  season?: {
+    _id: string;
+    title: string;
+    slug: {
+      current: string;
+    };
+    thumbnail?: {
+      asset: {
+        _ref: string;
+        _id?: string;
+        url?: string;
+      };
+    };
+  };
 }
 
 interface EpisodeItem {
+  _id: string;
+  title: string;
+  slug: {
+    current: string;
+  };
+  thumbnail?: {
+    asset: {
+      _ref: string;
+      _id?: string;
+      url?: string;
+    };
+  };
+}
+
+interface SeasonItem {
   _id: string;
   title: string;
   slug: {
@@ -393,6 +422,7 @@ export default function ArticleDetailPageClient() {
   const slugOrId = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
   const [article, setArticle] = useState<Article | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
+  const [seasons, setSeasons] = useState<SeasonItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -407,6 +437,7 @@ export default function ArticleDetailPageClient() {
       setError(null);
       setArticle(null);
       setEpisodes([]);
+      setSeasons([]);
       try {
         if (!slugOrId) {
           setError("لم يتم تحديد المقال");
@@ -414,7 +445,7 @@ export default function ArticleDetailPageClient() {
           return;
         }
         
-        // جلب المقال من Sanity مع الحلقة المرتبطة
+        // جلب المقال من Sanity مع الحلقة والموسم المرتبطين
         const query = `*[_type == "article" && slug.current == $slug][0] {
           _id,
           _type,
@@ -441,6 +472,18 @@ export default function ArticleDetailPageClient() {
                 url
               }
             }
+          },
+          season-> {
+            _id,
+            title,
+            slug,
+            thumbnail {
+              asset-> {
+                _id,
+                _ref,
+                url
+              }
+            }
           }
         }`;
         
@@ -457,9 +500,16 @@ export default function ArticleDetailPageClient() {
           relatedEpisodes = [art.episode];
         }
         
+        // جلب المواسم المرتبطة (إذا كان هناك موسم مرتبط)
+        let relatedSeasons: SeasonItem[] = [];
+        if (art.season) {
+          relatedSeasons = [art.season];
+        }
+        
         if (mounted) {
           setArticle(art);
           setEpisodes(relatedEpisodes);
+          setSeasons(relatedSeasons);
           setLoading(false);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -580,7 +630,7 @@ export default function ArticleDetailPageClient() {
       }
     }
     
-    // إذا كان هناك _ref مباشرة، استخدم urlForImage
+    // إذا كان هناك _ref مباشر، استخدم urlForImage
     if (image._ref) {
       try {
         // إنشاء كائن SanityImage صالح
@@ -1028,13 +1078,24 @@ export default function ArticleDetailPageClient() {
     return result;
   };
   
+  // Function to format date in Arabic
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ar-EG', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+  
   return (
     <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen">
       {/* HERO */}
       <header className="relative w-full overflow-hidden shadow-2xl">
         <motion.div
           style={{ y }}
-          className="relative h-[50vh] md:h-[60vh]"
+          className="relative h-[60vh] md:h-[70vh]"
         >
           <div className="absolute inset-0">
             <Image
@@ -1059,7 +1120,7 @@ export default function ArticleDetailPageClient() {
               className="inline-block backdrop-blur-lg bg-black/40 rounded-2xl md:rounded-3xl px-4 md:px-8 py-4 md:py-6 shadow-2xl border border-white/10 max-w-full"
             >
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-full text-xs font-bold text-white shadow-lg">
+                <span className="px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-xs font-bold text-white shadow-lg">
                   مقال جديد
                 </span>
                 <span className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-xs font-bold text-white shadow-lg">
@@ -1067,38 +1128,16 @@ export default function ArticleDetailPageClient() {
                   مميز
                 </span>
               </div>
-              <h1 className="text-2xl md:text-3xl lg:text-5xl font-extrabold leading-tight tracking-wide bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent animate-gradient">
+              <h1 className="text-2xl md:text-3xl lg:text-5xl font-extrabold leading-tight tracking-wide bg-gradient-to-r from-purple-400 via-pink-500 to-red-600 bg-clip-text text-transparent animate-gradient">
                 {title}
               </h1>
               <div className="mt-3 flex items-center gap-3">
                 <p className="text-base md:text-lg lg:text-2xl text-gray-200 font-medium drop-shadow-md">
                   {new Date(publishedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
-                <div className="h-1 w-6 md:w-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full"></div>
+                <div className="h-1 w-6 md:w-8 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full"></div>
               </div>
             </motion.div>
-          </div>
-        </motion.div>
-        
-        {/* Back and Favorite Buttons */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="absolute top-4 md:top-6 left-4 md:left-6 z-10 flex items-center gap-3"
-        >
-          <Link
-            href="/articles"
-            className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 bg-gradient-to-r from-black/40 to-black/60 backdrop-blur-lg rounded-full text-white hover:from-black/60 hover:to-black/80 transition-all duration-300 shadow-lg border border-white/10 hover:border-white/20"
-          >
-            <FaArrowLeft className="text-base md:text-lg" />
-            <span className="font-medium text-sm md:text-base">العودة للمقالات</span>
-          </Link>
-          
-          {/* Favorite Button */}
-          <div className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 bg-gradient-to-r from-pink-500/40 to-red-500/40 backdrop-blur-lg rounded-full text-white hover:from-pink-500/60 hover:to-red-500/60 transition-all duration-300 shadow-lg border border-white/10 hover:border-white/20">
-            <FavoriteButton contentId={article._id} contentType="article" />
-            <span className="font-medium text-sm md:text-base">المفضلة</span>
           </div>
         </motion.div>
       </header>
@@ -1116,17 +1155,23 @@ export default function ArticleDetailPageClient() {
           >
             <div className="mb-4 md:mb-6">
               <div className="flex items-center gap-3 mb-4 md:mb-6">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center text-white shadow-lg">
                   <FaPlay className="text-xs md:text-sm" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">
                   نبذة عن المقال
                 </h2>
-                <div className="flex-grow h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
+                <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
+                
+                {/* Favorite Button in Excerpt Section */}
+                <div className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 bg-gradient-to-r from-pink-500/40 to-red-500/40 backdrop-blur-lg rounded-full text-white hover:from-pink-500/60 hover:to-red-500/60 transition-all duration-300 shadow-lg border border-white/10 hover:border-white/20">
+                  <FavoriteButton contentId={article._id} contentType="article" />
+                  <span className="font-medium text-sm md:text-base">المفضلة</span>
+                </div>
               </div>
               
               <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
-                <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-blue-100 dark:border-gray-700 backdrop-blur-md">
+                <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-purple-100 dark:border-gray-700 backdrop-blur-md">
                   <p className="text-lg md:text-xl text-gray-700 dark:text-gray-200 leading-relaxed">
                     {excerpt}
                   </p>
@@ -1144,17 +1189,17 @@ export default function ArticleDetailPageClient() {
           >
             <div className="mb-4 md:mb-6">
               <div className="flex items-center gap-3 mb-4 md:mb-6">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-green-500 to-teal-600 flex items-center justify-center text-white shadow-lg">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center text-white shadow-lg">
                   <FaPlay className="text-xs md:text-sm" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-700 bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">
                   المحتوى
                 </h2>
-                <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
+                <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
               </div>
               
               <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
-                <div className="bg-gradient-to-br from-green-50/50 to-teal-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-green-100 dark:border-gray-700 backdrop-blur-md">
+                <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-purple-100 dark:border-gray-700 backdrop-blur-md">
                   {/* استخدام دالة processContent لعرض المحتوى مع الحفاظ على التنسيقات */}
                   {processContent(content)}
                 </div>
@@ -1162,8 +1207,8 @@ export default function ArticleDetailPageClient() {
             </div>
           </motion.section>
           
-          {/* EPISODE SECTION */}
-          {episodes.length > 0 && (
+          {/* SEASON SECTION */}
+          {seasons.length > 0 && (
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1171,13 +1216,88 @@ export default function ArticleDetailPageClient() {
               className="bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border border-gray-100 dark:border-gray-700 overflow-hidden"
             >
               <div className="flex items-center gap-3 mb-4 md:mb-6">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-yellow-500 to-orange-600 flex items-center justify-center text-white shadow-lg">
-                  <FaPlay className="text-xs md:text-sm" />
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                  <FaFolder className="text-xs md:text-sm" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-700 bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
+                  الموسم المرتبط
+                </h2>
+                <div className="flex-grow h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {seasons.map((season) => {
+                  const seasonImageUrl = getImageUrl(season.thumbnail);
+                  console.log("Season image URL:", seasonImageUrl);
+                  
+                  return (
+                    <motion.div
+                      key={season._id}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl md:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300"
+                    >
+                      <Link
+                        href={`/seasons/${encodeURIComponent(String(season.slug.current))}`}
+                        className="block"
+                      >
+                        <div className="relative h-40 md:h-48 overflow-hidden">
+                          <Image
+                            src={seasonImageUrl}
+                            alt={season.title}
+                            fill
+                            className="object-cover transition-transform duration-500 hover:scale-110"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            onError={(e) => {
+                              console.error("Error loading season image:", e);
+                              e.currentTarget.src = '/placeholder.png';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <motion.div 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg"
+                            >
+                              <FaPlay className="text-white text-base md:text-lg ml-1" />
+                            </motion.div>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-lg font-bold mb-2">{season.title}</h3>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
+                              موسم
+                            </span>
+                            <span className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                              عرض الموسم
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.section>
+          )}
+          
+          {/* EPISODE SECTION */}
+          {episodes.length > 0 && (
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border border-gray-100 dark:border-gray-700 overflow-hidden"
+            >
+              <div className="flex items-center gap-3 mb-4 md:mb-6">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-green-500 to-teal-600 flex items-center justify-center text-white shadow-lg">
+                  <FaVideo className="text-xs md:text-sm" />
+                </div>
+                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-700 bg-clip-text text-transparent">
                   الحلقة المرتبطة
                 </h2>
-                <div className="flex-grow h-px bg-gradient-to-r from-yellow-200 to-transparent"></div>
+                <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1212,7 +1332,7 @@ export default function ArticleDetailPageClient() {
                             <motion.div 
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
-                              className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg"
+                              className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-r from-green-500 to-teal-600 flex items-center justify-center shadow-lg"
                             >
                               <FaPlay className="text-white text-base md:text-lg ml-1" />
                             </motion.div>
@@ -1221,10 +1341,10 @@ export default function ArticleDetailPageClient() {
                         <div className="p-4">
                           <h3 className="text-lg font-bold mb-2">{episode.title}</h3>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
+                            <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full">
                               حلقة
                             </span>
-                            <span className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                            <span className="text-sm text-green-600 dark:text-green-400 hover:underline">
                               مشاهدة الحلقة
                             </span>
                           </div>

@@ -1,4 +1,3 @@
-// app/components/Navbar.tsx
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -8,64 +7,31 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromSanity, urlFor } from "@/lib/sanity";
 
-// تعريف واجهة لنتائج البحث
+// تعريف واجهات البيانات
 interface SearchResult {
   _id: string;
   _type: "episode" | "article" | "faq" | "playlist" | "season" | "teamMember" | "terms" | "privacy";
   title: string;
-  slug?: {
-    current: string;
-  };
+  slug?: { current: string };
   excerpt?: string;
   description?: string;
   answer?: string;
   role?: string;
-  thumbnail?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
-  featuredImage?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
-  image?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
-  season?: {
-    _id: string;
-    title: string;
-    slug: {
-      current: string;
-    };
-  };
+  thumbnail?: SanityImage;
+  featuredImage?: SanityImage;
+  image?: SanityImage;
+  season?: { _id: string; title: string; slug: { current: string } };
   episodeCount?: number;
   category?: string;
-  content?: PortableTextBlock[]; // للشروط والأحكام وسياسة الخصوصية
-  sectionType?: string; // للشروط والأحكام وسياسة الخصوصية
-  imageUrl?: string; // لقوائم التشغيل
-  question?: string; // للأسئلة الشائعة
-  name?: string; // لأعضاء الفريق
-  bio?: string; // لأعضاء الفريق
-  episode?: { // إضافة خاصية episode بشكل صريح
-    _id: string;
-    title: string;
-    slug: {
-      current: string;
-    };
-  };
+  content?: PortableTextBlock[];
+  sectionType?: string;
+  imageUrl?: string;
+  question?: string;
+  name?: string;
+  bio?: string;
+  episode?: { _id: string; title: string; slug: { current: string } };
 }
 
-// واجهة لكتل Portable Text
 interface PortableTextBlock {
   _type: 'block';
   children: PortableTextSpan[];
@@ -75,16 +41,11 @@ interface PortableTextSpan {
   text: string;
 }
 
-// تعريف واجهة لصورة Sanity
 interface SanityImage {
   _type: 'image';
-  asset: {
-    _ref: string;
-    _type: 'reference';
-  };
+  asset: { _ref: string; _type: 'reference' };
 }
 
-// واجهة خاصة بنتائج الأسئلة الشائعة
 interface FaqResult extends SearchResult {
   _type: "faq";
   question: string;
@@ -92,7 +53,6 @@ interface FaqResult extends SearchResult {
   category?: string;
 }
 
-// واجهة خاصة بنتائج أعضاء الفريق
 interface TeamMemberResult extends SearchResult {
   _type: "teamMember";
   name: string;
@@ -102,9 +62,16 @@ interface TeamMemberResult extends SearchResult {
   bio?: string;
 }
 
+// دوال مساعدة
 function buildSearchMediaUrl(image?: SanityImage): string {
   if (!image) return "/placeholder.png";
-  return urlFor(image) || "/placeholder.png";
+  try {
+    const url = urlFor(image);
+    return url || "/placeholder.png";
+  } catch (error) {
+    console.error("Error building image URL:", error);
+    return "/placeholder.png";
+  }
 }
 
 function escapeRegExp(str = ""): string {
@@ -135,7 +102,7 @@ function renderHighlighted(text: string, q: string): React.ReactNode {
   }
 }
 
-// مكون SearchBar المحدث للعمل مع Sanity
+// مكون شريط البحث
 const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -181,87 +148,43 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true);
     try {
-      // جلب البيانات من Sanity
+      // استعلامات Sanity لجلب البيانات
       const episodesQuery = `*[_type == "episode"]{
-        _id,
-        _type,
-        title,
-        slug,
-        description,
-        thumbnail,
-        season->{
-          _id,
-          title,
-          slug
-        }
+        _id, _type, title, slug, description, thumbnail,
+        season->{_id, title, slug}
       }`;
       
       const articlesQuery = `*[_type == "article"]{
-        _id,
-        _type,
-        title,
-        slug,
-        excerpt,
-        featuredImage,
-        episode->{
-          _id,
-          title,
-          slug
-        }
+        _id, _type, title, slug, excerpt, featuredImage,
+        episode->{_id, title, slug}
       }`;
       
       const playlistsQuery = `*[_type == "playlist"]{
-        _id,
-        _type,
-        title,
-        slug,
-        description,
+        _id, _type, title, slug, description,
         "imageUrl": image.asset->url
       }`;
       
       const faqsQuery = `*[_type == "faq"]{
-        _id,
-        _type,
-        question,
-        answer,
-        category
+        _id, _type, question, answer, category
       }`;
       
       const seasonsQuery = `*[_type == "season"]{
-        _id,
-        _type,
-        title,
-        slug,
-        thumbnail
+        _id, _type, title, slug, thumbnail
       }`;
       
       const teamMembersQuery = `*[_type == "teamMember"]{
-        _id,
-        _type,
-        name,
-        role,
-        slug,
-        image,
-        bio
+        _id, _type, name, role, slug, image, bio
       }`;
       
-      // استعلامات جديدة للشروط والأحكام وسياسة الخصوصية
       const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
-        _id,
-        _type,
-        title,
-        content,
-        lastUpdated
+        _id, _type, title, content, lastUpdated
       }`;
       
       const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
-        _id,
-        _type,
-        title,
-        content,
-        lastUpdated
+        _id, _type, title, content, lastUpdated
       }`;
       
+      // جلب البيانات بشكل متوازٍ
       const [
         episodesData, 
         articlesData, 
@@ -291,9 +214,7 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
       const privacy = privacyData as SearchResult | null;
       
       // حساب عدد الحلقات لكل موسم
-      const episodesCountQuery = `*[_type == "episode"]{
-        season->{_id}
-      }`;
+      const episodesCountQuery = `*[_type == "episode"]{ season->{_id} }`;
       const episodesCountData = await fetchFromSanity(episodesCountQuery);
       const episodesDataCount = episodesCountData as { season?: { _id: string } }[];
       
@@ -357,24 +278,19 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
       const q = searchQuery.trim().toLowerCase();
       const filteredResults = allResults.filter((result) => {
         const title = (result.title || "").toString().toLowerCase();
-        
-        // البحث في محتوى الشروط والأحكام وسياسة الخصوصية
         let excerpt = (result.excerpt || "").toString().toLowerCase();
         
-        // إذا كان النتيجة من نوع الأسئلة الشائعة، ابحث في الإجابة
+        // البحث في محتوى الشروط والأحكام وسياسة الخصوصية
         if (result._type === "faq" && (result as FaqResult).answer) {
           excerpt = ((result as FaqResult).answer || "").toString().toLowerCase();
         }
         
-        // إذا كان النتيجة من نوع أعضاء الفريق، ابحث في الدور الوظيفي
         if (result._type === "teamMember" && (result as TeamMemberResult).role) {
           excerpt = ((result as TeamMemberResult).role || "").toString().toLowerCase();
         }
         
-        // إذا كان النتيجة من نوع الشروط والأحكام أو سياسة الخصوصية، ابحث في المحتوى أيضاً
         if ((result._type === "terms" || result._type === "privacy") && result.content) {
           try {
-            // استخراج النص من محتوى Portable Text
             const contentText = result.content
               .filter((block: PortableTextBlock) => block._type === "block")
               .map((block: PortableTextBlock) => 
@@ -439,7 +355,6 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
     }, 0);
   };
   
-  // تعديل دالة التوجيه لاستخدام الدالة الموحدة
   const handleResultClick = (result: SearchResult) => {
     setShowResults(false);
     setQuery("");
@@ -449,24 +364,15 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
       const idOrSlug = result.slug?.current ?? result._id;
       const encoded = encodeURIComponent(String(idOrSlug));
       switch (result._type) {
-        case "episode":
-          return `/episodes/${encoded}`;
-        case "article":
-          return `/articles/${encoded}`;
-        case "playlist":
-          return `/playlists/${encoded}`;
-        case "faq":
-          return `/faq?faq=${encoded}`;
-        case "season":
-          return `/seasons/${encoded}`;
-        case "teamMember":
-          return `/team/${encoded}`;
-        case "terms":
-          return `/terms-conditions`;
-        case "privacy":
-          return `/privacy-policy`;
-        default:
-          return "#";
+        case "episode": return `/episodes/${encoded}`;
+        case "article": return `/articles/${encoded}`;
+        case "playlist": return `/playlists/${encoded}`;
+        case "faq": return `/faq?faq=${encoded}`;
+        case "season": return `/seasons/${encoded}`;
+        case "teamMember": return `/team/${encoded}`;
+        case "terms": return `/terms-conditions`;
+        case "privacy": return `/privacy-policy`;
+        default: return "#";
       }
     };
     
@@ -524,7 +430,7 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
         return (
           <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl shadow-sm">
             <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 100-6 3 3 0 000 6zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
         );
@@ -555,46 +461,56 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
     }
   };
   
-  // تحديد الصورة المناسبة حسب نوع النتيجة
-  const getImageUrl = (result: SearchResult) => {
-    if (result.thumbnail) return buildSearchMediaUrl(result.thumbnail);
-    if (result.featuredImage) return buildSearchMediaUrl(result.featuredImage);
-    if (result.image) return buildSearchMediaUrl(result.image);
-    if (result._type === "playlist" && result.imageUrl) {
-      return result.imageUrl;
+  const getImageUrl = (result: SearchResult): string => {
+    try {
+      if (result.thumbnail) {
+        const url = buildSearchMediaUrl(result.thumbnail);
+        return url;
+      }
+      if (result.featuredImage) {
+        const url = buildSearchMediaUrl(result.featuredImage);
+        return url;
+      }
+      if (result.image) {
+        const url = buildSearchMediaUrl(result.image);
+        return url;
+      }
+      if (result._type === "playlist" && result.imageUrl) {
+        return result.imageUrl;
+      }
+      
+      if (result._type === "terms") {
+        return "/images/terms-default.jpg";
+      }
+      if (result._type === "privacy") {
+        return "/images/privacy-default.jpg";
+      }
+      
+      return "/placeholder.png";
+    } catch (error) {
+      console.error("Error getting image URL:", error);
+      return "/placeholder.png";
     }
-    
-    // صور افتراضية للشروط والأحكام وسياسة الخصوصية
-    if (result._type === "terms") {
-      return "/images/terms-default.jpg";
-    }
-    if (result._type === "privacy") {
-      return "/images/privacy-default.jpg";
-    }
-    
-    return "/placeholder.png";
   };
   
-  // تحديد النص المناسب للعرض
   const getDisplayText = (result: SearchResult) => {
     if (result.excerpt) return result.excerpt;
     if (result.description) return result.description;
     if (result._type === "faq" && (result as FaqResult).answer) return (result as FaqResult).answer || "";
     if (result._type === "teamMember" && (result as TeamMemberResult).role) return (result as TeamMemberResult).role || "";
     
-    // استخراج نص من محتوى الشروط والأحكام وسياسة الخصوصية
     if ((result._type === "terms" || result._type === "privacy") && result.content) {
       try {
         return result.content
           .filter((block: PortableTextBlock) => block._type === "block")
-          .slice(0, 2) // أخذ أول فقرتين فقط
+          .slice(0, 2)
           .map((block: PortableTextBlock) => 
             block.children
               .map((child: PortableTextSpan) => child.text)
               .join("")
           )
           .join(" ")
-          .substring(0, 200) + "..."; // اقتطاع النص
+          .substring(0, 200) + "...";
       } catch (error) {
         console.error("Error extracting content text:", error);
         return "";
@@ -633,7 +549,6 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
           </svg>
         </button>
         
-        {/* زر الحذف (X) */}
         {query && (
           <button
             type="button"
@@ -641,13 +556,12 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
             className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
             </svg>
           </button>
         )}
       </form>
       
-      {/* نتائج البحث المقترحة */}
       <AnimatePresence>
         {showResults && isExpanded && (query.trim().length >= 2 || results.length > 0) && (
           <motion.div
@@ -703,12 +617,9 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
                           height={40}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            console.error("Image load error in search results:", {
-                              src: e.currentTarget.src,
-                              thumbnail: getImageUrl(result),
-                              builtUrl: getImageUrl(result)
-                            });
-                            e.currentTarget.style.display = 'none';
+                            // فقط أخفي الصورة المعطوبة ولا تطبع رسالة خطأ
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
                           }}
                         />
                       </div>
@@ -742,34 +653,130 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
   );
 };
 
+// مكون تبديل الوضع الداكن
+const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDarkMode: () => void }) => {
+  return (
+    <motion.button
+      onClick={toggleDarkMode}
+      className={`relative inline-flex items-center h-7 rounded-full w-14 transition-all duration-500 ease-in-out focus:outline-none overflow-hidden ${
+        isDark ? 'bg-gradient-to-r from-blue-600 to-indigo-700' : 'bg-gradient-to-r from-yellow-400 to-orange-500'
+      }`}
+      aria-label="تبديل الوضع الليلي"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {/* خلفية متحركة */}
+      <motion.div 
+        className={`absolute inset-0 transition-opacity duration-500 ${
+          isDark ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{
+          background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)'
+        }}
+      />
+      
+      {/* مؤشر التبديل */}
+      <motion.div
+        className={`absolute w-5 h-5 rounded-full bg-white shadow-lg z-10 ${
+          isDark ? 'left-8' : 'left-1'
+        }`}
+        layout
+        transition={{ 
+          type: "spring", 
+          stiffness: 700, 
+          damping: 30,
+          duration: 0.5
+        }}
+      />
+      
+      {/* أيقونة الشمس */}
+      <motion.div
+        className={`absolute right-1.5 top-1.5 text-yellow-300 z-0 ${
+          isDark ? 'opacity-0 scale-50' : 'opacity-100 scale-100'
+        }`}
+        animate={{ 
+          opacity: isDark ? 0 : 1,
+          scale: isDark ? 0.5 : 1,
+          rotate: isDark ? -30 : 0
+        }}
+        transition={{ duration: 0.5 }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+        </svg>
+      </motion.div>
+      
+      {/* أيقونة القمر */}
+      <motion.div
+        className={`absolute left-1.5 top-1.5 text-blue-200 z-0 ${
+          isDark ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+        }`}
+        animate={{ 
+          opacity: isDark ? 1 : 0,
+          scale: isDark ? 1 : 0.5,
+          rotate: isDark ? 0 : 30
+        }}
+        transition={{ duration: 0.5 }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+      </motion.div>
+      
+      {/* النجوم في الوضع الليلي */}
+      <div className={`absolute inset-0 transition-opacity duration-500 ${isDark ? 'opacity-100' : 'opacity-0'}`}>
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full"
+            style={{
+              top: `${20 + i * 15}%`,
+              left: `${30 + (i * 10) % 40}%`,
+            }}
+            animate={{
+              opacity: [0.2, 0.8, 0.2],
+              scale: [0.8, 1.2, 0.8],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              delay: i * 0.3,
+            }}
+          />
+        ))}
+      </div>
+    </motion.button>
+  );
+};
+
+// المكون الرئيسي للشريط العلوي
 export default function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [floatingProfileOpen, setFloatingProfileOpen] = useState(false);
-  const [contentOpen, setContentOpen] = useState(false);
-  const [mobileContentOpen, setMobileContentOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileNavbarVisible, setMobileNavbarVisible] = useState(false);
-  const [sideMenuOpen, setSideMenuOpen] = useState(false);
-  const [sideMenuAnimation, setSideMenuAnimation] = useState(false);
-  const [joinMenuOpen, setJoinMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
-  const [mobileAboutOpen, setMobileAboutOpen] = useState(false);
-  const [mobileContactOpen, setMobileContactOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   
   const profileRef = useRef<HTMLDivElement>(null);
-  const floatingProfileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { user } = useUser();
   const { signOut } = useClerk();
   
   useEffect(() => {
     setMounted(true);
+    
+    // التحقق من تفضيل الوضع المحفوظ في localStorage
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode !== null) {
+      setIsDark(savedDarkMode === 'true');
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم تفضيل النظام
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDark(prefersDark);
+    }
     
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -784,35 +791,17 @@ export default function Navbar() {
   }, []);
   
   useEffect(() => {
-    if (isDark) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, [isDark]);
-  
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+    if (mounted) {
+      // حفظ تفضيل المستخدم في localStorage
+      localStorage.setItem('darkMode', isDark.toString());
       
-      if (!isMobile) {
-        if (currentScrollY > 50 && currentScrollY > lastScrollY) {
-          setIsVisible(true);
-        }
-        else if (currentScrollY <= 50 || (currentScrollY < lastScrollY && currentScrollY < 100)) {
-          setIsVisible(false);
-        }
+      if (isDark) {
+        document.documentElement.classList.add("dark");
       } else {
-        if (currentScrollY > 100) {
-          setMobileNavbarVisible(true);
-        } else {
-          setMobileNavbarVisible(false);
-        }
+        document.documentElement.classList.remove("dark");
       }
-      
-      setLastScrollY(currentScrollY);
-    };
-    
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY, isMobile]);
+    }
+  }, [isDark, mounted]);
   
   function resolveAvatarRaw(raw: string | undefined): string | undefined {
     if (!raw) return undefined;
@@ -864,78 +853,18 @@ export default function Navbar() {
     }, 100);
   };
   
-  const handleFloatingManage = () => {
-    setFloatingProfileOpen(false);
-    setTimeout(() => router.push("/profile"), 100);
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
   
-  const handleFloatingFavorites = () => {
-    setFloatingProfileOpen(false);
-    setTimeout(() => router.push("/favorites"), 100);
-  };
-  
-  const handleFloatingSignOut = async () => {
-    setFloatingProfileOpen(false);
-    setTimeout(async () => {
-      await signOut();
-      router.push("/");
-    }, 100);
-  };
-  
-  const closeMobileMenuWithAnimation = () => {
-    setMobileContentOpen(false);
-    setMobileAboutOpen(false);
-    setMobileContactOpen(false);
-    setTimeout(() => setIsMenuOpen(false), 300);
-  };
-  
-  const handleMobileLinkClick = (href: string) => {
-    closeMobileMenuWithAnimation();
-    setTimeout(() => router.push(href), 300);
-  };
-  
-  const handleMobileSignOut = async () => {
-    closeMobileMenuWithAnimation();
-    setTimeout(async () => {
-      await signOut();
-      router.push("/");
-    }, 300);
-  };
-  
-  const toggleMobileContent = () => {
-    setMobileContentOpen(!mobileContentOpen);
-  };
-  
-  const toggleMobileAbout = () => {
-    setMobileAboutOpen(!mobileAboutOpen);
-  };
-  
-  const toggleMobileContact = () => {
-    setMobileContactOpen(!mobileContactOpen);
-  };
-  
-  const toggleSideMenu = () => {
-    if (sideMenuOpen) {
-      setSideMenuAnimation(false);
-      setTimeout(() => setSideMenuOpen(false), 300);
-    } else {
-      setSideMenuOpen(true);
-      setTimeout(() => setSideMenuAnimation(true), 10);
-    }
-  };
-  
-  const closeSideMenu = () => {
-    setSideMenuAnimation(false);
-    setTimeout(() => setSideMenuOpen(false), 300);
+  const toggleDarkMode = () => {
+    setIsDark(!isDark);
   };
   
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
-      }
-      if (floatingProfileRef.current && !floatingProfileRef.current.contains(e.target as Node)) {
-        setFloatingProfileOpen(false);
       }
       if (contentOpen && !(e.target as Element).closest('.content-dropdown')) {
         setContentOpen(false);
@@ -946,24 +875,15 @@ export default function Navbar() {
       if (contactOpen && !(e.target as Element).closest('.contact-dropdown')) {
         setContactOpen(false);
       }
-      if (joinMenuOpen && !(e.target as Element).closest('.join-menu')) {
-        setJoinMenuOpen(false);
-      }
     }
     
     function handleEsc(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setProfileOpen(false);
-        setFloatingProfileOpen(false);
         setContentOpen(false);
-        setMobileContentOpen(false);
         setAboutOpen(false);
-        setMobileAboutOpen(false);
         setContactOpen(false);
-        setMobileContactOpen(false);
-        setJoinMenuOpen(false);
-        if (isMenuOpen) closeMobileMenuWithAnimation();
-        if (sideMenuOpen) closeSideMenu();
+        if (mobileMenuOpen) setMobileMenuOpen(false);
       }
     }
     
@@ -973,35 +893,35 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEsc);
     };
-  }, [contentOpen, isMenuOpen, sideMenuOpen, joinMenuOpen, aboutOpen, contactOpen, mobileAboutOpen, mobileContactOpen]);
+  }, [contentOpen, mobileMenuOpen, aboutOpen, contactOpen]);
   
   if (!mounted) return null;
   
   return (
     <>
-      {/* Navbar العادي في الأعلى */}
-      <nav className={`bg-gradient-to-r from-indigo-900 to-purple-800 text-white py-2 shadow-lg relative z-20 transition-all duration-500 ${
-        isMobile ? (mobileNavbarVisible ? "opacity-0 -translate-y-6 pointer-events-none" : "opacity-100 translate-y-0") : (isVisible ? "opacity-0 -translate-y-6 pointer-events-none" : "opacity-100 translate-y-0")
-      }`}>
-        <div className="container mx-auto flex justify-between items-center px-4">
-          <Link href="/" className="flex items-center">
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-              <div className="relative bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-xl border-2 border-white/30 transition-all duration-500 transform group-hover:scale-110 group-hover:shadow-2xl group-hover:rotate-6">
-                <Image 
-                  src="/logo.png" 
-                  alt="فذلكه" 
-                  width={40} 
-                  height={40}
-                  className="object-contain transition-transform duration-500 group-hover:rotate-12"
-                />
+      {/* النافبار الرئيسي للكمبيوتر */}
+      <nav className="hidden md:flex fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[85%] max-w-5xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 dark:border-gray-700/30 py-1.5 px-4 transition-all duration-300">
+        <div className="flex justify-between items-center w-full">
+          {/* القسم الأيسر - الشعار والروابط */}
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur opacity-0 group-hover:opacity-75 transition duration:500"></div>
+                <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-1.5 rounded-full shadow-xl border-2 border-white/30 transition-all duration-500 transform group-hover:scale-110 group-hover:shadow-lg">
+                  <Image 
+                    src="/logo.png" 
+                    alt="فذلكه" 
+                    width={32} 
+                    height={32}
+                    className="object-contain transition-transform duration-500 group-hover:rotate-12"
+                  />
+                </div>
               </div>
-            </div>
-          </Link>
-          
-          <div className="hidden md:flex items-center space-x-6">
-            <div className="flex items-center space-x-2">
-              <Link href="/" className="px-4 py-2 rounded-md hover:bg-white/20 transition-all duration-300 hover:text-blue-200 transform hover:scale-105 text-sm font-medium flex items-center gap-1.5">
+            </Link>
+            
+            {/* الروابط الرئيسية بجوار الشعار مباشرة */}
+            <div className="flex items-center space-x-0 ml-1">
+              <Link href="/" className="px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                 </svg>
@@ -1011,7 +931,7 @@ export default function Navbar() {
               <div className="relative content-dropdown">
                 <button
                   onClick={() => setContentOpen(!contentOpen)}
-                  className="px-4 py-2 rounded-md hover:bg-white/20 transition-all duration-300 hover:text-blue-200 transform hover:scale-105 text-sm font-medium flex items-center gap-1.5"
+                  className="px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
@@ -1026,19 +946,19 @@ export default function Navbar() {
                     <div className="p-1">
                       <Link href="/episodes" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
+                          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                         </svg>
                         <span className="text-sm font-medium">الحلقات</span>
                       </Link>
                       <Link href="/playlists" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                          <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                         </svg>
                         <span className="text-sm font-medium">قوائم التشغيل</span>
                       </Link>
                       <Link href="/seasons" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
+                          <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H8V3a1 1 0 00-1-1H6zM4 8h12v8H4V8z" />
                         </svg>
                         <span className="text-sm font-medium">المواسم</span>
                       </Link>
@@ -1052,19 +972,16 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              {/* زرار " تعرف علينا" مع القائمة المنسدلة */}
+              
               <div className="relative about-dropdown">
                 <button
                   onClick={() => setAboutOpen(!aboutOpen)}
-                  className="px-4 py-2 rounded-md hover:bg-white/20 transition-all duration-300 hover:text-blue-200 transform hover:scale-105 text-sm font-medium flex items-center gap-1.5"
+                  className="px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
                   </svg>
-                   تعرف علينا
+                  تعرف علينا
                   <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${aboutOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
@@ -1089,11 +1006,10 @@ export default function Navbar() {
                 )}
               </div>
               
-              {/* زرار "التواصل" مع القائمة المنسدلة */}
               <div className="relative contact-dropdown">
                 <button
                   onClick={() => setContactOpen(!contactOpen)}
-                  className="px-4 py-2 rounded-md hover:bg-white/20 transition-all duration-300 hover:text-blue-200 transform hover:scale-105 text-sm font-medium flex items-center gap-1.5"
+                  className="px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
@@ -1124,25 +1040,25 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
+              
+              {/* قسم البحث */}
+              <div className="relative">
+                <SearchBar />
+              </div>
             </div>
-            
-            {/* قسم البحث - مكون SearchBar الجديد */}
-            <div className="relative max-w-xs">
-              <SearchBar />
-            </div>
+          </div>
+          
+          {/* القسم الأيمن - الوضع الداكن والحساب */}
+          <div className="flex items-center space-x-1">
+            {/* أيقونة الوضع الداكن قبل الحساب */}
+            <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
             
             <SignedOut>
-              <div className="flex items-center space-x-2">
-                <Link href="/sign-in" className="px-4 py-2 rounded-md hover:bg-white/20 transition-all duration-300 hover:text-blue-200 transform hover:scale-105 text-sm font-medium flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
-                  </svg>
+              <div className="flex items-center space-x-1">
+                <Link href="/sign-in" className="px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white">
                   تسجيل دخول
                 </Link>
-                <Link href="/sign-up" className="px-4 py-2 rounded-md bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105 text-sm font-medium flex items-center gap-1.5 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                  </svg>
+                <Link href="/sign-up" className="px-2 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 text-sm font-medium text-white shadow-md">
                   إنشاء حساب
                 </Link>
               </div>
@@ -1153,25 +1069,25 @@ export default function Navbar() {
                 <button
                   onClick={() => setProfileOpen(prev => !prev)}
                   aria-expanded={profileOpen}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/20 focus:outline-none transition-all duration-300 transform hover:scale-105"
+                  className="flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-all duration-300"
                 >
                   {avatarSrc ? (
                     <Image
                       src={avatarSrc}
                       alt={displayName}
-                      width={28}
-                      height={28}
-                      className="w-7 h-7 rounded-full object-cover border-2 border-white/30"
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full object-cover border-2 border-white/30"
                       referrerPolicy="no-referrer"
                       onError={() => setAvatarSrc(undefined)}
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
+                    <div className="w-6 h-6 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
                       {initials}
                     </div>
                   )}
-                  <span className="hidden sm:inline text-sm font-medium">{displayName}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${profileOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                  <span className="hidden sm:inline text-sm font-medium text-gray-900 dark:text-white">{displayName}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 text-gray-500 transition-transform duration-300 ${profileOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
                 </button>
@@ -1216,962 +1132,385 @@ export default function Navbar() {
                 )}
               </div>
             </SignedIn>
+          </div>
+        </div>
+      </nav>
+      
+      {/* النافبار الجديد للموبايل */}
+      <nav className="md:hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 dark:border-gray-700/30 py-3 px-4 transition-all duration-300">
+        <div className="flex justify-between items-center">
+          {/* القسم الأيسر - حساب المستخدم */}
+          <div className="flex items-center">
+            <SignedIn>
+              <button
+                onClick={() => router.push("/profile")}
+                className="flex items-center"
+              >
+                {avatarSrc ? (
+                  <Image
+                    src={avatarSrc}
+                    alt={displayName}
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-white/30"
+                    referrerPolicy="no-referrer"
+                    onError={() => setAvatarSrc(undefined)}
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
+                    {initials}
+                  </div>
+                )}
+              </button>
+            </SignedIn>
             
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="p-1.5 rounded-lg hover:bg-white/20 transition-all duration-300 transform hover:scale-110"
-            >
-              {isDark ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                </svg>
-              )}
-            </button>
+            <SignedOut>
+              <Link href="/sign-in">
+                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
+                  </svg>
+                </div>
+              </Link>
+            </SignedOut>
           </div>
           
-          <div className="md:hidden flex items-center space-x-2">
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="p-1.5 rounded-lg hover:bg-white/20 transition-all duration-300 transform hover:scale-110"
-            >
-              {isDark ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                </svg>
-              )}
-            </button>
+          {/* القسم الأوسط - الشعار */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <Link href="/" className="flex items-center">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur opacity-0 group-hover:opacity-75 transition duration:500"></div>
+                <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-2 rounded-full shadow-xl border-2 border-white/30 transition-all duration-500 transform group-hover:scale-110 group-hover:shadow-lg">
+                  <Image 
+                    src="/logo.png" 
+                    alt="فذلكه" 
+                    width={36} 
+                    height={36}
+                    className="object-contain transition-transform duration-500 group-hover:rotate-12"
+                  />
+                </div>
+              </div>
+            </Link>
+          </div>
+          
+          {/* القسم الأيمن - الأزرار */}
+          <div className="flex items-center space-x-2">
+            {/* أيقونة الوضع الداكن */}
+            <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
             
+            {/* زر القائمة */}
             <button
-              onClick={toggleSideMenu}
-              className="p-1.5 rounded-lg hover:bg-white/20 transition-all duration-300 transform hover:scale-110"
+              onClick={toggleMobileMenu}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
               </svg>
             </button>
           </div>
         </div>
-        
-        {isMenuOpen && (
-          <div className={`md:hidden bg-gradient-to-b from-indigo-900 to-purple-800 backdrop-blur-sm border-t border-white/20 shadow-xl transition-all duration-500 transform origin-top ${
-            isMenuOpen ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0'
-          }`}>
-            <div className="container mx-auto px-4 py-4">
-              {/* Mobile Search Bar - مكون SearchBar الجديد */}
-              <div className="mb-4">
-                <SearchBar initialExpanded={true} />
-              </div>
-              
-              <div className="space-y-1">
-                <button
-                  onClick={() => handleMobileLinkClick("/")}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                    </svg>
-                  </div>
-                  <span className="text-base font-medium">الرئيسية</span>
-                </button>
-                
-                <div className="space-y-1">
-                  <button
-                    onClick={toggleMobileContent}
-                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
-                        </svg>
-                      </div>
-                      <span className="text-base font-medium">محتوانا</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-white/70 transition-transform duration-300 ${mobileContentOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </button>
-                  
-                  {mobileContentOpen && (
-                    <div className="ml-11 space-y-1">
-                      <button
-                        onClick={() => handleMobileLinkClick("/episodes")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-blue-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">الحلقات</span>
-                      </button>
-                      <button
-                        onClick={() => handleMobileLinkClick("/playlists")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-purple-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">قوائم التشغيل</span>
-                      </button>
-                      <button
-                        onClick={() => handleMobileLinkClick("/seasons")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-green-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">المواسم</span>
-                      </button>
-                      <button
-                        onClick={() => handleMobileLinkClick("/articles")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-yellow-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">المقالات</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {/* زرار " تعرف علينا" مع القائمة المنسدلة للموبايل */}
-                <div className="space-y-1">
-                  <button
-                    onClick={toggleMobileAbout}
-                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                        </svg>
-                      </div>
-                      <span className="text-base font-medium"> تعرف علينا</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-white/70 transition-transform duration-300 ${mobileAboutOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </button>
-                  
-                  {mobileAboutOpen && (
-                    <div className="ml-11 space-y-1">
-                      <button
-                        onClick={() => handleMobileLinkClick("/about")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-blue-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">من نحن</span>
-                      </button>
-                      <button
-                        onClick={() => handleMobileLinkClick("/team")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-purple-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">الفريق</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {/* زرار "التواصل" مع القائمة المنسدلة للموبايل */}
-                <div className="space-y-1">
-                  <button
-                    onClick={toggleMobileContact}
-                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                        </svg>
-                      </div>
-                      <span className="text-base font-medium">التواصل</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-white/70 transition-transform duration-300 ${mobileContactOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </button>
-                  
-                  {mobileContactOpen && (
-                    <div className="ml-11 space-y-1">
-                      <button
-                        onClick={() => handleMobileLinkClick("/contact")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-blue-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">تواصل معنا</span>
-                      </button>
-                      <button
-                        onClick={() => handleMobileLinkClick("/faq")}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                      >
-                        <div className="w-7 h-7 rounded-md bg-green-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm">الأسئلة الشائعة</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="border-t border-white/20 my-3"></div>
-              
-              <SignedOut>
-                <div className="space-y-1">
-                  <button
-                    onClick={() => handleMobileLinkClick("/sign-in")}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
-                      </svg>
-                    </div>
-                    <span className="text-base font-medium">تسجيل دخول</span>
-                  </button>
-                  <button
-                    onClick={() => handleMobileLinkClick("/sign-up")}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 transform hover:scale-[1.02] shadow-lg w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                      </svg>
-                    </div>
-                    <span className="text-base font-medium text-white">إنشاء حساب</span>
-                  </button>
-                </div>
-              </SignedOut>
-              
-              <SignedIn>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300">
-                    {avatarSrc ? (
-                      <Image
-                        src={avatarSrc}
-                        alt={displayName}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-white/30"
-                        referrerPolicy="no-referrer"
-                        onError={() => setAvatarSrc(undefined)}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center font-bold text-lg border-2 border-white/30">
-                        {initials}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-base font-medium">{displayName}</p>
-                      <p className="text-xs text-blue-200">{user?.emailAddresses?.[0]?.emailAddress}</p>
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => {
-                      closeMobileMenuWithAnimation();
-                      setTimeout(() => router.push("/profile"), 300);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
-                      </svg>
-                    </div>
-                    <span className="text-base font-medium">إدارة الحساب</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      closeMobileMenuWithAnimation();
-                      setTimeout(() => router.push("/favorites"), 300);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                      </svg>
-                    </div>
-                    <span className="text-base font-medium">مفضلاتي</span>
-                  </button>
-                  
-                  <button
-                    onClick={handleMobileSignOut}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/20 transition-all duration-300 transform hover:translate-x-1 w-full"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
-                      </svg>
-                    </div>
-                    <span className="text-base font-medium text-red-300">تسجيل الخروج</span>
-                  </button>
-                </div>
-              </SignedIn>
-            </div>
-          </div>
-        )}
       </nav>
       
-      {sideMenuOpen && (
-        <>
-          <div 
-            className={`fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 ${
-              sideMenuAnimation ? 'opacity-100' : 'opacity-0'
-            }`}
-            onClick={closeSideMenu}
-          ></div>
-          
-          <div className={`fixed top-0 left-0 h-full w-80 max-w-full bg-gradient-to-b from-indigo-900 to-purple-800 shadow-2xl z-50 transition-all duration-300 ease-in-out ${
-            sideMenuAnimation ? 'translate-x-0' : '-translate-x-full'
-          }`}>
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between p-4 border-b border-white/20">
-                <Link href="/" className="flex items-center" onClick={closeSideMenu}>
-                  <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                    <div className="relative bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-xl border-2 border-white/30 transition-all duration-500 transform group-hover:scale-110 group-hover:shadow-lg">
-                      <Image 
-                        src="/logo.png" 
-                        alt="فذلكه" 
-                        width={40} 
-                        height={40}
-                        className="object-contain transition-transform duration-500 group-hover:rotate-12"
-                      />
-                    </div>
+      {/* القائمة الجانبية للموبايل من اليسار */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            {/* طبقة التعتيم */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            {/* القائمة الجانبية */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed top-0 left-0 h-full w-80 max-w-full bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto md:hidden"
+            >
+              <div className="flex flex-col h-full">
+                {/* رأس القائمة */}
+                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold">فذلكة</h2>
+                    <button
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
-                </Link>
+                  
+                  {/* معلومات المستخدم */}
+                  <SignedIn>
+                    <div className="mt-6 flex items-center">
+                      {avatarSrc ? (
+                        <Image
+                          src={avatarSrc}
+                          alt={displayName}
+                          width={56}
+                          height={56}
+                          className="w-14 h-14 rounded-full object-cover border-2 border-white/30"
+                          referrerPolicy="no-referrer"
+                          onError={() => setAvatarSrc(undefined)}
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-lg">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="mr-3">
+                        <p className="font-semibold text-lg">{displayName}</p>
+                        <p className="text-sm opacity-80">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                      </div>
+                    </div>
+                  </SignedIn>
+                </div>
                 
-                <button 
-                  onClick={closeSideMenu}
-                  className="p-2 rounded-full hover:bg-white/20 transition-all duration-300"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-4">
-                {/* Side Menu Search Bar - مكون SearchBar الجديد */}
-                <div className="mb-6">
+                {/* شريط البحث */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                   <SearchBar initialExpanded={true} />
                 </div>
                 
-                <div className="space-y-2">
-                  {[
-                    { href: "/", icon: "home", label: "الرئيسية" },
-                    { href: "/episodes", icon: "play", label: "الحلقات" },
-                    { href: "/playlists", icon: "music", label: "قوائم التشغيل" },
-                    { href: "/seasons", icon: "calendar", label: "المواسم" },
-                    { href: "/articles", icon: "article", label: "المقالات" },
-                    { href: "/about", icon: "info", label: "من نحن" },
-                    { href: "/team", icon: "team", label: "الفريق" },
-                    { href: "/contact", icon: "mail", label: "تواصل معنا" },
-                    { href: "/faq", icon: "question", label: "الأسئلة الشائعة" }
-                  ].map((item, index) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={closeSideMenu}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 ${
-                        sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                      }`}
-                      style={{ transitionDelay: sideMenuAnimation ? `${index * 50}ms` : '0ms' }}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                        {item.icon === "home" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                          </svg>
-                        )}
-                        {item.icon === "play" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
-                          </svg>
-                        )}
-                        {item.icon === "music" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-                          </svg>
-                        )}
-                        {item.icon === "calendar" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
-                          </svg>
-                        )}
-                        {item.icon === "article" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
-                          </svg>
-                        )}
-                        {item.icon === "question" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                          </svg>
-                        )}
-                        {item.icon === "info" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                          </svg>
-                        )}
-                        {item.icon === "team" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                          </svg>
-                        )}
-                        {item.icon === "mail" && (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-base font-medium">{item.label}</span>
-                    </Link>
-                  ))}
-                  
-                  <div className="border-t border-white/20 my-4"></div>
+                {/* قائمة الروابط */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="space-y-1">
+                    {[
+                      { href: "/", icon: "home", label: "الرئيسية", color: "from-blue-500 to-cyan-500" },
+                      { href: "/episodes", icon: "video", label: "الحلقات", color: "from-purple-500 to-pink-500" },
+                      { href: "/playlists", icon: "playlist", label: "قوائم التشغيل", color: "from-green-500 to-teal-500" },
+                      { href: "/seasons", icon: "calendar", label: "المواسم", color: "from-yellow-500 to-orange-500" },
+                      { href: "/articles", icon: "article", label: "المقالات", color: "from-red-500 to-rose-500" },
+                      { href: "/about", icon: "info", label: "من نحن", color: "from-indigo-500 to-blue-500" },
+                      { href: "/team", icon: "team", label: "الفريق", color: "from-pink-500 to-rose-500" },
+                      { href: "/contact", icon: "mail", label: "تواصل معنا", color: "from-cyan-500 to-blue-500" },
+                      { href: "/faq", icon: "question", label: "الأسئلة الشائعة", color: "from-teal-500 to-green-500" }
+                    ].map((item, index) => (
+                      <motion.div
+                        key={item.href}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                        >
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg`}>
+                            {item.icon === "home" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                              </svg>
+                            )}
+                            {item.icon === "video" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                              </svg>
+                            )}
+                            {item.icon === "playlist" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                              </svg>
+                            )}
+                            {item.icon === "calendar" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H8V3a1 1 0 00-1-1H6zM4 8h12v8H4V8z" />
+                              </svg>
+                            )}
+                            {item.icon === "article" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
+                              </svg>
+                            )}
+                            {item.icon === "question" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                              </svg>
+                            )}
+                            {item.icon === "info" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                              </svg>
+                            )}
+                            {item.icon === "team" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                              </svg>
+                            )}
+                            {item.icon === "mail" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-gray-900 dark:text-white">{item.label}</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
                   
                   <SignedOut>
-                    <div className="space-y-2">
-                      <Link
-                        href="/sign-in"
-                        onClick={closeSideMenu}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full ${
-                          sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                        }`}
-                        style={{ transitionDelay: sideMenuAnimation ? '300ms' : '0ms' }}
+                    <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
-                          </svg>
-                        </div>
-                        <span className="text-base font-medium">تسجيل دخول</span>
-                      </Link>
+                        <Link
+                          href="/sign-in"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-gray-900 dark:text-white">تسجيل دخول</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-gray-500 to-gray-700 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                        </Link>
+                      </motion.div>
                       
-                      <Link
-                        href="/sign-up"
-                        onClick={closeSideMenu}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 transform hover:scale-[1.02] shadow-lg w-full ${
-                          sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                        }`}
-                        style={{ transitionDelay: sideMenuAnimation ? '350ms' : '0ms' }}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                          </svg>
-                        </div>
-                        <span className="text-base font-medium text-white">إنشاء حساب</span>
-                      </Link>
+                        <Link
+                          href="/sign-up"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-lg"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                            </svg>
+                          </div>
+                          <span className="text-lg font-medium text-white">إنشاء حساب</span>
+                        </Link>
+                      </motion.div>
                     </div>
                   </SignedOut>
                   
                   <SignedIn>
-                    <div className="space-y-2">
-                      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 ${
-                        sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                      }`} style={{ transitionDelay: sideMenuAnimation ? '300ms' : '0ms' }}>
-                        {avatarSrc ? (
-                          <Image
-                            src={avatarSrc}
-                            alt={displayName}
-                            width={40}
-                            height={40}
-                            className="w-10 h-10 rounded-full object-cover border-2 border-white/30"
-                            referrerPolicy="no-referrer"
-                            onError={() => setAvatarSrc(undefined)}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center font-bold text-lg border-2 border-white/30">
-                            {initials}
+                    <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Link
+                          href="/profile"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
+                            </svg>
                           </div>
-                        )}
-                        <div>
-                          <p className="text-base font-medium">{displayName}</p>
-                          <p className="text-xs text-blue-200">{user?.emailAddresses?.[0]?.emailAddress}</p>
-                        </div>
-                      </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-gray-900 dark:text-white">إدارة الحساب</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-indigo-500 to-blue-500 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                        </Link>
+                      </motion.div>
                       
-                      <Link
-                        href="/profile"
-                        onClick={closeSideMenu}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full ${
-                          sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                        }`}
-                        style={{ transitionDelay: sideMenuAnimation ? '350ms' : '0ms' }}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
-                          </svg>
-                        </div>
-                        <span className="text-base font-medium">إدارة الحساب</span>
-                      </Link>
+                        <Link
+                          href="/favorites"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-gray-900 dark:text-white">مفضلاتي</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-red-500 to-pink-500 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                        </Link>
+                      </motion.div>
                       
-                      <Link
-                        href="/favorites"
-                        onClick={closeSideMenu}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:translate-x-1 w-full ${
-                          sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                        }`}
-                        style={{ transitionDelay: sideMenuAnimation ? '400ms' : '0ms' }}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                          </svg>
-                        </div>
-                        <span className="text-base font-medium">مفضلاتي</span>
-                      </Link>
-                      
-                      <button
-                        onClick={async () => {
-                          closeSideMenu();
-                          await signOut();
-                          router.push("/");
-                        }}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-500/20 transition-all duration-300 transform hover:translate-x-1 w-full ${
-                          sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                        }`}
-                        style={{ transitionDelay: sideMenuAnimation ? '450ms' : '0ms' }}
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
-                          </svg>
-                        </div>
-                        <span className="text-base font-medium text-red-300">تسجيل الخروج</span>
-                      </button>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-red-600 dark:text-red-400">تسجيل الخروج</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-red-600 to-red-800 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                        </button>
+                      </motion.div>
                     </div>
                   </SignedIn>
                 </div>
-              </div>
-              
-              <div className={`p-4 border-t border-white/20 ${
-                sideMenuAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`} style={{ transitionDelay: sideMenuAnimation ? '500ms' : '0ms' }}>
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => {
-                      setIsDark(!isDark);
-                      closeSideMenu();
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300"
-                  >
-                    {isDark ? (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
-                        </svg>
-                        <span className="text-sm">الوضع النهاري</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                        </svg>
-                        <span className="text-sm">الوضع الليلي</span>
-                      </>
-                    )}
-                  </button>
-                  
-                  <div className="text-xs text-white/60">
-                    فذلكه © {new Date().getFullYear()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-      
-      {isMobile && (
-        <nav className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-500 ${
-          mobileNavbarVisible 
-            ? "opacity-100 translate-y-0 pointer-events-auto py-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl rounded-full border border-white/30 dark:border-gray-700/30 max-w-md w-[90%]" 
-            : "opacity-0 -translate-y-6 pointer-events-none"
-        }`}>
-          <div className="container mx-auto flex justify-between items-center px-4">
-            <Link href="/" className="flex items-center">
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-1 rounded-full shadow-md transition-all duration-500 transform group-hover:scale-110 group-hover:shadow-lg">
-                  <Image 
-                    src="/logo.png" 
-                    alt="فذلكه" 
-                    width={28} 
-                    height={28}
-                    className="object-contain transition-transform duration-500 group-hover:rotate-12"
-                  />
-                </div>
-              </div>
-            </Link>
-            
-            <div className="flex items-center space-x-2">
-              <Link href="/" className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-              </Link>
-              
-              <Link
-                href="/episodes"
-                className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
-                </svg>
-              </Link>
-              
-              <Link
-                href="/favorites"
-                className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                </svg>
-              </Link>
-              
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300"
-              >
-                {isDark ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                  </svg>
-                )}
-              </button>
-              
-              <button
-                onClick={toggleSideMenu}
-                className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </nav>
-      )}
-      
-      {!isMobile && (
-        <nav className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-500 ${
-          isVisible 
-            ? "opacity-100 translate-y-0 pointer-events-auto py-2 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 dark:border-gray-700/30 max-w-5xl w-[90%]"  // تغيير من max-w-4xl إلى max-w-5xl
-            : "opacity-0 -translate-y-6 pointer-events-none"
-        }`}>
-          <div className="container mx-auto flex justify-between items-center px-4">
-            <Link href="/" className="flex items-center">
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-1 rounded-full shadow-md transition-all duration-500 transform group-hover:scale-110 group-hover:shadow-lg">
-                  <Image 
-                    src="/logo.png" 
-                    alt="فذلكه" 
-                    width={32} 
-                    height={32}
-                    className="object-contain transition-transform duration-500 group-hover:rotate-12"
-                  />
-                </div>
-              </div>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-3">
-              <Link href="/" className="px-3 py-1.5 rounded-lg hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-                الرئيسية
-              </Link>
-              
-              <div className="relative content-dropdown">
-                <button
-                  onClick={() => setContentOpen(!contentOpen)}
-                  className="px-3 py-1.5 rounded-lg hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium flex items-center gap-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
-                  </svg>
-                  محتوانا
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${contentOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
-                {contentOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top opacity-0 scale-95 animate-fade-in z-50">
-                    <div className="p-1">
-                      <Link href="/episodes" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
-                        </svg>
-                        <span className="text-sm font-medium">الحلقات</span>
-                      </Link>
-                      <Link href="/playlists" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-                        </svg>
-                        <span className="text-sm font-medium">قوائم التشغيل</span>
-                      </Link>
-                      <Link href="/seasons" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" />
-                        </svg>
-                        <span className="text-sm font-medium">المواسم</span>
-                      </Link>
-                      <Link href="/articles" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500 group-hover:text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
-                        </svg>
-                        <span className="text-sm font-medium">المقالات</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* زرار " تعرف علينا" مع القائمة المنسدلة */}
-              <div className="relative about-dropdown">
-                <button
-                  onClick={() => setAboutOpen(!aboutOpen)}
-                  className="px-3 py-1.5 rounded-lg hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium flex items-center gap-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                  </svg>
-                   تعرف علينا
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${aboutOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
-                {aboutOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top opacity-0 scale-95 animate-fade-in z-50">
-                    <div className="p-1">
-                      <Link href="/about" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                        </svg>
-                        <span className="text-sm font-medium">من نحن</span>
-                      </Link>
-                      <Link href="/team" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                        </svg>
-                        <span className="text-sm font-medium">الفريق</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* زرار "التواصل" مع القائمة المنسدلة */}
-              <div className="relative contact-dropdown">
-                <button
-                  onClick={() => setContactOpen(!contactOpen)}
-                  className="px-3 py-1.5 rounded-lg hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium flex items-center gap-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                  </svg>
-                  التواصل
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${contactOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
-                {contactOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top opacity-0 scale-95 animate-fade-in z-50">
-                    <div className="p-1">
-                      <Link href="/contact" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                        </svg>
-                        <span className="text-sm font-medium">تواصل معنا</span>
-                      </Link>
-                      <Link href="/faq" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                        </svg>
-                        <span className="text-sm font-medium">الأسئلة الشائعة</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Floating Navbar Search - مكون SearchBar الجديد */}
-              <div className="relative flex-grow max-w-md">
-                <SearchBar />
-              </div>
-              
-              <SignedOut>
-                <div className="relative join-menu">
-                  <button
-                    onClick={() => setJoinMenuOpen(!joinMenuOpen)}
-                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 text-sm font-medium text-white flex items-center gap-1 shadow-lg"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                    </svg>
-                    انضم إلينا
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${joinMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </button>
-                  
-                  {joinMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top-left opacity-0 scale-95 animate-fade-in z-50">
-                      <div className="p-1">
-                        <Link href="/sign-in" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
-                          </svg>
-                          <span className="text-sm font-medium">تسجيل الدخول</span>
+                
+                {/* تذييل القائمة */}
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        © {new Date().getFullYear()} فذلكه
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link href="/terms-conditions" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200">
+                          الشروط
                         </Link>
-                        <Link href="/sign-up" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                          </svg>
-                          <span className="text-sm font-medium">إنشاء حساب</span>
+                        <span className="text-gray-300 dark:text-gray-600">|</span>
+                        <Link href="/privacy-policy" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200">
+                          الخصوصية
                         </Link>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </SignedOut>
-              
-              <SignedIn>
-                <div className="relative" ref={floatingProfileRef}>
-                  <button
-                    onClick={() => setFloatingProfileOpen(prev => !prev)}
-                    aria-expanded={floatingProfileOpen}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/20 dark:hover:bg-gray-700 focus:outline-none transition-all duration-300 transform hover:scale-105"
-                  >
-                    {avatarSrc ? (
-                      <Image
-                        src={avatarSrc}
-                        alt={displayName}
-                        width={24}
-                        height={24}
-                        className="w-6 h-6 rounded-full object-cover border-2 border-white/30"
-                        referrerPolicy="no-referrer"
-                        onError={() => setAvatarSrc(undefined)}
-                      />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold text-xs border-2 border-white/30">
-                        {initials}
-                      </div>
-                    )}
-                    <span className="hidden sm:inline text-xs font-medium">{displayName}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${floatingProfileOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </button>
-                  
-                  {floatingProfileOpen && (
-                    <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top-left opacity-0 scale-95 animate-fade-in z-50">
-                      <div className="p-1">
-                        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{user?.emailAddresses?.[0]?.emailAddress}</p>
-                        </div>
-                        <button
-                          onClick={handleFloatingManage}
-                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-between group"
-                        >
-                          <span className="text-sm font-medium">إدارة الحساب</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={handleFloatingFavorites}
-                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-between group"
-                        >
-                          <span className="text-sm font-medium">مفضلاتي</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                          </svg>
-                        </button>
-                        <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                        <button
-                          onClick={handleFloatingSignOut}
-                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 flex items-center justify-between group"
-                        >
-                          <span className="text-sm font-medium text-red-600 dark:text-red-400">تسجيل الخروج</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </SignedIn>
-              
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className="p-1 rounded-lg hover:bg-white/20 dark:hover:bg-gray-700 transition-all duration-300 transform hover:scale-110"
-              >
-                {isDark ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-900 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-        </nav>
-      )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       
       <style jsx global>{`
         @keyframes tilt {
@@ -2195,21 +1534,6 @@ export default function Navbar() {
         }
         .animate-fade-in {
           animation: fade-in 0.3s ease-out forwards;
-        }
-        
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .slide-up {
-          animation: slide-up 0.3s ease-out forwards;
         }
       `}</style>
     </>

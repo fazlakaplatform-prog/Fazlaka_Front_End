@@ -8,3 +8,569 @@
 body {
   font-family: 'Tajawal', sans-serif;
 }
+
+/* متغيرات CSS مخصصة */
+:root {
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --secondary: #8b5cf6;
+  --secondary-dark: #7c3aed;
+  --accent: #ec4899;
+  --accent-dark: #db2777;
+  --success: #10b981;
+  --success-dark: #059669;
+  --warning: #f59e0b;
+  --warning-dark: #d97706;
+  --danger: #ef4444;
+  --danger-dark: #dc2626;
+}
+
+/* رسوم متحركة مخصصة */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes bounceSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes pulseSlow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  75%, 100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: var(--progress-width, 100%); }
+}
+
+@keyframes borderRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes spinSlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(139, 92, 246, 0.6); }
+}
+
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(20deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(-20deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes border-rotate {
+  0% {
+    border-color: #8B5CF6; /* بنفسجي */
+    transform: rotate(0deg);
+  }
+  25% {
+    border-color: #3B82F6; /* أزرق */
+    transform: rotate(90deg);
+  }
+  50% {
+    border-color: #8B5CF6; /* بنفسجي */
+    transform: rotate(180deg);
+  }
+  75% {
+    border-color: #3B82F6; /* أزرق */
+    transform: rotate(270deg);
+  }
+  100% {
+    border-color: #8B5CF6; /* بنفسجي */
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes border-rotate-reverse {
+  0% {
+    border-color: #3B82F6; /* أزرق */
+    transform: rotate(0deg);
+  }
+  25% {
+    border-color: #8B5CF6; /* بنفسجي */
+    transform: rotate(-90deg);
+  }
+  50% {
+    border-color: #3B82F6; /* أزرق */
+    transform: rotate(-180deg);
+  }
+  75% {
+    border-color: #8B5CF6; /* بنفسجي */
+    transform: rotate(-270deg);
+  }
+  100% {
+    border-color: #3B82F6; /* أزرق */
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes border-gradient-rotate {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.1;
+    transform: scale(1) rotate(12deg);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.05) rotate(15deg);
+  }
+}
+
+/* تطبيق الرسوم المتحركة */
+.animate-fadeIn { animation: fadeIn 0.8s ease-out forwards; }
+.animate-fadeInUp { animation: fadeInUp 0.8s ease-out forwards; }
+.animate-fadeInDown { animation: fadeInDown 0.8s ease-out forwards; }
+.animate-fadeInLeft { animation: fadeInLeft 0.8s ease-out forwards; }
+.animate-fadeInRight { animation: fadeInRight 0.8s ease-out forwards; }
+.animate-bounce { animation: bounce 2s infinite; }
+.animate-bounceSlow { animation: bounceSlow 3s infinite; }
+.animate-pulse { animation: pulse 2s infinite; }
+.animate-pulse-slow { animation: pulseSlow 4s infinite; }
+.animate-ping { animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.animate-shimmer { animation: shimmer 3s infinite; }
+.animate-progress { animation: progress 1.5s ease-out forwards; }
+.animate-borderRotate { animation: borderRotate 8s linear infinite; }
+.animate-spin-slow { animation: spinSlow 20s linear infinite; }
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-glow { animation: glow 2s infinite alternate; }
+.animate-wave { animation: wave 2s ease-in-out infinite; }
+.animate-border-rotate { animation: border-rotate 4s linear infinite; }
+.animate-border-rotate-reverse { animation: border-rotate-reverse 4s linear infinite; }
+.animate-border-gradient-rotate { 
+  background-size: 200% 200%;
+  animation: border-gradient-rotate 3s ease infinite;
+}
+.animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
+
+/* تأخير الرسوم المتحركة */
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-400 { animation-delay: 400ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+.animation-delay-600 { animation-delay: 600ms; }
+.animation-delay-700 { animation-delay: 700ms; }
+.animation-delay-800 { animation-delay: 800ms; }
+
+/* تأثيرات التمرير */
+.scroll-smooth { scroll-behavior: smooth; }
+
+/* تأثيرات التحويم */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.dark .hover-lift:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.hover-scale {
+  transition: transform 0.3s ease;
+}
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+.hover-rotate {
+  transition: transform 0.3s ease;
+}
+.hover-rotate:hover {
+  transform: rotate(5deg);
+}
+
+/* تأثيرات النص */
+.text-gradient {
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-dark {
+  background: linear-gradient(90deg, var(--primary-dark), var(--secondary-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* تأثيرات الخلفية */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+}
+
+.bg-gradient-secondary {
+  background: linear-gradient(135deg, var(--secondary), var(--accent));
+}
+
+.bg-gradient-accent {
+  background: linear-gradient(135deg, var(--success), var(--primary));
+}
+
+.bg-gradient-danger {
+  background: linear-gradient(135deg, var(--danger), var(--accent));
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, var(--warning), var(--danger));
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, var(--success), var(--warning));
+}
+
+/* تأثيرات البطاقات */
+.card-hover {
+  transition: all 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* تأثيرات الأزرار */
+.btn-primary {
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: all 0.3s ease;
+}
+.btn-primary:hover {
+  background: linear-gradient(90deg, var(--primary-dark), var(--secondary-dark));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-secondary {
+  background: linear-gradient(90deg, var(--secondary), var(--accent));
+  transition: all 0.3s ease;
+}
+.btn-secondary:hover {
+  background: linear-gradient(90deg, var(--secondary-dark), var(--accent-dark));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* تأثيرات الرموز */
+.icon-hover {
+  transition: all 0.3s ease;
+}
+.icon-hover:hover {
+  transform: scale(1.1);
+  color: var(--primary);
+}
+
+.dark .icon-hover:hover {
+  color: var(--primary-dark);
+}
+
+/* تأثيرات الصور */
+.image-hover {
+  transition: all 0.5s ease;
+}
+.image-hover:hover {
+  transform: scale(1.05);
+}
+
+/* تأثيرات الروابط */
+.link-hover {
+  position: relative;
+  transition: color 0.3s ease;
+}
+.link-hover::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  transition: width 0.3s ease;
+}
+.link-hover:hover::after {
+  width: 100%;
+}
+.link-hover:hover {
+  color: var(--primary);
+}
+
+.dark .link-hover:hover {
+  color: var(--primary-dark);
+}
+
+/* تأثيرات خاصة للوضع المظلم */
+.dark .bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+}
+
+.dark .bg-gradient-secondary {
+  background: linear-gradient(135deg, var(--secondary-dark), var(--accent-dark));
+}
+
+.dark .bg-gradient-accent {
+  background: linear-gradient(135deg, var(--success-dark), var(--primary-dark));
+}
+
+.dark .bg-gradient-danger {
+  background: linear-gradient(135deg, var(--danger-dark), var(--accent-dark));
+}
+
+.dark .bg-gradient-warning {
+  background: linear-gradient(135deg, var(--warning-dark), var(--danger-dark));
+}
+
+.dark .bg-gradient-success {
+  background: linear-gradient(135deg, var(--success-dark), var(--warning-dark));
+}
+
+/* تأثيرات التمرير */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* تأثيرات خاصة للأجهزة المحمولة */
+@media (max-width: 768px) {
+  .animate-fadeIn,
+  .animate-fadeInUp,
+  .animate-fadeInDown,
+  .animate-fadeInLeft,
+  .animate-fadeInRight {
+    animation-duration: 0.6s;
+  }
+  
+  .animate-bounce,
+  .animate-bounceSlow {
+    animation-duration: 2.5s;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-3px);
+  }
+  
+  .hover-scale:hover {
+    transform: scale(1.03);
+  }
+}
+
+/* تأثيرات خاصة للطباعة */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+  
+  a {
+    text-decoration: underline;
+  }
+  
+  .card-hover {
+    box-shadow: none !important;
+    transform: none !important;
+  }
+}
+
+/* تأثيرات إمكانية الوصول */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* تأثيرات التركيز */
+.focus-visible:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* تأثيرات خاصة للصور ذات الخلفية المتدرجة */
+.gradient-overlay {
+  position: relative;
+}
+.gradient-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3));
+  border-radius: inherit;
+  z-index: 1;
+}
+.gradient-overlay > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* تأثيرات خاصة للنصوص المتحركة */
+.text-animation {
+  background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: textGradient 3s linear infinite;
+}
+
+@keyframes textGradient {
+  to { background-position: 200% center; }
+}
+
+/* تأثيرات خاصة للأزرار المتحركة */
+.btn-wave {
+  position: relative;
+  overflow: hidden;
+}
+.btn-wave::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+.btn-wave:active::before {
+  width: 300px;
+  height: 300px;
+}

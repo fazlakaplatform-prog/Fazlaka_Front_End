@@ -1,4 +1,3 @@
-// lib/sanity.ts
 import { createClient } from 'next-sanity'
 import imageUrlBuilder from '@sanity/image-url'
 
@@ -118,7 +117,7 @@ export async function createComment(commentData: Omit<Comment, '_id' | '_type' |
   }
 }
 
-// دالة لجلب قوائم التشغيل من Sanity
+// دالة لجلب قوائم التشغيل من Sanity (محدثة)
 export async function fetchPlaylists(): Promise<Playlist[]> {
   try {
     const query = `*[_type == "playlist"]{
@@ -127,11 +126,18 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
       slug,
       description,
       "imageUrl": image.asset->url,
-      "episodes": *[_type == "episode" && references(^._id)]{
+      "episodes": episodes[]->{
         _id,
         title,
         slug,
         "imageUrl": thumbnail.asset->url
+      },
+      "articles": articles[]->{
+        _id,
+        title,
+        slug,
+        "imageUrl": featuredImage.asset->url,
+        excerpt
       }
     }`;
     return await fetchArrayFromSanity<Playlist>(query);
@@ -141,7 +147,7 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
   }
 }
 
-// دالة لجلب قائمة تشغيل معينة حسب الـ slug
+// دالة لجلب قائمة تشغيل معينة حسب الـ slug (محدثة)
 export async function fetchPlaylistBySlug(slug: string): Promise<Playlist | null> {
   try {
     const query = `*[_type == "playlist" && slug.current == $slug][0]{
@@ -150,13 +156,22 @@ export async function fetchPlaylistBySlug(slug: string): Promise<Playlist | null
       slug,
       description,
       "imageUrl": image.asset->url,
-      "episodes": *[_type == "episode" && references(^._id)]{
+      "episodes": episodes[]->{
         _id,
         title,
         slug,
         "imageUrl": thumbnail.asset->url,
         content,
         videoUrl,
+        publishedAt
+      },
+      "articles": articles[]->{
+        _id,
+        title,
+        slug,
+        "imageUrl": featuredImage.asset->url,
+        excerpt,
+        content,
         publishedAt
       }
     }`;
@@ -707,6 +722,8 @@ export interface Article {
   excerpt?: string
   content?: PortableTextBlock[]
   featuredImage?: SanityImage
+  season?: Season
+  publishedAt?: string
 }
 
 export interface Comment {
@@ -728,7 +745,7 @@ export interface Favorite {
   article?: Article
 }
 
-// واجهة لقائمة التشغيل
+// واجهة لقائمة التشغيل (محدثة)
 export interface Playlist {
   _id?: string
   _type: 'playlist'
@@ -737,6 +754,7 @@ export interface Playlist {
   description?: string
   image?: SanityImage
   episodes?: Episode[]
+  articles?: Article[] // إضافة حقل المقالات
 }
 
 // إضافة هذا السطر لتجنب المشاكل مع الـ Dynamic Server Usage

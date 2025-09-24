@@ -828,7 +828,7 @@ export default function SearchResults() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Hero Section */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden pt-24"> {/* إضافة padding-top هنا لخلق مساحة للناف بار */}
         {/* Background Elements */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-20 left-10 w-64 h-64 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
