@@ -764,10 +764,26 @@ export interface Playlist {
   _createdAt?: string // إضافة الخاصية المفقودة
 }
 
+// واجهة لعضو الفريق
+export interface TeamMember {
+  _id?: string
+  _type: 'teamMember'
+  name: string
+  bio?: string
+  image?: SanityImage
+  slug: SanitySlug
+  position?: string
+  socialLinks?: {
+    platform?: string
+    url?: string
+  }[]
+  _createdAt?: string
+}
+
 // واجهة للإشعارات
 export interface NotificationItem {
   id: string;
-  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy';
+  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy' | 'team';
   title: string;
   description?: string;
   date: string;
@@ -844,6 +860,18 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
     }`;
     const privacy = await fetchArrayFromSanity<PrivacyContent & { type: string }>(privacyQuery);
 
+    // جلب أعضاء الفريق
+    const teamQuery = `*[_type == "teamMember"] | order(_createdAt desc) {
+      _id,
+      name,
+      bio,
+      _createdAt,
+      "imageUrl": image.asset->url,
+      "slug": slug.current,
+      "type": "team"
+    }`;
+    const teamMembers = await fetchArrayFromSanity<TeamMember & { type: string; slug: string; imageUrl?: string }>(teamQuery);
+
     // دالة للحصول على تاريخ صالح
     const getValidDate = (date1?: string, date2?: string) => {
       const date = date1 || date2;
@@ -912,6 +940,16 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
       linkUrl: `/privacy#${priv._id}`
     }));
 
+    const teamNotifications: NotificationItem[] = teamMembers.map(member => ({
+      id: member._id || '',
+      type: 'team' as const,
+      title: `عضو جديد في الفريق: ${member.name}`,
+      description: member.bio,
+      date: getValidDate(member._createdAt),
+      imageUrl: member.imageUrl,
+      linkUrl: `/team/${member.slug}`
+    }));
+
     // دمج كل الإشعارات وترتيبها حسب التاريخ
     const allNotifications = [
       ...episodeNotifications,
@@ -919,7 +957,8 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
       ...playlistNotifications,
       ...faqNotifications,
       ...termsNotifications,
-      ...privacyNotifications
+      ...privacyNotifications,
+      ...teamNotifications // إضافة إشعارات الفريق
     ];
 
     // ترتيب الإشعارات حسب التاريخ (الأحدث أولاً)

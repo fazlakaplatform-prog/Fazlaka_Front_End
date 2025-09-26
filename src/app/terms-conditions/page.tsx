@@ -1,4 +1,3 @@
-// app/terms-conditions/page.tsx
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { PortableText, PortableTextReactComponents } from '@portabletext/react'
@@ -25,7 +24,8 @@ interface PortableTextSpan {
   marks?: string[]
 }
 
-interface PortableTextBlock {
+// تم تغيير الاسم لتجنب التعارض مع الاستيراد
+interface CustomPortableTextBlock {
   _type: 'block'
   _key?: string
   style?: string
@@ -35,10 +35,9 @@ interface PortableTextBlock {
   listItem?: string
 }
 
-// تعديل واجهة TermsData لتتوافق مع البيانات الفعلية
 interface TermsData {
   title?: string
-  content?: PortableTextBlock[]
+  content?: CustomPortableTextBlock[]  // تم تحديث النوع هنا
   lastUpdated?: string
 }
 
@@ -154,6 +153,20 @@ export default function TermsConditionsPage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   
+  // التحقق من وجود جزء من الرابط (#)
+  useEffect(() => {
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      setActiveSection(hash);
+      const section = document.getElementById(hash);
+      if (section) {
+        setTimeout(() => {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, []);
+  
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -163,6 +176,7 @@ export default function TermsConditionsPage() {
     const section = document.getElementById(sectionId)
     if (section) {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      window.history.pushState(null, '', `#${sectionId}`)
     }
   }
   
@@ -273,7 +287,6 @@ export default function TermsConditionsPage() {
             <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:text-blue-900 dark:prose-headings:text-blue-200 prose-p:text-gray-700 dark:prose-p:text-blue-100 prose-strong:text-blue-800 dark:prose-strong:text-blue-200">
               <PortableText 
                 value={termsData.content} 
-                // استخدام النوع الصحيح للمكونات
                 components={portableTextComponents as Partial<PortableTextReactComponents>} 
               />
             </div>

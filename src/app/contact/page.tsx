@@ -109,8 +109,9 @@ export default function ContactPage() {
       fd.set("email", email);
       fd.set("message", message);
       
+      // التعديل الرئيسي هنا: تغيير اسم الحقل من "files" إلى "attachment"
       files.forEach(file => {
-        fd.append("files", file);
+        fd.append("attachment", file);
       });
       
       const res = await fetch("/api/contact", { method: "POST", body: fd });

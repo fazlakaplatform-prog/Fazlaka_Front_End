@@ -1,4 +1,3 @@
-// app/privacy-policy/page.tsx
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { PortableText, PortableTextReactComponents } from '@portabletext/react'
@@ -11,7 +10,6 @@ import {
 } from '@/lib/sanity'
 import { portableTextComponents } from '@/components/portable-text/PortableTextComponents'
 
-// واجهات البيانات من Sanity
 interface PrivacyPolicyData {
   title?: string
   content?: PortableTextBlock[]
@@ -66,15 +64,13 @@ export default function PrivacyPolicyPage() {
         const types = await getDataTypes()
         const security = await getSecurityMeasures()
         
-        // Transform the privacy data
         const transformedPrivacy = privacy ? {
           ...privacy,
           content: privacy.content || []
         } : null
         
-        // Transform the user rights data
         const transformedRights = rights
-          .filter(right => right._id) // Filter out items without _id
+          .filter(right => right._id)
           .map(right => ({
             _id: right._id!,
             title: right.title || '',
@@ -82,9 +78,8 @@ export default function PrivacyPolicyPage() {
             icon: right.icon || ''
           }))
         
-        // Transform the data types
         const transformedTypes = types
-          .filter(type => type._id) // Filter out items without _id
+          .filter(type => type._id)
           .map(type => ({
             _id: type._id!,
             title: type.title || '',
@@ -94,9 +89,8 @@ export default function PrivacyPolicyPage() {
             textColor: type.textColor || 'text-blue-800'
           }))
         
-        // Transform the security measures
         const transformedSecurity = security
-          .filter(measure => measure._id) // Filter out items without _id
+          .filter(measure => measure._id)
           .map(measure => ({
             _id: measure._id!,
             title: measure.title || '',
@@ -145,6 +139,20 @@ export default function PrivacyPolicyPage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   
+  // التحقق من وجود جزء من الرابط (#)
+  useEffect(() => {
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      setActiveSection(hash);
+      const section = document.getElementById(hash);
+      if (section) {
+        setTimeout(() => {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, []);
+  
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -154,6 +162,7 @@ export default function PrivacyPolicyPage() {
     const section = document.getElementById(sectionId)
     if (section) {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      window.history.pushState(null, '', `#${sectionId}`)
     }
   }
   
@@ -180,12 +189,10 @@ export default function PrivacyPolicyPage() {
     )
   }
   
-  // Format the last updated date safely
   const formattedLastUpdated = privacyData?.lastUpdated 
     ? new Date(privacyData.lastUpdated).toLocaleDateString('ar-EG') 
     : '';
   
-  // Create a properly typed components object with all required properties
   const baseComponents = portableTextComponents as Partial<PortableTextReactComponents> || {};
   
   const typedComponents: PortableTextReactComponents = {

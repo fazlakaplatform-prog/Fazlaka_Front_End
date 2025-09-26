@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { 
@@ -10,9 +10,9 @@ import {
   FaStar, FaAward, FaFire, 
   FaLightbulb, FaRocket, FaHandshake, FaGem,
   FaArrowRight, FaCheck, FaQuoteRight,
-  FaPlay, FaBook, FaUsers as FaTeam, FaChartLine,
+  FaPlay, FaBook, FaChartLine,
   FaGraduationCap, FaChalkboardTeacher, FaMedal, FaGlobe,
-  FaEnvelope, FaPaperPlane, FaLinkedin, FaTwitter, FaGlobe as FaWorld,
+  FaEnvelope, FaPaperPlane, FaLinkedin, FaTwitter,
   FaUser, FaBriefcase, FaQuoteLeft, FaFlask, FaAtom, FaLandmark, 
   FaBalanceScale, FaFileAlt
 } from "react-icons/fa";
@@ -653,7 +653,8 @@ const SocialMediaSection = () => {
   );
 };
 
-const AboutPage = () => {
+// مكون المحتوى الرئيسي
+function AboutContent() {
   const [members, setMembers] = useState<Member[]>([]);
   const [subscribers, setSubscribers] = useState<number | null>(null);
   const [episodesCount, setEpisodesCount] = useState<number>(0);
@@ -1098,6 +1099,17 @@ const AboutPage = () => {
         }
       `}</style>
     </div>
+  );
+}
+
+// مكون الصفحة الرئيسي مع Suspense
+const AboutPage = () => {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>}>
+      <AboutContent />
+    </Suspense>
   );
 };
 

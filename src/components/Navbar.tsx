@@ -3,9 +3,9 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchFromSanity, urlFor } from "@/lib/sanity";
+import { fetchFromSanity, urlFor, getAllNotifications, NotificationItem } from "@/lib/sanity";
 
 // تعريف واجهات البيانات
 interface SearchResult {
@@ -535,6 +535,7 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
           onChange={(e) => setQuery(e.target.value)}
           onFocus={handleFocus}
           placeholder="بحث..."
+          suppressHydrationWarning
           className={`absolute right-0 top-0 h-10 pr-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-in-out text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
             isExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'
           }`}
@@ -702,7 +703,7 @@ const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDar
         transition={{ duration: 0.5 }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 00-1-1H9z" clipRule="evenodd" />
         </svg>
       </motion.div>
       
@@ -749,6 +750,220 @@ const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDar
   );
 };
 
+// مكون زر الإشعارات المحدث
+const NotificationButton = ({ 
+  showNotifications, 
+  setShowNotifications 
+}: { 
+  showNotifications: boolean; 
+  setShowNotifications: (show: boolean) => void;
+}) => {
+  const router = useRouter();
+  const [hasNewNotifications, setHasNewNotifications] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIsMobile);
+    };
+  }, []);
+  
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const data = await getAllNotifications();
+        setNotifications(data.slice(0, 3)); // أخذ آخر 3 إشعارات فقط
+        if (data.length > 0) {
+          setHasNewNotifications(true);
+        } else {
+          setHasNewNotifications(false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+  
+  const handleNotificationClick = (notification: NotificationItem) => {
+    let finalLink = notification.linkUrl;
+    if (notification.type === 'faq' && notification.id) {
+      finalLink = `/faq?faq=${notification.id}`;
+    } else if (notification.type === 'terms') {
+      finalLink = notification.id ? `/terms-conditions#${notification.id}` : '/terms-conditions';
+    } else if (notification.type === 'privacy') {
+      finalLink = notification.id ? `/privacy-policy#${notification.id}` : '/privacy-policy';
+    }
+    
+    router.push(finalLink);
+    setShowNotifications(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      if (!dateString) return 'تاريخ غير متوفر';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'تاريخ غير صالح';
+      
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+      
+      if (diffInSeconds < 60) return 'منذ لحظات';
+      else if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
+      else if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
+      else if (diffInSeconds < 2592000) return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
+      else if (diffInSeconds < 31536000) return `منذ ${Math.floor(diffInSeconds / 2592000)} شهر`;
+      else return `منذ ${Math.floor(diffInSeconds / 31536000)} سنة`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'خطأ في التاريخ';
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'episode': return '🎬';
+      case 'article': return '📝';
+      case 'playlist': return '📋';
+      case 'faq': return '❓';
+      case 'terms': return '📜';
+      case 'privacy': return '🔒';
+      case 'team': return '👥';
+      default: return '📢';
+    }
+  };
+
+  return (
+    <div className="relative notification-dropdown" ref={notificationRef}>
+      <motion.button
+        onClick={() => setShowNotifications(!showNotifications)}
+        className="relative p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        {/* أيقونة الجرس */}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        
+        {/* مؤشر الإشعارات الجديدة */}
+        {hasNewNotifications && (
+          <motion.span 
+            className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 500, 
+              damping: 30,
+              delay: 0.2
+            }}
+          />
+        )}
+        
+        {/* حركة تموج عند وجود إشعارات جديدة */}
+        {hasNewNotifications && (
+          <motion.span 
+            className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full opacity-70"
+            animate={{ 
+              scale: [1, 1.5, 2],
+              opacity: [0.7, 0.4, 0]
+            }}
+            transition={{ 
+              duration: 1.5,
+              repeat: Infinity,
+              repeatDelay: 0.5
+            }}
+          />
+        )}
+      </motion.button>
+      
+      {/* القائمة المنسدلة للإشعارات */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`absolute z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto ${
+              isMobile 
+                ? 'right-0 mt-2 w-80'  // للموبايل: ظهور من اليمين
+                : 'left-0 mt-2 w-80'    // للكمبيوتر: ظهور من اليسار
+            }`}
+          >
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">الإشعارات</h3>
+                <button
+                  onClick={() => router.push("/notifications")}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                >
+                  مشاهدة الكل
+                </button>
+              </div>
+            </div>
+            
+            {loading ? (
+              <div className="p-4 text-center">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">جاري التحميل...</p>
+              </div>
+            ) : notifications.length > 0 ? (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {notifications.map((notification) => (
+                  <div
+                    key={`${notification.type}-${notification.id}`}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150"
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xl">
+                        {getTypeIcon(notification.type)}
+                      </div>
+                      <div className="ml-3 flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {formatDate(notification.date)}
+                        </p>
+                        {notification.description && (
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
+                            {notification.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center">
+                <div className="text-5xl mb-3">📭</div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">لا توجد إشعارات جديدة</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 // المكون الرئيسي للشريط العلوي
 export default function Navbar() {
   const [mounted, setMounted] = useState(false);
@@ -759,9 +974,11 @@ export default function Navbar() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
   
@@ -875,6 +1092,10 @@ export default function Navbar() {
       if (contactOpen && !(e.target as Element).closest('.contact-dropdown')) {
         setContactOpen(false);
       }
+      // إغلاق قائمة الإشعارات عند النقر خارجها
+      if (showNotifications && !(e.target as Element).closest('.notification-dropdown')) {
+        setShowNotifications(false);
+      }
     }
     
     function handleEsc(e: KeyboardEvent) {
@@ -883,6 +1104,7 @@ export default function Navbar() {
         setContentOpen(false);
         setAboutOpen(false);
         setContactOpen(false);
+        setShowNotifications(false);
         if (mobileMenuOpen) setMobileMenuOpen(false);
       }
     }
@@ -893,7 +1115,21 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEsc);
     };
-  }, [contentOpen, mobileMenuOpen, aboutOpen, contactOpen]);
+  }, [contentOpen, mobileMenuOpen, aboutOpen, contactOpen, showNotifications]);
+  
+  // إغلاق جميع القوائم عند تغيير الصفحة
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setProfileOpen(false);
+      setContentOpen(false);
+      setAboutOpen(false);
+      setContactOpen(false);
+      setShowNotifications(false);
+      if (mobileMenuOpen) setMobileMenuOpen(false);
+    };
+
+    handleRouteChange();
+  }, [pathname, mobileMenuOpen]);
   
   if (!mounted) return null;
   
@@ -1065,6 +1301,14 @@ export default function Navbar() {
             </SignedOut>
             
             <SignedIn>
+              {/* زر الإشعارات المحدث */}
+              <div className="notification-dropdown">
+                <NotificationButton 
+                  showNotifications={showNotifications} 
+                  setShowNotifications={setShowNotifications} 
+                />
+              </div>
+              
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen(prev => !prev)}
@@ -1139,8 +1383,8 @@ export default function Navbar() {
       {/* النافبار الجديد للموبايل */}
       <nav className="md:hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 dark:border-gray-700/30 py-3 px-4 transition-all duration-300">
         <div className="flex justify-between items-center">
-          {/* القسم الأيسر - حساب المستخدم */}
-          <div className="flex items-center">
+          {/* القسم الأيسر - حساب المستخدم والإشعارات */}
+          <div className="flex items-center space-x-2">
             <SignedIn>
               <button
                 onClick={() => router.push("/profile")}
@@ -1162,6 +1406,12 @@ export default function Navbar() {
                   </div>
                 )}
               </button>
+              
+              {/* زر الإشعارات بجوار زر الحساب في الموبايل */}
+              <NotificationButton 
+                showNotifications={showNotifications} 
+                setShowNotifications={setShowNotifications} 
+              />
             </SignedIn>
             
             <SignedOut>
@@ -1360,6 +1610,34 @@ export default function Navbar() {
                         </Link>
                       </motion.div>
                     ))}
+                    
+                    {/* إضافة رابط الإشعارات في قائمة الموبايل */}
+                    <SignedIn>
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Link
+                          href="/notifications"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-gray-900 dark:text-white">الإشعارات</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-amber-500 to-orange-500 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        </Link>
+                      </motion.div>
+                    </SignedIn>
                   </div>
                   
                   <SignedOut>
