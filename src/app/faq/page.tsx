@@ -69,13 +69,13 @@ function FaqContent() {
     const root = document.documentElement;
     
     const cardColors = [
-      { border: "#6b7280", shadow: "rgba(107, 114, 128, 0.3)", shimmer: "rgba(107, 114, 128, 0.3)" },
-      { border: "#0c4a6e", shadow: "rgba(12, 74, 110, 0.3)", shimmer: "rgba(12, 74, 110, 0.3)" },
-      { border: "#92400e", shadow: "rgba(146, 64, 14, 0.3)", shimmer: "rgba(146, 64, 14, 0.3)" },
+      { border: "#4b5563", shadow: "rgba(75, 85, 99, 0.3)", shimmer: "rgba(75, 85, 99, 0.3)" },
+      { border: "#1e40af", shadow: "rgba(30, 64, 175, 0.3)", shimmer: "rgba(30, 64, 175, 0.3)" },
+      { border: "#b45309", shadow: "rgba(180, 83, 9, 0.3)", shimmer: "rgba(180, 83, 9, 0.3)" },
       { border: "#4b5563", shadow: "rgba(75, 85, 99, 0.3)", shimmer: "rgba(75, 85, 99, 0.3)" },
       { border: "#c2410c", shadow: "rgba(194, 65, 12, 0.3)", shimmer: "rgba(194, 65, 12, 0.3)" },
-      { border: "#6b21a8", shadow: "rgba(107, 33, 168, 0.3)", shimmer: "rgba(107, 33, 168, 0.3)" },
-      { border: "#0d9488", shadow: "rgba(13, 148, 136, 0.3)", shimmer: "rgba(13, 148, 136, 0.3)" },
+      { border: "#7e22ce", shadow: "rgba(126, 34, 206, 0.3)", shimmer: "rgba(126, 34, 206, 0.3)" },
+      { border: "#0f766e", shadow: "rgba(15, 118, 110, 0.3)", shimmer: "rgba(15, 118, 110, 0.3)" },
       { border: "#be185d", shadow: "rgba(190, 24, 93, 0.3)", shimmer: "rgba(190, 24, 93, 0.3)" },
     ];
     
@@ -337,53 +337,11 @@ function FaqContent() {
   const getCardColors = (index: number) => {
     const colors = [
       { 
-        border: "border-olive-600", 
-        bg: "bg-olive-50", 
-        darkBg: "dark:bg-olive-900/20", 
-        text: "text-olive-800", 
-        darkText: "dark:text-olive-300", 
-        icon: "text-olive-600", 
-        shadow: "shadow-olive-500/30",
-        hoverShadow: "hover:shadow-olive-500/40",
-        ring: "ring-olive-500",
-        headerBg: "bg-gradient-to-r from-olive-500 to-olive-600",
-        headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(110,123,14,0.3)]"
-      },
-      { 
-        border: "border-sky-700", 
-        bg: "bg-sky-50", 
-        darkBg: "dark:bg-sky-900/20", 
-        text: "text-sky-800", 
-        darkText: "dark:text-sky-300", 
-        icon: "text-sky-600", 
-        shadow: "shadow-sky-500/30",
-        hoverShadow: "hover:shadow-sky-500/40",
-        ring: "ring-sky-500",
-        headerBg: "bg-gradient-to-r from-sky-600 to-sky-700",
-        headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(3,105,161,0.3)]"
-      },
-      { 
-        border: "border-amber-700", 
-        bg: "bg-amber-50", 
-        darkBg: "dark:bg-amber-900/20", 
-        text: "text-amber-800", 
-        darkText: "dark:text-amber-300", 
-        icon: "text-amber-600", 
-        shadow: "shadow-amber-500/30",
-        hoverShadow: "hover:shadow-amber-500/40",
-        ring: "ring-amber-500",
-        headerBg: "bg-gradient-to-r from-amber-600 to-amber-700",
-        headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(146,64,14,0.3)]"
-      },
-      { 
         border: "border-gray-600", 
         bg: "bg-gray-50", 
         darkBg: "dark:bg-gray-800/30", 
         text: "text-gray-800", 
-        darkText: "dark:text-gray-300", 
+        darkText: "dark:text-gray-200", 
         icon: "text-gray-600", 
         shadow: "shadow-gray-500/30",
         hoverShadow: "hover:shadow-gray-500/40",
@@ -393,60 +351,102 @@ function FaqContent() {
         shimmer: "shadow-[0_0_15px_rgba(75,85,99,0.3)]"
       },
       { 
+        border: "border-blue-600", 
+        bg: "bg-blue-50", 
+        darkBg: "dark:bg-blue-900/20", 
+        text: "text-blue-800", 
+        darkText: "dark:text-blue-200", 
+        icon: "text-blue-600", 
+        shadow: "shadow-blue-500/30",
+        hoverShadow: "hover:shadow-blue-500/40",
+        ring: "ring-blue-500",
+        headerBg: "bg-gradient-to-r from-blue-600 to-blue-700",
+        headerText: "text-white",
+        shimmer: "shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+      },
+      { 
+        border: "border-amber-600", 
+        bg: "bg-amber-50", 
+        darkBg: "dark:bg-amber-900/20", 
+        text: "text-amber-800", 
+        darkText: "dark:text-amber-200", 
+        icon: "text-amber-600", 
+        shadow: "shadow-amber-500/30",
+        hoverShadow: "hover:shadow-amber-500/40",
+        ring: "ring-amber-500",
+        headerBg: "bg-gradient-to-r from-amber-600 to-amber-700",
+        headerText: "text-white",
+        shimmer: "shadow-[0_0_15px_rgba(217,119,6,0.3)]"
+      },
+      { 
+        border: "border-emerald-600", 
+        bg: "bg-emerald-50", 
+        darkBg: "dark:bg-emerald-900/20", 
+        text: "text-emerald-800", 
+        darkText: "dark:text-emerald-200", 
+        icon: "text-emerald-600", 
+        shadow: "shadow-emerald-500/30",
+        hoverShadow: "hover:shadow-emerald-500/40",
+        ring: "ring-emerald-500",
+        headerBg: "bg-gradient-to-r from-emerald-600 to-emerald-700",
+        headerText: "text-white",
+        shimmer: "shadow-[0_0_15px_rgba(5,122,85,0.3)]"
+      },
+      { 
         border: "border-orange-600", 
         bg: "bg-orange-50", 
         darkBg: "dark:bg-orange-900/20", 
         text: "text-orange-800", 
-        darkText: "dark:text-orange-300", 
+        darkText: "dark:text-orange-200", 
         icon: "text-orange-600", 
         shadow: "shadow-orange-500/30",
         hoverShadow: "hover:shadow-orange-500/40",
         ring: "ring-orange-500",
         headerBg: "bg-gradient-to-r from-orange-500 to-orange-600",
         headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(208,85,27,0.3)]"
+        shimmer: "shadow-[0_0_15px_rgba(234,88,12,0.3)]"
       },
       { 
-        border: "border-purple-700", 
+        border: "border-purple-600", 
         bg: "bg-purple-50", 
         darkBg: "dark:bg-purple-900/20", 
         text: "text-purple-800", 
-        darkText: "dark:text-purple-300", 
+        darkText: "dark:text-purple-200", 
         icon: "text-purple-600", 
         shadow: "shadow-purple-500/30",
         hoverShadow: "hover:shadow-purple-500/40",
         ring: "ring-purple-500",
         headerBg: "bg-gradient-to-r from-purple-600 to-purple-700",
         headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(107,33,168,0.3)]"
+        shimmer: "shadow-[0_0_15px_rgba(126,34,206,0.3)]"
       },
       { 
         border: "border-teal-600", 
         bg: "bg-teal-50", 
         darkBg: "dark:bg-teal-900/20", 
         text: "text-teal-800", 
-        darkText: "dark:text-teal-300", 
+        darkText: "dark:text-teal-200", 
         icon: "text-teal-600", 
         shadow: "shadow-teal-500/30",
         hoverShadow: "hover:shadow-teal-500/40",
         ring: "ring-teal-500",
         headerBg: "bg-gradient-to-r from-teal-500 to-teal-600",
         headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(5,122,85,0.3)]"
+        shimmer: "shadow-[0_0_15px_rgba(13,148,136,0.3)]"
       },
       { 
         border: "border-rose-600", 
         bg: "bg-rose-50", 
         darkBg: "dark:bg-rose-900/20", 
         text: "text-rose-800", 
-        darkText: "dark:text-rose-300", 
+        darkText: "dark:text-rose-200", 
         icon: "text-rose-600", 
         shadow: "shadow-rose-500/30",
         hoverShadow: "hover:shadow-rose-500/40",
         ring: "ring-rose-500",
         headerBg: "bg-gradient-to-r from-rose-500 to-rose-600",
         headerText: "text-white",
-        shimmer: "shadow-[0_0_15px_rgba(190,18,60,0.3)]"
+        shimmer: "shadow-[0_0_15px_rgba(225,29,72,0.3)]"
       },
     ];
     

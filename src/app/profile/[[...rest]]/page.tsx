@@ -334,14 +334,10 @@ export default function ProfilePage() {
                   <p className="text-blue-100 text-lg">إدارة معلوماتك الشخصية</p>
                 </div>
                 
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-                  <Link href="/" className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white font-medium py-3 px-5 rounded-xl shadow-lg backdrop-blur-sm transition-all duration-300 transform hover:scale-105 border border-white/30">
-                    <i className="fas fa-arrow-left"></i>
-                    <span className="hidden sm:inline">العودة</span>
-                  </Link>
-                  <Link href="/favorites" className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-medium py-3 px-5 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105">
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-4 w-full sm:w-auto">
+                  <Link href="/favorites" className="flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-medium py-3 px-5 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 w-full sm:w-auto">
                     <i className="fas fa-star"></i>
-                    <span className="hidden sm:inline">المفضلات</span>
+                    <span>المفضلات</span>
                   </Link>
                 </div>
               </div>
@@ -393,7 +389,7 @@ export default function ProfilePage() {
                         {user.emailAddresses.map((emailAddr) => (
                           <div 
                             key={emailAddr.id} 
-                            className={`flex items-center justify-center p-3 rounded-xl ${
+                            className={`flex flex-col sm:flex-row items-center justify-center p-3 rounded-xl ${
                               emailAddr.id === user.primaryEmailAddressId 
                                 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 shadow-sm' 
                                 : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700'
@@ -426,14 +422,14 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
               <button
                 onClick={toggleAccountInfo}
-                className={`flex items-center gap-3 font-medium py-3 px-6 rounded-xl shadow-lg transition-all duration-500 transform ${
+                className={`flex items-center justify-center gap-3 font-medium py-3 px-6 rounded-xl shadow-lg transition-all duration-500 transform ${
                   showAccountInfo 
                     ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white' 
                     : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white'
-                } hover:scale-105 hover:shadow-xl active:scale-95 relative overflow-hidden group text-base`}>
+                } hover:scale-105 hover:shadow-xl active:scale-95 relative overflow-hidden group text-base flex-1 sm:flex-none`}>
                 <i className={`fas ${showAccountInfo ? 'fa-eye-slash' : 'fa-eye'} transition-transform duration-300 group-hover:scale-110`}></i>
                 {showAccountInfo ? "إخفاء معلومات الحساب" : "عرض معلومات الحساب"}
                 <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
@@ -441,11 +437,11 @@ export default function ProfilePage() {
 
               <button
                 onClick={toggleEditMode}
-                className={`flex items-center gap-3 font-medium py-3 px-6 rounded-xl shadow-lg transition-all duration-500 transform ${
+                className={`flex items-center justify-center gap-3 font-medium py-3 px-6 rounded-xl shadow-lg transition-all duration-500 transform ${
                   showEditModal 
                     ? 'bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white' 
                     : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white'
-                } hover:scale-105 hover:shadow-xl active:scale-95 relative overflow-hidden group text-base`}>
+                } hover:scale-105 hover:shadow-xl active:scale-95 relative overflow-hidden group text-base flex-1 sm:flex-none`}>
                 <i className={`fas ${showEditModal ? 'fa-times-circle' : 'fa-cog'} transition-transform duration-300 group-hover:rotate-90`}></i>
                 {showEditModal ? "إغلاق النافذة" : "الإعدادات"}
                 <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
@@ -489,52 +485,58 @@ export default function ProfilePage() {
                       </div>
                       <label className="text-base font-medium text-gray-700 dark:text-gray-300">عناوين البريد الإلكتروني</label>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {user.emailAddresses && user.emailAddresses.length > 0 ? (
                         user.emailAddresses.map((emailAddr) => (
                           <div 
                             key={emailAddr.id} 
-                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg transition-all duration-300 ${
+                            className={`p-4 rounded-xl transition-all duration-300 ${
                               emailAddr.id === user.primaryEmailAddressId 
-                                ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 shadow-sm' 
-                                : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 shadow-sm' 
+                                : 'bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-700/50 dark:to-blue-900/20 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600/50'
                             }`}>
-                            <div className="flex items-center mb-2 sm:mb-0">
-                              <div className={`w-3 h-3 rounded-full mr-3 ${
-                                emailAddr.id === user.primaryEmailAddressId 
-                                  ? 'bg-green-500' 
-                                  : emailAddr.verification?.status === 'verified' 
-                                    ? 'bg-blue-500' 
-                                    : 'bg-yellow-500'
-                              }`}></div>
-                              <div>
-                                <div className="font-medium text-gray-800 dark:text-white">
-                                  {emailAddr.emailAddress}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  {emailAddr.id === user.primaryEmailAddressId ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                      <i className="fas fa-check-circle mr-1"></i> الإيميل الأساسي
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                              <div className="flex items-start mb-3 sm:mb-0">
+                                <div className={`w-4 h-4 rounded-full mt-1.5 mr-3 flex-shrink-0 ${
+                                  emailAddr.id === user.primaryEmailAddressId 
+                                    ? 'bg-green-500' 
+                                    : emailAddr.verification?.status === 'verified' 
+                                      ? 'bg-blue-500' 
+                                      : 'bg-yellow-500'
+                                }`}></div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-800 dark:text-white break-all text-right">
+                                    {emailAddr.emailAddress}
+                                  </div>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {emailAddr.id === user.primaryEmailAddressId ? (
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                        <i className="fas fa-check-circle ml-1"></i> الإيميل الأساسي
+                                      </span>
+                                    ) : emailAddr.verification?.status === 'verified' ? (
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                        <i className="fas fa-link ml-1"></i> مرتبط
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                        <i className="fas fa-clock ml-1"></i> في انتظار التحقق
+                                      </span>
+                                    )}
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">
+                                      <i className="fas fa-calendar-alt ml-1"></i> {formatDate(getEmailCreationDate(emailAddr))}
                                     </span>
-                                  ) : emailAddr.verification?.status === 'verified' ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                      <i className="fas fa-link mr-1"></i> مرتبط
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                                      <i className="fas fa-clock mr-1"></i> في انتظار التحقق
-                                    </span>
-                                  )}
-                                  <span className="mx-2">•</span>
-                                  <span>أضيف في {formatDate(getEmailCreationDate(emailAddr))}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="text-gray-500 dark:text-gray-400 text-center py-4">
-                          لا توجد عناوين بريد إلكتروني مضافة
+                        <div className="text-gray-500 dark:text-gray-400 text-center py-6 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
+                          <div className="flex flex-col items-center">
+                            <i className="fas fa-envelope-open-text text-2xl mb-2"></i>
+                            <p>لا توجد عناوين بريد إلكتروني مضافة</p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -726,11 +728,11 @@ export default function ProfilePage() {
             
             {/* أزرار الحفظ والإلغاء */}
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-800/50 p-5 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex flex-wrap justify-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <button
                   onClick={saveProfile}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-medium py-3 px-6 rounded-xl shadow-lg disabled:opacity-70 disabled:cursor-not-allowed text-base transition-all duration-300 transform hover:scale-105"
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white font-medium py-3 px-6 rounded-xl shadow-lg disabled:opacity-70 disabled:cursor-not-allowed text-base transition-all duration-300 transform hover:scale-105 flex-1 sm:flex-none"
                 >
                   {saving ? (
                     <>
@@ -747,7 +749,7 @@ export default function ProfilePage() {
 
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900 text-white font-medium py-3 px-6 rounded-xl shadow-lg text-base transition-all duration-300 transform hover:scale-105"
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900 text-white font-medium py-3 px-6 rounded-xl shadow-lg text-base transition-all duration-300 transform hover:scale-105 flex-1 sm:flex-none"
                 >
                   <i className="fas fa-times"></i>
                   إلغاء التعديل

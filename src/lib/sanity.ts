@@ -222,6 +222,7 @@ export interface FAQ {
   question: string
   answer: string
   category?: string
+  _createdAt?: string // إضافة الخاصية المفقودة
 }
 
 export async function fetchFaqs(): Promise<FAQ[]> {
@@ -291,6 +292,7 @@ export interface TermsContent {
   logo?: SanityImage
   footerText?: string
   lastUpdated?: string
+  _createdAt?: string // إضافة الخاصية المفقودة
 }
 
 // دوال جديدة للتعامل مع محتوى الشروط والأحكام
@@ -454,6 +456,7 @@ export interface PrivacyContent {
   color?: string
   textColor?: string
   lastUpdated?: string
+  _createdAt?: string // إضافة الخاصية المفقودة
 }
 
 // دوال للتعامل مع سياسة الخصوصية
@@ -652,6 +655,7 @@ export async function removeFromFavorites(userId: string, contentId: string, con
   }
 }
 
+// واجهات للأنواع الأساسية
 export interface SanityImage {
   _type: 'image'
   asset: {
@@ -712,6 +716,7 @@ export interface Episode {
   thumbnail?: SanityImage
   season?: Season
   publishedAt?: string
+  _createdAt?: string // إضافة الخاصية المفقودة
 }
 
 export interface Article {
@@ -724,6 +729,7 @@ export interface Article {
   featuredImage?: SanityImage
   season?: Season
   publishedAt?: string
+  _createdAt?: string // إضافة الخاصية المفقودة
 }
 
 export interface Comment {
@@ -755,6 +761,175 @@ export interface Playlist {
   image?: SanityImage
   episodes?: Episode[]
   articles?: Article[] // إضافة حقل المقالات
+  _createdAt?: string // إضافة الخاصية المفقودة
+}
+
+// واجهة للإشعارات
+export interface NotificationItem {
+  id: string;
+  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy';
+  title: string;
+  description?: string;
+  date: string;
+  imageUrl?: string;
+  linkUrl: string;
+}
+
+// دالة لجلب كل الإشعارات
+export async function getAllNotifications(): Promise<NotificationItem[]> {
+  try {
+    // جلب الحلقات
+    const episodesQuery = `*[_type == "episode"] | order(publishedAt desc) {
+      _id,
+      title,
+      description,
+      publishedAt,
+      _createdAt,
+      "imageUrl": thumbnail.asset->url,
+      "slug": slug.current,
+      "type": "episode"
+    }`;
+    const episodes = await fetchArrayFromSanity<Episode & { type: string; slug: string; imageUrl?: string }>(episodesQuery);
+
+    // جلب المقالات
+    const articlesQuery = `*[_type == "article"] | order(publishedAt desc) {
+      _id,
+      title,
+      excerpt,
+      publishedAt,
+      _createdAt,
+      "imageUrl": featuredImage.asset->url,
+      "slug": slug.current,
+      "type": "article"
+    }`;
+    const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; imageUrl?: string }>(articlesQuery);
+
+    // جلب قوائم التشغيل
+    const playlistsQuery = `*[_type == "playlist"] | order(_createdAt desc) {
+      _id,
+      title,
+      description,
+      _createdAt,
+      "imageUrl": image.asset->url,
+      "slug": slug.current,
+      "type": "playlist"
+    }`;
+    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery);
+
+    // جلب الأسئلة الشائعة
+    const faqsQuery = `*[_type == "faq"] | order(_createdAt desc) {
+      _id,
+      question,
+      answer,
+      _createdAt,
+      "type": "faq"
+    }`;
+    const faqs = await fetchArrayFromSanity<FAQ & { type: string }>(faqsQuery);
+
+    // جلب الشروط والأحكام
+    const termsQuery = `*[_type == "termsContent"] | order(_createdAt desc) {
+      _id,
+      title,
+      _createdAt,
+      "type": "terms"
+    }`;
+    const terms = await fetchArrayFromSanity<TermsContent & { type: string }>(termsQuery);
+
+    // جلب سياسة الخصوصية
+    const privacyQuery = `*[_type == "privacyContent"] | order(_createdAt desc) {
+      _id,
+      title,
+      _createdAt,
+      "type": "privacy"
+    }`;
+    const privacy = await fetchArrayFromSanity<PrivacyContent & { type: string }>(privacyQuery);
+
+    // دالة للحصول على تاريخ صالح
+    const getValidDate = (date1?: string, date2?: string) => {
+      const date = date1 || date2;
+      if (!date) return new Date().toISOString();
+      
+      // التحقق من صحة التاريخ
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return new Date().toISOString();
+      
+      return date;
+    };
+
+    // تحويل البيانات إلى تنسيق موحد للإشعارات
+    const episodeNotifications: NotificationItem[] = episodes.map(ep => ({
+      id: ep._id,
+      type: 'episode' as const,
+      title: ep.title,
+      description: ep.description,
+      date: getValidDate(ep.publishedAt, ep._createdAt),
+      imageUrl: ep.imageUrl,
+      linkUrl: `/episodes/${ep.slug}`
+    }));
+
+    const articleNotifications: NotificationItem[] = articles.map(article => ({
+      id: article._id,
+      type: 'article' as const,
+      title: article.title,
+      description: article.excerpt,
+      date: getValidDate(article.publishedAt, article._createdAt),
+      imageUrl: article.imageUrl,
+      linkUrl: `/articles/${article.slug}`
+    }));
+
+    const playlistNotifications: NotificationItem[] = playlists.map(playlist => ({
+      id: playlist._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      type: 'playlist' as const,
+      title: playlist.title,
+      description: playlist.description,
+      date: getValidDate(playlist._createdAt),
+      imageUrl: playlist.imageUrl,
+      linkUrl: `/playlists/${playlist.slug}`
+    }));
+
+    const faqNotifications: NotificationItem[] = faqs.map(faq => ({
+      id: faq._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      type: 'faq' as const,
+      title: faq.question,
+      description: faq.answer,
+      date: getValidDate(faq._createdAt),
+      linkUrl: `/faq#${faq._id}`
+    }));
+
+    const termsNotifications: NotificationItem[] = terms.map(term => ({
+      id: term._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      type: 'terms' as const,
+      title: term.title || 'شروط وأحكام',
+      date: getValidDate(term._createdAt),
+      linkUrl: `/terms#${term._id}`
+    }));
+
+    const privacyNotifications: NotificationItem[] = privacy.map(priv => ({
+      id: priv._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      type: 'privacy' as const,
+      title: priv.title || 'سياسة الخصوصية',
+      date: getValidDate(priv._createdAt),
+      linkUrl: `/privacy#${priv._id}`
+    }));
+
+    // دمج كل الإشعارات وترتيبها حسب التاريخ
+    const allNotifications = [
+      ...episodeNotifications,
+      ...articleNotifications,
+      ...playlistNotifications,
+      ...faqNotifications,
+      ...termsNotifications,
+      ...privacyNotifications
+    ];
+
+    // ترتيب الإشعارات حسب التاريخ (الأحدث أولاً)
+    return allNotifications.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return [];
+  }
 }
 
 // إضافة هذا السطر لتجنب المشاكل مع الـ Dynamic Server Usage

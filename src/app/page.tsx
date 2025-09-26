@@ -1,10 +1,12 @@
+// app/page.tsx
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination, Autoplay } from "swiper/modules";
+import { Pagination, Autoplay, Navigation } from "swiper/modules";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import { useRouter } from 'next/navigation';
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
@@ -14,24 +16,27 @@ import {
   FaInstagram,
   FaFacebookF,
   FaTiktok,
-} from "react-icons/fa";
-import { FaXTwitter } from "react-icons/fa6";
-import { 
-  FaQuestionCircle, 
-  FaArrowUp, 
-  FaPlay, 
-  FaLightbulb, 
-  FaBook, 
-  FaVideo, 
-  FaUsers, 
-  FaChartLine, 
+  FaTwitter,
+  FaQuestionCircle,
+  FaPlay,
+  FaLightbulb,
+  FaVideo,
+  FaUsers,
   FaGlobe,
   FaUser,
   FaPaperPlane,
   FaComments,
-  FaArrowLeft
+  FaArrowLeft,
+  FaListUl,
+  FaCalendarAlt,
+  FaNewspaper,
+  FaHeart,
+  FaStar,
+  FaCompass,
+  FaTimes,
+  FaSearch // تمت إضافة أيقونة البحث
 } from "react-icons/fa";
-import { fetchArrayFromSanity, SanityImage } from "@/lib/sanity";
+import { fetchArrayFromSanity, SanityImage, fetchFromSanity } from "@/lib/sanity";
 import imageUrlBuilder from '@sanity/image-url';
 import { client } from "@/lib/sanity";
 
@@ -50,6 +55,16 @@ interface EpisodeData {
   };
 }
 
+interface ArticleData {
+  _id: string;
+  title: string;
+  slug: { current: string };
+  excerpt?: string;
+  publishedAt?: string;
+  featuredImage?: SanityImage;
+  category?: string;
+}
+
 interface FAQItem {
   _id: string;
   question: string;
@@ -57,18 +72,67 @@ interface FAQItem {
   category?: string;
 }
 
+interface SearchResult {
+  _id: string;
+  _type: "episode" | "article" | "faq" | "playlist" | "season" | "teamMember" | "terms" | "privacy";
+  title: string;
+  slug?: { current: string };
+  excerpt?: string;
+  description?: string;
+  answer?: string;
+  role?: string;
+  thumbnail?: SanityImage;
+  featuredImage?: SanityImage;
+  image?: SanityImage;
+  season?: { _id: string; title: string; slug: { current: string } };
+  episodeCount?: number;
+  category?: string;
+  content?: PortableTextBlock[];
+  sectionType?: string;
+  imageUrl?: string;
+  question?: string;
+  name?: string;
+  bio?: string;
+  episode?: { _id: string; title: string; slug: { current: string } };
+}
+
+interface PortableTextBlock {
+  _type: 'block';
+  children: PortableTextSpan[];
+}
+
+interface PortableTextSpan {
+  text: string;
+}
+
+interface FaqResult extends SearchResult {
+  _type: "faq";
+  question: string;
+  answer: string;
+  category?: string;
+}
+
+interface TeamMemberResult extends SearchResult {
+  _type: "teamMember";
+  name: string;
+  role?: string;
+  slug?: { current: string };
+  image?: SanityImage;
+  bio?: string;
+}
+
 // متغيرات الحركة للعناصر
 const containerVariants = {
-  hidden: { opacity: 0, y: 18 },
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    y: 0,
-    transition: { staggerChildren: 0.08, when: "beforeChildren" },
+    transition: { staggerChildren: 0.1, when: "beforeChildren" },
   },
 };
+
 const itemVariant = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 // متغيرات الحركة للأسئلة الشائعة
@@ -76,10 +140,51 @@ const faqItemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
 };
+
 const answerVariants = {
   closed: { opacity: 0, height: 0, overflow: "hidden" },
   open: { opacity: 1, height: "auto", overflow: "visible", transition: { duration: 0.3 } }
 };
+
+// دوال مساعدة
+function buildSearchMediaUrl(image?: SanityImage): string {
+  if (!image) return "/placeholder.png";
+  try {
+    const url = imageUrlBuilder(client).image(image).width(500).height(300).url();
+    return url || "/placeholder.png";
+  } catch (error) {
+    console.error("Error building image URL:", error);
+    return "/placeholder.png";
+  }
+}
+
+function escapeRegExp(str = ""): string {
+  if (!str) return "";
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderHighlighted(text: string, q: string): React.ReactNode {
+  if (!q) return <>{text}</>;
+  try {
+    const re = new RegExp(`(${escapeRegExp(q)})`, "ig");
+    const parts = text.split(re);
+    return (
+      <>
+        {parts.map((part, i) =>
+          re.test(part) ? (
+            <mark key={i} className="bg-yellow-100 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 rounded px-0.5">
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  } catch {
+    return <>{text}</>;
+  }
+}
 
 // مكون السؤال المتحرك
 const AnimatedQuestion = ({ question, answer, index }: { question: string; answer: string; index: number }) => {
@@ -88,7 +193,7 @@ const AnimatedQuestion = ({ question, answer, index }: { question: string; answe
   return (
     <motion.div 
       variants={faqItemVariants}
-      className={`border-2 rounded-2xl p-8 bg-white dark:bg-gray-800 backdrop-blur-sm transition-all duration-300 ${
+      className={`border-2 rounded-2xl p-6 bg-white dark:bg-gray-800 backdrop-blur-sm transition-all duration-300 ${
         index % 2 === 0 
           ? 'border-blue-200 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700' 
           : 'border-purple-200 dark:border-purple-800/50 hover:border-purple-300 dark:hover:border-purple-700'
@@ -135,15 +240,608 @@ const AnimatedQuestion = ({ question, answer, index }: { question: string; answe
   );
 };
 
+// مكون بطاقة المقال
+const ArticleCard = ({ article }: { article: ArticleData }) => {
+  const imageUrl = article.featuredImage 
+    ? imageUrlBuilder(client).image(article.featuredImage).width(500).height(300).url()
+    : "/placeholder.png";
+    
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.995 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, amount: 0.2 }}
+      whileHover={{ y: -6, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10 -5px rgba(0, 0, 0, 0.04)" }}
+      className="card relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-gray-700 flex flex-col"
+    >
+      <Link href={`/articles/${encodeURIComponent(String(article.slug.current))}`} className="block flex-grow flex flex-col">
+        <div className="relative h-48 md:h-56 overflow-hidden flex-shrink-0">
+          <Image
+            src={imageUrl}
+            alt={article.title}
+            fill
+            className="object-cover transition-transform duration-500 hover:scale-110"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          {article.category && (
+            <div className="absolute top-4 right-4 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+              {article.category}
+            </div>
+          )}
+        </div>
+        
+        <div className="p-5 flex-grow flex flex-col">
+          <h3
+            className="text-lg font-bold leading-tight text-gray-900 dark:text-white mb-2"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {article.title}
+          </h3>
+          
+          {article.excerpt && (
+            <p 
+              className="text-gray-600 dark:text-gray-400 mb-4 text-sm"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {article.excerpt}
+            </p>
+          )}
+          
+          <div className="mt-auto pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                مقال
+              </span>
+              {article.publishedAt && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {new Date(article.publishedAt).toLocaleDateString('ar-EG')}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+};
+
+// مكون شريط البحث المخصص للهيرو
+const HeroSearchBar = () => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const router = useRouter();
+  const searchRef = useRef<HTMLDivElement>(null);
+  
+  // إغلاق النتائج عند النقر خارجها
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  
+  // البحث عند تغيير النص
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      setShowResults(false);
+      return;
+    }
+    
+    const delayDebounce = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+    
+    return () => clearTimeout(delayDebounce);
+  }, [query]);
+  
+  const performSearch = async (searchQuery: string) => {
+    setIsLoading(true);
+    try {
+      // استعلامات Sanity لجلب البيانات
+      const episodesQuery = `*[_type == "episode"]{
+        _id, _type, title, slug, description, thumbnail,
+        season->{_id, title, slug}
+      }`;
+      
+      const articlesQuery = `*[_type == "article"]{
+        _id, _type, title, slug, excerpt, featuredImage,
+        episode->{_id, title, slug}
+      }`;
+      
+      const playlistsQuery = `*[_type == "playlist"]{
+        _id, _type, title, slug, description,
+        "imageUrl": image.asset->url
+      }`;
+      
+      const faqsQuery = `*[_type == "faq"]{
+        _id, _type, question, answer, category
+      }`;
+      
+      const seasonsQuery = `*[_type == "season"]{
+        _id, _type, title, slug, thumbnail
+      }`;
+      
+      const teamMembersQuery = `*[_type == "teamMember"]{
+        _id, _type, name, role, slug, image, bio
+      }`;
+      
+      const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
+        _id, _type, title, content, lastUpdated
+      }`;
+      
+      const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
+        _id, _type, title, content, lastUpdated
+      }`;
+      
+      // جلب البيانات بشكل متوازٍ
+      const [
+        episodesData, 
+        articlesData, 
+        playlistsData, 
+        faqsData, 
+        seasonsData, 
+        teamMembersData, 
+        termsData, 
+        privacyData
+      ] = await Promise.all([
+        fetchFromSanity(episodesQuery),
+        fetchFromSanity(articlesQuery),
+        fetchFromSanity(playlistsQuery),
+        fetchFromSanity(faqsQuery),
+        fetchFromSanity(seasonsQuery),
+        fetchFromSanity(teamMembersQuery),
+        fetchFromSanity(termsQuery),
+        fetchFromSanity(privacyQuery)
+      ]);
+      
+      // تحويل البيانات إلى الأنواع المناسبة
+      const episodes = episodesData as SearchResult[];
+      const articles = articlesData as SearchResult[];
+      const playlists = playlistsData as SearchResult[];
+      const seasons = seasonsData as SearchResult[];
+      const terms = termsData as SearchResult | null;
+      const privacy = privacyData as SearchResult | null;
+      
+      // حساب عدد الحلقات لكل موسم
+      const episodesCountQuery = `*[_type == "episode"]{ season->{_id} }`;
+      const episodesCountData = await fetchFromSanity(episodesCountQuery);
+      const episodesDataCount = episodesCountData as { season?: { _id: string } }[];
+      
+      const episodeCounts: Record<string, number> = {};
+      episodesDataCount.forEach((ep) => {
+        if (ep.season?._id) {
+          episodeCounts[ep.season._id] = (episodeCounts[ep.season._id] || 0) + 1;
+        }
+      });
+      
+      // إضافة عدد الحلقات لكل موسم
+      const seasonsWithCount = seasons.map(season => ({
+        ...season,
+        episodeCount: episodeCounts[season._id] || 0
+      }));
+      
+      // تحويل الأسئلة الشائعة إلى نفس تنسيق النتائج الأخرى
+      const faqs = (faqsData as FaqResult[]).map(faq => ({
+        ...faq,
+        title: faq.question,
+        excerpt: faq.answer
+      }));
+      
+      // تحويل أعضاء الفريق إلى نفس تنسيق النتائج الأخرى
+      const teamMembers = (teamMembersData as TeamMemberResult[]).map(member => ({
+        ...member,
+        title: member.name,
+        excerpt: member.bio
+      }));
+      
+      // إضافة الشروط والأحكام وسياسة الخصوصية إذا كانت موجودة
+      const termsAndPrivacy: SearchResult[] = [];
+      if (terms) {
+        termsAndPrivacy.push({
+          ...terms,
+          _type: "terms",
+          slug: { current: "terms-conditions" }
+        });
+      }
+      
+      if (privacy) {
+        termsAndPrivacy.push({
+          ...privacy,
+          _type: "privacy",
+          slug: { current: "privacy-policy" }
+        });
+      }
+      
+      // دمج جميع النتائج
+      const allResults = [
+        ...episodes,
+        ...articles,
+        ...playlists,
+        ...faqs,
+        ...seasonsWithCount,
+        ...teamMembers,
+        ...termsAndPrivacy
+      ];
+      
+      // فلترة النتائج حسب البحث
+      const q = searchQuery.trim().toLowerCase();
+      const filteredResults = allResults.filter((result) => {
+        const title = (result.title || "").toString().toLowerCase();
+        let excerpt = (result.excerpt || "").toString().toLowerCase();
+        
+        // البحث في محتوى الشروط والأحكام وسياسة الخصوصية
+        if (result._type === "faq" && (result as FaqResult).answer) {
+          excerpt = ((result as FaqResult).answer || "").toString().toLowerCase();
+        }
+        
+        if (result._type === "teamMember" && (result as TeamMemberResult).role) {
+          excerpt = ((result as TeamMemberResult).role || "").toString().toLowerCase();
+        }
+        
+        if ((result._type === "terms" || result._type === "privacy") && result.content) {
+          try {
+            const contentText = result.content
+              .filter((block: PortableTextBlock) => block._type === "block")
+              .map((block: PortableTextBlock) => 
+                block.children
+                  .map((child: PortableTextSpan) => child.text)
+                  .join("")
+              )
+              .join(" ")
+              .toLowerCase();
+            
+            excerpt = contentText;
+          } catch (error) {
+            console.error("Error extracting content text:", error);
+          }
+        }
+        
+        return title.includes(q) || excerpt.includes(q);
+      });
+      
+      setResults(filteredResults);
+      setShowResults(true);
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      setQuery("");
+      setShowResults(false);
+    }
+  };
+  
+  const handleClearSearch = () => {
+    setQuery("");
+    setShowResults(false);
+  };
+  
+  const handleResultClick = (result: SearchResult) => {
+    setShowResults(false);
+    setQuery("");
+    
+    // تحديد الرابط المناسب حسب نوع النتيجة
+    const getLink = () => {
+      const idOrSlug = result.slug?.current ?? result._id;
+      const encoded = encodeURIComponent(String(idOrSlug));
+      switch (result._type) {
+        case "episode": return `/episodes/${encoded}`;
+        case "article": return `/articles/${encoded}`;
+        case "playlist": return `/playlists/${encoded}`;
+        case "faq": return `/faq?faq=${encoded}`;
+        case "season": return `/seasons/${encoded}`;
+        case "teamMember": return `/team/${encoded}`;
+        case "terms": return `/terms-conditions`;
+        case "privacy": return `/privacy-policy`;
+        default: return "#";
+      }
+    };
+    
+    const href = getLink();
+    router.push(href);
+  };
+  
+  const getIcon = (type: string) => {
+    switch (type) {
+      case "episode":
+        return (
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+        );
+      case "article":
+        return (
+          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+          </div>
+        );
+      case "playlist":
+        return (
+          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+          </div>
+        );
+      case "faq":
+        return (
+          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+      case "season":
+        return (
+          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        );
+      case "teamMember":
+        return (
+          <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 100-6 3 3 0 000 6zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+        );
+      case "terms":
+        return (
+          <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+        );
+      case "privacy":
+        return (
+          <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-xl shadow-sm">
+            <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+        );
+      default:
+        return (
+          <div className="p-2 bg-gray-100 dark:bg-gray-700/30 rounded-xl shadow-sm">
+            <svg className="w-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        );
+    }
+  };
+  
+  const getImageUrl = (result: SearchResult): string => {
+    try {
+      if (result.thumbnail) {
+        const url = buildSearchMediaUrl(result.thumbnail);
+        return url;
+      }
+      if (result.featuredImage) {
+        const url = buildSearchMediaUrl(result.featuredImage);
+        return url;
+      }
+      if (result.image) {
+        const url = buildSearchMediaUrl(result.image);
+        return url;
+      }
+      if (result._type === "playlist" && result.imageUrl) {
+        return result.imageUrl;
+      }
+      
+      if (result._type === "terms") {
+        return "/images/terms-default.jpg";
+      }
+      if (result._type === "privacy") {
+        return "/images/privacy-default.jpg";
+      }
+      
+      return "/placeholder.png";
+    } catch (error) {
+      console.error("Error getting image URL:", error);
+      return "/placeholder.png";
+    }
+  };
+  
+  const getDisplayText = (result: SearchResult) => {
+    if (result.excerpt) return result.excerpt;
+    if (result.description) return result.description;
+    if (result._type === "faq" && (result as FaqResult).answer) return (result as FaqResult).answer || "";
+    if (result._type === "teamMember" && (result as TeamMemberResult).role) return (result as TeamMemberResult).role || "";
+    
+    if ((result._type === "terms" || result._type === "privacy") && result.content) {
+      try {
+        return result.content
+          .filter((block: PortableTextBlock) => block._type === "block")
+          .slice(0, 2)
+          .map((block: PortableTextBlock) => 
+            block.children
+              .map((child: PortableTextSpan) => child.text)
+              .join("")
+          )
+          .join(" ")
+          .substring(0, 200) + "...";
+      } catch (error) {
+        console.error("Error extracting content text:", error);
+        return "";
+      }
+    }
+    
+    return "";
+  };
+  
+  return (
+    <div className="relative w-full max-w-2xl mx-auto" ref={searchRef}>
+      <form 
+        onSubmit={handleSubmit} 
+        className="relative"
+      >
+        <div className="relative">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ابحث عن حلقات، مقالات، مواسم والمزيد..."
+            className="w-full py-5 px-6 pr-16 rounded-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-2 border-white/40 dark:border-gray-700 shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-400/50 focus:border-transparent transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg"
+          />
+          
+          {/* زر البحث */}
+          <button
+            type="submit"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg transition-all duration-300 hover:scale-105"
+          >
+            <FaSearch className="h-5 w-5" />
+          </button>
+          
+          {/* زر المسح (X) - يظهر فقط عند وجود نص */}
+          {query && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 shadow-md transition-all duration-300 hover:scale-105"
+            >
+              <FaTimes className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </form>
+      
+      <AnimatePresence>
+        {showResults && (query.trim().length >= 2 || results.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute z-50 right-0 mt-3 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto"
+          >
+            {isLoading ? (
+              <div className="p-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="mt-3 text-gray-500 dark:text-gray-400">جاري البحث...</p>
+              </div>
+            ) : results.length > 0 ? (
+              <div className="py-2">
+                <div className="px-5 py-3 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  نتائج البحث
+                </div>
+                {results.slice(0, 5).map((result) => (
+                  <div
+                    key={`${result._type}-${result._id}`}
+                    className="px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150 flex items-center gap-4"
+                    onClick={() => handleResultClick(result)}
+                  >
+                    <div className="flex-shrink-0">
+                      {getIcon(result._type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {renderHighlighted(result.title || "", query)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {result._type === "episode" && "حلقة"}
+                        {result._type === "article" && "مقال"}
+                        {result._type === "playlist" && "قائمة تشغيل"}
+                        {result._type === "faq" && "سؤال شائع"}
+                        {result._type === "season" && "موسم"}
+                        {result._type === "teamMember" && "عضو الفريق"}
+                        {result._type === "terms" && "شروط وأحكام"}
+                        {result._type === "privacy" && "سياسة الخصوصية"}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
+                        {renderHighlighted(getDisplayText(result), query)}
+                      </p>
+                    </div>
+                    {getImageUrl(result) && (
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden">
+                        <Image
+                          src={getImageUrl(result)}
+                          alt={result.title || ""}
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // فقط أخفي الصورة المعطوبة ولا تطبع رسالة خطأ
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-700">
+                  <button
+                    onClick={handleSubmit}
+                    className="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl text-base font-semibold transition-colors duration-200 flex items-center justify-center"
+                  >
+                    عرض جميع نتائج البحث
+                    <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ) : query.trim().length >= 2 ? (
+              <div className="p-8 text-center">
+                <svg className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 005.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="mt-4 text-gray-500 dark:text-gray-400">لا توجد نتائج مطابقة</p>
+              </div>
+            ) : null}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function Home() {
   // حالات المكون
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
+  const [articles, setArticles] = useState<ArticleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [faqLoading, setFaqLoading] = useState(true);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [subscribers, setSubscribers] = useState<number | null>(null);
+  const [episodesCount, setEpisodesCount] = useState<number>(0);
+  const [playlistsCount, setPlaylistsCount] = useState<number>(0);
+  const [seasonsCount, setSeasonsCount] = useState<number>(0);
+  const [articlesCount, setArticlesCount] = useState<number>(0);
   const { user } = useUser();
   
   // إنشاء imageBuilder مرة واحدة فقط
@@ -162,44 +860,10 @@ export default function Home() {
   // روابط وسائل التواصل الاجتماعي
   const socialLinks = useMemo(() => [
     { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: "يوتيوب" },
-    { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انسجرام" },
-    { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيس بوك" },
+    { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انستجرام" },
+    { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيسبوك" },
     { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: "تيك توك" },
-    { href: "https://x.com/FazlakaPlatform", icon: <FaXTwitter />, label: "اكس" },
-  ], []);
-  
-  // بيانات الاقتراحات
-  const suggestions = useMemo(() => [
-    {
-      icon: <FaVideo className="text-xl" />,
-      title: "فيديوهات تعليمية",
-      description: "شروحات مبسطة ومصورة تجعل المفاهيم العلمية سهلة الفهم",
-      color: "from-blue-500 to-indigo-600"
-    },
-    {
-      icon: <FaBook className="text-xl" />,
-      title: "مقالات علمية",
-      description: "محتوى مكتوب ومنظم يغطي مختلف المواضيع العلمية",
-      color: "from-purple-500 to-indigo-600"
-    },
-    {
-      icon: <FaLightbulb className="text-xl" />,
-      title: "حقائق ومعلومات",
-      description: "معلومات مذهلة ومثيرة للاهتمام من عالم العلوم",
-      color: "from-indigo-500 to-purple-600"
-    },
-    {
-      icon: <FaUsers className="text-xl" />,
-      title: "مجتمع تفاعلي",
-      description: "انضم إلى مجتمع من المهتمين بالعلم والمعرفة",
-      color: "from-cyan-500 to-blue-600"
-    },
-    {
-      icon: <FaChartLine className="text-xl" />,
-      title: "تقدم تعليمي",
-      description: "تتبع تقدمك التعليمي وحقق أهدافك العلمية",
-      color: "from-emerald-500 to-teal-600"
-    }
+    { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: "اكس" },
   ], []);
   
   // بيانات قسم "لماذا تشترك في فذلَكة؟"
@@ -214,21 +878,10 @@ export default function Home() {
     { icon: <FaUsers className="text-xl" />, title: 'أسلوب قصصي', desc: 'سرد يشد الانتباه' },
     { icon: <FaGlobe className="text-xl" />, title: 'تنوع الموضوعات', desc: 'تاريخ، سياسة، علم نفس' }
   ], []);
-  
+
   // التأكد من أننا في بيئة العميل
   useEffect(() => {
     setIsClient(true);
-    
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = (scrollTop / docHeight) * 100;
-      setScrollProgress(progress);
-      
-      setShowScrollTop(scrollTop > 300);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
   
   // تحميل الحلقات من Sanity
@@ -274,6 +927,85 @@ export default function Home() {
     };
   }, []);
   
+  // تحميل المقالات من Sanity
+  useEffect(() => {
+    let mounted = true;
+    async function loadArticles() {
+      try {
+        // استعلام لجلب المقالات من Sanity
+        const query = `*[_type == "article"]{
+          _id,
+          title,
+          slug,
+          excerpt,
+          featuredImage,
+          category,
+          publishedAt
+        } | order(publishedAt desc)[0...6]`;
+        
+        // استخدم الدالة الجديدة
+        const data = await fetchArrayFromSanity<ArticleData>(query);
+        
+        if (mounted) {
+          setArticles(data);
+        }
+      } catch (err) {
+        console.error("Error loading articles:", err);
+        if (mounted) {
+          setArticles([]);
+        }
+      }
+    }
+    loadArticles();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
+  // تحميل الإحصائيات
+  useEffect(() => {
+    let mounted = true;
+    
+    async function loadStats() {
+      try {
+        // تحميل عدد المشتركين في يوتيوب
+        const subscribersResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=UCWftbKWXqj0wt-UHMLAcsJA&key=AIzaSyBcPhsKTsQ7YGqKiP-eG6TZh2P9DKN1QnA`, 
+          { cache: "no-store" }
+        );
+        if (subscribersResponse.ok) {
+          const data = await subscribersResponse.json();
+          const count = data.items?.[0]?.statistics?.subscriberCount;
+          if (count && mounted) {
+            setSubscribers(parseInt(count, 10));
+          }
+        }
+        
+        // تحميل باقي الإحصائيات
+        const [episodesCount, playlistsCount, seasonsCount, articlesCount] = await Promise.all([
+          fetchFromSanity<number>(`count(*[_type == "episode"])`),
+          fetchFromSanity<number>(`count(*[_type == "playlist"])`),
+          fetchFromSanity<number>(`count(*[_type == "season"])`),
+          fetchFromSanity<number>(`count(*[_type == "article"])`)
+        ]);
+        
+        if (mounted) {
+          setEpisodesCount(episodesCount || 0);
+          setPlaylistsCount(playlistsCount || 0);
+          setSeasonsCount(seasonsCount || 0);
+          setArticlesCount(articlesCount || 0);
+        }
+      } catch (err) {
+        console.error("Error loading stats:", err);
+      }
+    }
+    
+    loadStats();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
   // تحميل الأسئلة الشائعة من Sanity
   useEffect(() => {
     let mounted = true;
@@ -311,285 +1043,404 @@ export default function Home() {
   }, []);
   
   // دالة للتمرير إلى قسم الحلقات
-  const scrollToEpisodes = (e?: React.MouseEvent) => {
+  const scrollToEpisodes = useCallback((e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     const el = document.getElementById("episodes-section");
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     else window.location.href = "/episodes";
-  };
-  
-  // دالة للعودة إلى أعلى الصفحة
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-  };
+  }, []);
   
   return (
     <div className="antialiased bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
-      {/* شريط التقدم */}
-      <div className="fixed top-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600 z-50 transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
-      
-      {/* زر العودة للأعلى */}
-      <AnimatePresence>
-        {showScrollTop && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            onClick={scrollToTop}
-            className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg flex items-center justify-center hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            aria-label="العودة للأعلى"
-            whileHover={{ scale: 1.1, rotate: 10 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <FaArrowUp className="text-lg" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-      
-      {/* ====== HERO مع خلفية علمية عصرية ====== */}
+      {/* ====== HERO مع قسم الإحصائيات المدمج ====== */}
       <motion.header
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, amount: 0.18 }}
         variants={containerVariants}
-        className="relative w-full min-h-[90vh] flex items-center justify-center overflow-hidden"
+        className="relative w-full min-h-[100vh] flex items-center justify-center overflow-hidden"
       >
-        {/* خلفية متدرجة علمية */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 via-purple-900/80 to-pink-800/70 z-0" />
+        {/* خلفية متدرجة جديدة - أزرق غامق مع لمسة بنفسجية */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 z-0" />
         <div className="absolute inset-0 bg-black/40 z-0" />
         
-        {/* شبكة علمية */}
+        {/* شبكة علمية محسنة */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjZDBkNWZmIiBvcGFjaXR5PSIwLjEiIC8+Cjwvc3ZnPg==')] opacity-20 dark:opacity-10" />
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+CiAgPHBhdGggZD0iTTAgMEw0MCA0ME00MCAwTDAgNDAiIHN0cm9rZT0iIzYwYTVmYSIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMSIgLz4KPC9zdmc+')] opacity-10 dark:opacity-5" />
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjODA4MGZmIiBvcGFjaXR5PSIwLjE1IiAvPgo8L3N2Zz4=')] opacity-30 dark:opacity-20" />
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+CiAgPHBhdGggZD0iTTAgMEw0MCA0ME00MCAwTDAgNDAiIHN0cm9rZT0iIzk5NDVmZiIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMiIgLz4KPC9zdmc+')] opacity-15 dark:opacity-10" />
           
-          {/* دوائر متحركة */}
+          {/* دوائر متحركة محسنة */}
           <motion.div 
-            className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-blue-400/10 dark:bg-blue-500/5 blur-3xl"
+            className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-indigo-600/20 dark:bg-indigo-700/15 blur-3xl"
             animate={{ 
-              scale: [1, 1.3, 1],
-              opacity: [0.1, 0.2, 0.1],
+              scale: [1, 1.5, 1],
+              opacity: [0.2, 0.3, 0.2],
             }}
             transition={{ 
-              duration: 15, 
+              duration: 18, 
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
           />
           <motion.div 
-            className="absolute bottom-1/3 right-1/4 w-48 h-48 rounded-full bg-purple-400/10 dark:bg-purple-500/5 blur-3xl"
+            className="absolute bottom-1/3 right-1/4 w-64 h-64 rounded-full bg-purple-600/20 dark:bg-purple-700/15 blur-3xl"
             animate={{ 
-              scale: [1, 1.2, 1],
-              opacity: [0.1, 0.15, 0.1],
+              scale: [1, 1.4, 1],
+              opacity: [0.2, 0.25, 0.2],
             }}
             transition={{ 
-              duration: 12, 
+              duration: 15, 
               repeat: Infinity, 
               ease: "easeInOut",
               delay: 2
             }}
           />
           <motion.div 
-            className="absolute top-1/3 right-1/3 w-32 h-32 rounded-full bg-indigo-400/10 dark:bg-indigo-500/5 blur-3xl"
+            className="absolute top-1/3 right-1/3 w-48 h-48 rounded-full bg-blue-600/20 dark:bg-blue-700/15 blur-3xl"
             animate={{ 
-              scale: [1, 1.4, 1],
-              opacity: [0.1, 0.2, 0.1],
+              scale: [1, 1.6, 1],
+              opacity: [0.2, 0.3, 0.2],
             }}
             transition={{ 
-              duration: 18, 
+              duration: 20, 
               repeat: Infinity, 
               ease: "easeInOut",
               delay: 1
             }}
           />
+          
+          {/* إضافة تأثيرات ضوئية جديدة */}
+          <motion.div 
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-indigo-500/10 blur-3xl"
+            animate={{ 
+              rotate: [0, 360],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{ 
+              duration: 40, 
+              repeat: Infinity, 
+              ease: "linear"
+            }}
+          />
         </div>
         
-        {/* أيقونات السوشيال مع حركة */}
-        <div className="hidden md:flex flex-col gap-3 absolute left-6 md:left-10 bottom-36 md:bottom-44 z-30">
-          {socialLinks.map((s, i) => (
-            <motion.a
-              key={i}
-              href={s.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={s.label}
-              title={s.label}
-              className={`
-                w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center shadow
-                transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300
-                bg-white/80 text-gray-900 dark:bg-gray-800/80 dark:text-white backdrop-blur-sm
-                hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 dark:hover:text-white
-              `}
-              whileHover={{ y: -3, rotate: 5 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="text-[16px] md:text-lg">{s.icon}</span>
-            </motion.a>
-          ))}
-        </div>
-        
-        {/* محتوى الهيرو */}
-        <div className="relative z-10 text-center px-4 py-20 md:py-32 max-w-4xl mx-auto">
-          <motion.div
-            variants={itemVariant}
-            className="mb-6 flex flex-col items-center"
-          >
+        {/* محتوى الهيرو والإحصائيات */}
+        <div className="relative z-10 text-center px-4 py-20 md:py-32 max-w-7xl mx-auto w-full">
+          <div className="flex flex-col items-center">
+            {/* الشعار مع تأثيرات جديدة */}
             <motion.div 
-              className="flex items-center justify-center gap-4 md:gap-6 mb-2"
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 200 }}
+              className="mb-8"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
             >
-              {/* الشعار مع تأثيرات */}
               <motion.div
                 className="relative"
                 whileHover={{ 
-                  scale: 1.1,
-                  rotate: [0, 5, -5, 0],
-                  transition: { duration: 0.6 }
+                  scale: 1.15,
+                  rotate: [0, 15, -15, 0],
+                  transition: { duration: 0.8 }
                 }}
               >
-                {/* تأثير الإضاءة المحيطة */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/30 via-purple-500/30 to-indigo-400/30 rounded-full blur-xl transform scale-125"></div>
+                {/* تأثير الإضاءة المحيطة محسن */}
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/40 via-purple-500/40 to-blue-500/40 rounded-full blur-2xl transform scale-150"></div>
                 
                 {/* تأثير الجزيئات العلمية حول الشعار */}
                 {isClient && particlePositions.map((pos, i) => (
                   <motion.div
                     key={i}
-                    className="absolute w-2 h-2 rounded-full bg-blue-400/60 dark:bg-blue-300/40"
+                    className="absolute w-3 h-3 rounded-full bg-indigo-400/80 dark:bg-indigo-300/60"
                     style={{
                       top: pos.top,
                       left: pos.left,
                     }}
                     animate={{
-                      scale: [1, 1.5, 1],
-                      opacity: [0.4, 0.8, 0.4],
+                      scale: [1, 2.5, 1],
+                      opacity: [0.5, 1, 0.5],
                     }}
                     transition={{
-                      duration: 2 + i * 0.5,
+                      duration: 2.5 + i * 0.8,
                       repeat: Infinity,
-                      delay: i * 0.3,
+                      delay: i * 0.5,
                     }}
                   />
                 ))}
                 
                 {/* الشعار الرئيسي */}
                 <motion.div
-                  className="relative w-16 md:w-20 h-auto drop-shadow-xl z-10"
+                  className="relative w-24 md:w-32 h-auto drop-shadow-2xl z-10"
                   style={{ 
-                    filter: "drop-shadow(0 10px 8px rgba(59, 130, 246, 0.3))",
+                    filter: "drop-shadow(0 15px 12px rgba(99, 102, 241, 0.6))",
                   }}
                   animate={{ 
-                    y: [0, -5, 0]
+                    y: [0, -10, 0],
+                    rotate: [0, 3, -3, 0]
                   }}
                   transition={{ 
-                    duration: 6, 
+                    duration: 8, 
                     repeat: Infinity, 
                     ease: "easeInOut" 
                   }}
                 >
                   <Image
                     src="/logo.png"
-                    alt="فذلكه - شعار المنصة"
-                    width={80}
-                    height={80}
+                    alt="شعار المنصة"
+                    width={120}
+                    height={120}
                     className="w-full h-auto"
                   />
                 </motion.div>
                 
-                {/* تأثير النبض */}
+                {/* تأثير النبض محسن */}
                 <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-blue-400/30"
+                  className="absolute inset-0 rounded-full border-4 border-indigo-400/40"
                   animate={{ 
-                    scale: [1, 1.2, 1], 
-                    opacity: [0.7, 0.2, 0.7] 
+                    scale: [1, 1.4, 1], 
+                    opacity: [0.8, 0.3, 0.8] 
                   }}
                   transition={{ 
-                    duration: 3, 
+                    duration: 3.5, 
                     repeat: Infinity 
                   }}
                 />
+                
+                {/* تأثير النبض الثاني */}
+                <motion.div
+                  className="absolute inset-0 rounded-full border-2 border-purple-400/30"
+                  animate={{ 
+                    scale: [1, 1.6, 1], 
+                    opacity: [0.6, 0.2, 0.6] 
+                  }}
+                  transition={{ 
+                    duration: 4.5, 
+                    repeat: Infinity,
+                    delay: 1.2
+                  }}
+                />
+                
+                {/* تأثير النبض الثالث */}
+                <motion.div
+                  className="absolute inset-0 rounded-full border-1 border-blue-400/20"
+                  animate={{ 
+                    scale: [1, 1.8, 1], 
+                    opacity: [0.4, 0.1, 0.4] 
+                  }}
+                  transition={{ 
+                    duration: 5.5, 
+                    repeat: Infinity,
+                    delay: 2.4
+                  }}
+                />
               </motion.div>
-              
-              {/* نص "فذلكه" */}
-              <motion.h1
-                className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-none bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent"
-                style={{ WebkitFontSmoothing: "antialiased" }}
-                animate={{ 
-                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                }}
-                transition={{ 
-                  duration: 8, 
-                  repeat: Infinity, 
-                  ease: "linear" 
-                }}
-              >
-                فذلكه
-              </motion.h1>
             </motion.div>
             
-            {/* باقي العنوان */}
-            <motion.p
-              className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-200 max-w-3xl"
-              variants={itemVariant}
+            {/* نص الترحيب مع تأثيرات جديدة */}
+            <motion.div
+              className="mb-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
             >
-              مرحبًا بك في عالم <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-400">فذلكه</span>
-            </motion.p>
-          </motion.div>
-          
-          {/* قسم الأزرار */}
-          <motion.div variants={itemVariant} className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={scrollToEpisodes}
-              className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-105 shadow-lg"
-            >
-              ابدأ المشاهدة
-            </motion.button>
-            <Link href="/about">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-3 bg-transparent border-2 border-white text-white font-bold rounded-full hover:bg-white/10 transition-all"
+              <motion.h1 
+                className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 bg-gradient-to-r from-white via-indigo-100 to-purple-100 bg-clip-text text-transparent"
+                animate={{ 
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                }}
+                transition={{ 
+                  duration: 10, 
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
               >
-                اعرف المزيد
+                فذلَكة
+              </motion.h1>
+              
+              <motion.p
+                className="text-xl md:text-2xl lg:text-3xl text-indigo-100 max-w-3xl mx-auto font-medium"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+              >
+                منصة المعرفة التفاعلية
+              </motion.p>
+            </motion.div>
+            
+            {/* شريط البحث المخصص */}
+            <motion.div 
+              className="w-full max-w-2xl mx-auto mb-12"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7, duration: 0.8 }}
+            >
+              <HeroSearchBar />
+            </motion.div>
+            
+            {/* قسم الأزرار مع تأثيرات جديدة */}
+            <motion.div 
+              className="flex flex-col sm:flex-row gap-6 justify-center mb-16"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9, duration: 0.8 }}
+            >
+              <motion.button
+                whileHover={{ scale: 1.08, boxShadow: "0 10px 25px -5px rgba(79, 70, 229, 0.5)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={scrollToEpisodes}
+                className="px-10 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-full text-lg shadow-lg flex items-center gap-3"
+              >
+                <FaPlay className="text-xl" />
+                ابدأ المشاهدة
               </motion.button>
-            </Link>
-          </motion.div>
-          
-          {/* قسم الاقتراحات */}
-          <motion.div 
-            variants={containerVariants}
-            className="mt-16 w-full max-w-5xl"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {suggestions.map((suggestion, index) => (
-                <motion.div
-                  key={index}
-                  variants={itemVariant}
-                  whileHover={{ y: -8, scale: 1.03 }}
-                  className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/10 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center group"
+              <Link href="/about">
+                <motion.button
+                  whileHover={{ scale: 1.08, boxShadow: "0 10px 25px -5px rgba(79, 70, 229, 0.3)" }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-10 py-4 bg-transparent border-2 border-indigo-300 text-indigo-100 font-bold rounded-full text-lg shadow-lg flex items-center gap-3"
                 >
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${suggestion.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
-                    <span className="text-white">{suggestion.icon}</span>
+                  <FaCompass className="text-xl" />
+                  اعرف المزيد
+                </motion.button>
+              </Link>
+            </motion.div>
+            
+            {/* قسم الإحصائيات الجديد */}
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="w-full max-w-5xl mx-auto"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                {/* بطاقة المشتركين المميزة */}
+                {subscribers !== null && (
+                  <motion.div 
+                    variants={itemVariant}
+                    className="col-span-2 md:col-span-4 relative"
+                  >
+                    {/* الخلفية الرئيسية */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-red-700 to-red-800 dark:from-red-900 dark:via-red-800 dark:to-red-900 rounded-3xl shadow-2xl transform rotate-1 animate-pulse-slow"></div>
+                    
+                    {/* الحاوية الرئيسية */}
+                    <div className="relative z-10 bg-gradient-to-br from-red-500 to-red-700 dark:from-red-800 dark:to-red-900 rounded-3xl p-4 md:p-6 shadow-2xl border-4 border-red-400 dark:border-red-700 overflow-hidden transition-all duration-700">
+                      {/* أنماط الخلفية الزخرفية */}
+                      <div className="absolute inset-0 opacity-20">
+                        <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgLz4KPC9zdmc+')]"></div>
+                      </div>
+                      
+                      {/* المحتوى الرئيسي */}
+                      <div className="relative z-20 flex flex-col md:flex-row items-center justify-between">
+                        {/* القسم الأيسر - الأيقونة والعنوان */}
+                        <div className="flex-1 mb-4 md:mb-0 md:pr-4">
+                          <div className="flex items-center mb-2">
+                            <div className="relative">
+                              <div className="relative">
+                                <FaYoutube className="text-4xl md:text-5xl text-white drop-shadow-lg transform -rotate-6 animate-bounce transition-all duration-2000" />
+                                <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-1 animate-ping">
+                                  <FaStar className="text-red-800 text-xs" />
+                                </div>
+                              </div>
+                              <div className="absolute -bottom-2 -left-2 bg-blue-500 rounded-full p-1 animate-ping" style={{ animationDelay: '1s' }}>
+                                <FaPlay className="text-white text-xs" />
+                              </div>
+                            </div>
+                            <div className="mr-3">
+                              <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">مشتركين يوتيوب</h2>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* القسم الأيمن - الرقم */}
+                        <div className="flex-1 flex flex-col items-center md:items-end">
+                          <div className="relative">
+                            {/* خلفية الرقم */}
+                            <div className="absolute inset-0 bg-black bg-opacity-20 rounded-2xl blur-lg animate-pulse-slow"></div>
+                            
+                            {/* الرقم الرئيسي */}
+                            <div className="relative bg-gradient-to-r from-black to-red-900 bg-opacity-40 backdrop-blur-sm rounded-2xl px-4 py-3 border-2 border-white border-opacity-20 shadow-2xl transition-all duration-2000">
+                              <div className="text-3xl md:text-5xl font-extrabold text-white tracking-tighter leading-none">
+                                {subscribers.toLocaleString('en-US')}
+                              </div>
+                              <div className="mt-1 text-center">
+                                <div className="inline-flex items-center bg-yellow-500 text-red-900 px-2 py-0.5 rounded-full text-xs font-bold animate-bounce">
+                                  <FaHeart className="mr-1" />
+                                  <span>مشترك</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* باقي البطاقات - مع تدرجات ملونة جديدة */}
+                <motion.div variants={itemVariant} className="bg-gradient-to-br from-cyan-500 to-teal-500 dark:from-cyan-700 dark:to-teal-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-cyan-200 dark:border-cyan-700 dark:shadow-cyan-900/30 hover:dark:shadow-cyan-900/50 relative overflow-hidden group origin-center">
+                  {/* تأثير اللمعان */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
+                      <FaVideo />
+                    </div>
+                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">حلقات</p>
+                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-100">
+                      {episodesCount}
+                    </p>
                   </div>
-                  <h3 className="font-bold text-white mb-1">{suggestion.title}</h3>
-                  <p className="text-sm text-gray-200">{suggestion.description}</p>
                 </motion.div>
-              ))}
-            </div>
-          </motion.div>
+                
+                <motion.div variants={itemVariant} className="bg-gradient-to-br from-emerald-500 to-green-500 dark:from-emerald-700 dark:to-green-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-emerald-200 dark:border-emerald-700 dark:shadow-emerald-900/30 hover:dark:shadow-emerald-900/50 relative overflow-hidden group origin-center">
+                  {/* تأثير اللمعان */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
+                      <FaListUl />
+                    </div>
+                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">قوائم تشغيل</p>
+                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-emerald-100">
+                      {playlistsCount}
+                    </p>
+                  </div>
+                </motion.div>
+                
+                <motion.div variants={itemVariant} className="bg-gradient-to-br from-purple-500 to-indigo-500 dark:from-purple-700 dark:to-indigo-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-purple-200 dark:border-purple-700 dark:shadow-purple-900/30 hover:dark:shadow-purple-900/50 relative overflow-hidden group origin-center">
+                  {/* تأثير اللمعان */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
+                      <FaCalendarAlt />
+                    </div>
+                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">مواسم</p>
+                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-purple-100">
+                      {seasonsCount}
+                    </p>
+                  </div>
+                </motion.div>
+                
+                <motion.div variants={itemVariant} className="bg-gradient-to-br from-amber-500 to-orange-500 dark:from-amber-700 dark:to-orange-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-amber-200 dark:border-amber-700 dark:shadow-amber-900/30 hover:dark:shadow-amber-900/50 relative overflow-hidden group origin-center">
+                  {/* تأثير اللمعان */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
+                      <FaNewspaper />
+                    </div>
+                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">مقالات</p>
+                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-orange-100">
+                      {articlesCount}
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          </div>
         </div>
         
         {/* عناصر علمية زخرفية */}
         <motion.div 
-          className="absolute bottom-10 right-10 w-16 h-16 rounded-full bg-blue-200/20 dark:bg-blue-500/10 blur-xl"
+          className="absolute bottom-10 right-10 w-20 h-20 rounded-full bg-cyan-200/20 dark:bg-cyan-500/10 blur-2xl"
           animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.2, 0.4, 0.2],
+            scale: [1, 1.3, 1],
+            opacity: [0.3, 0.5, 0.3],
           }}
           transition={{ 
             duration: 8, 
@@ -598,10 +1449,10 @@ export default function Home() {
           }}
         />
         <motion.div 
-          className="absolute top-20 left-10 w-12 h-12 rounded-full bg-purple-200/20 dark:bg-purple-500/10 blur-xl"
+          className="absolute top-20 left-10 w-16 h-16 rounded-full bg-emerald-200/20 dark:bg-emerald-500/10 blur-2xl"
           animate={{ 
-            scale: [1, 1.3, 1],
-            opacity: [0.2, 0.5, 0.2],
+            scale: [1, 1.4, 1],
+            opacity: [0.3, 0.6, 0.3],
           }}
           transition={{ 
             duration: 10, 
@@ -611,10 +1462,10 @@ export default function Home() {
           }}
         />
         <motion.div 
-          className="absolute top-1/2 right-1/4 w-14 h-14 rounded-full bg-indigo-200/20 dark:bg-indigo-500/10 blur-xl"
+          className="absolute top-1/2 right-1/4 w-18 h-18 rounded-full bg-teal-200/20 dark:bg-teal-500/10 blur-2xl"
           animate={{ 
-            scale: [1, 1.1, 1],
-            opacity: [0.2, 0.3, 0.2],
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.4, 0.3],
           }}
           transition={{ 
             duration: 12, 
@@ -626,7 +1477,7 @@ export default function Home() {
         
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
-          <div className="w-8 h-12 rounded-full border-4 border-white/30 flex justify-center">
+          <div className="w-10 h-14 rounded-full border-4 border-white/40 flex justify-center">
             <div className="w-2 h-2 bg-white rounded-full mt-2 animate-pulse"></div>
           </div>
         </div>
@@ -671,7 +1522,7 @@ export default function Home() {
         ) : (
           <>
             <Swiper
-              modules={[Pagination, Autoplay]}
+              modules={[Pagination, Autoplay, Navigation]}
               spaceBetween={20}
               slidesPerView={1}
               autoHeight={true}
@@ -680,6 +1531,10 @@ export default function Home() {
                 clickable: true,
                 bulletClass: "swiper-pagination-bullet-custom",
                 bulletActiveClass: "swiper-pagination-bullet-active-custom",
+              }}
+              navigation={{
+                nextEl: ".swiper-button-next-custom",
+                prevEl: ".swiper-button-prev-custom",
               }}
               autoplay={{ delay: 4500, disableOnInteraction: false }}
               breakpoints={{
@@ -749,6 +1604,77 @@ export default function Home() {
             </Swiper>
             
             <div className="custom-pagination flex justify-center mt-6 gap-2" />
+            <div className="swiper-button-next-custom text-blue-500" />
+            <div className="swiper-button-prev-custom text-blue-500" />
+          </>
+        )}
+      </section>
+      
+      {/* ====== قسم المقالات كـ سلايدر ====== */}
+      <section className="container mx-auto py-6 relative overflow-x-hidden">
+        <div className="flex items-center justify-between mb-5">
+          <motion.h2
+            initial={{ opacity: 0, x: -8 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            className="text-2xl font-bold text-gray-900 dark:text-white"
+          >
+            أحدث المقالات
+          </motion.h2>
+          <motion.div initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }}>
+            <Link
+              href="/articles"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-95 transition-all duration-300"
+            >
+              جميع المقالات
+            </Link>
+          </motion.div>
+        </div>
+        
+        {articles.length === 0 ? (
+          <p className="text-center py-12 text-gray-600 dark:text-gray-400">لا توجد مقالات حالياً</p>
+        ) : (
+          <>
+            <Swiper
+              modules={[Pagination, Autoplay, Navigation]}
+              spaceBetween={20}
+              slidesPerView={1}
+              autoHeight={true}
+              pagination={{ 
+                el: ".articles-pagination", 
+                clickable: true,
+                bulletClass: "swiper-pagination-bullet-custom",
+                bulletActiveClass: "swiper-pagination-bullet-active-custom",
+              }}
+              navigation={{
+                nextEl: ".articles-button-next-custom",
+                prevEl: ".articles-button-prev-custom",
+              }}
+              autoplay={{ delay: 4500, disableOnInteraction: false }}
+              breakpoints={{
+                640: { slidesPerView: 2 },
+                1024: { slidesPerView: 3 },
+              }}
+              className="py-1 relative"
+            >
+              {articles.map((article: ArticleData) => {
+                const slug = article.slug.current;
+                const title = article.title;
+                const imageUrl = article.featuredImage 
+                  ? imageBuilder.image(article.featuredImage).width(500).height(300).url()
+                  : "/placeholder.png";
+                
+                return (
+                  <SwiperSlide key={article._id} className="flex justify-center items-start">
+                    <ArticleCard article={article} />
+                  </SwiperSlide>
+                );
+              })}
+            </Swiper>
+            
+            <div className="articles-pagination flex justify-center mt-6 gap-2" />
+            <div className="articles-button-next-custom text-purple-500" />
+            <div className="articles-button-prev-custom text-purple-500" />
           </>
         )}
       </section>
@@ -886,7 +1812,7 @@ export default function Home() {
                     >
                       جميع الأسئلة
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"></path>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </Link>
                   </div>
@@ -924,7 +1850,7 @@ export default function Home() {
         </div>
       </section>
       
-      {/* ====== قسم متكامل في النهاية ====== */}
+      {/* ====== قسم متكامل في النهاية مع صورة الشخص ====== */}
       <motion.section
         variants={containerVariants}
         initial="hidden"
@@ -985,7 +1911,7 @@ export default function Home() {
                   </div>
                   
                   <p className="mb-8 text-indigo-100 leading-relaxed">
-                    نحن منصة فذلكه نقدم محتوى ترفيهي وتعليمي مميز. نعمل باستمرار على تحسين التجربة وتوفير أحدث الحلقات والقوائم.
+                    نحن منصة تعليمية تقدم محتوى ترفيهي وتعليمي مميز. نعمل باستمرار على تحسين التجربة وتوفير أحدث الحلقات والقوائم.
                   </p>
                   
                   <motion.div 
@@ -997,14 +1923,14 @@ export default function Home() {
                       href="/about"
                       className="group inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-full font-semibold shadow-lg hover:bg-indigo-50 transition-all duration-300"
                     >
-                      <span>اعرف أكثر عن فذلكه</span>
+                      <span>اعرف أكثر عن المنصة</span>
                       <FaArrowLeft className="transform rotate-180 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </motion.div>
                 </div>
               </motion.div>
               
-              {/* قسم "لماذا تشترك في فذلَكة؟" */}
+              {/* قسم "لماذا تشترك؟" */}
               <motion.div 
                 variants={itemVariant}
                 className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20 dark:border-gray-700/30"
@@ -1039,7 +1965,7 @@ export default function Home() {
                 </div>
               </motion.div>
               
-              {/* قسم التسجيل والترحيب */}
+              {/* قسم التسجيل والترحيب مع صورة الشخص */}
               <motion.div 
                 variants={itemVariant}
                 className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 shadow-xl text-white relative overflow-hidden"
@@ -1048,12 +1974,25 @@ export default function Home() {
                 <div className="relative z-10">
                   <SignedOut>
                     <div className="text-center">
-                      <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                        </svg>
+                      {/* صورة الشخص */}
+                      <div className="flex justify-center mb-6">
+                        <div className="relative">
+                          <Image 
+                            src="/ali.png" 
+                            alt="صورة شخصية" 
+                            width={120}
+                            height={120}
+                            className="w-32 h-32 rounded-full border-4 border-white/30 shadow-lg object-cover"
+                          />
+                          <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center border-2 border-white">
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"></path>
+                            </svg>
+                          </div>
+                        </div>
                       </div>
-                      <h3 className="text-2xl font-bold mb-4">انضم إلى مجتمع فذلكه</h3>
+                      
+                      <h3 className="text-2xl font-bold mb-4">انضم إلى مجتمعنا</h3>
                       <p className="mb-8 text-indigo-100">
                         سجل الآن للحصول على تجربة تعليمية مخصصة والوصول إلى محتوى حصري
                       </p>
@@ -1104,7 +2043,7 @@ export default function Home() {
                       </div>
                       
                       <h3 className="text-2xl font-bold mb-2">
-                        مرحباً بك في فذلكه، {user?.firstName || user?.username || "صديقنا"}!
+                        مرحباً بك، {user?.firstName || user?.username || "صديقنا"}!
                       </h3>
                       <p className="mb-6 text-indigo-100">
                         شكراً لانضمامك إلينا! استمتع بتجربة تعليمية فريدة واستكشف محتوانا التعليمي المتنوع.
@@ -1140,30 +2079,8 @@ export default function Home() {
               className="mt-16 text-center"
             >
               <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
-                فذلكه - حيث يصبح العلم ممتعًا وملموسًا للجميع
+                منصتنا - حيث يصبح العلم ممتعًا وملموسًا للجميع
               </p>
-              <div className="mt-6 flex justify-center gap-4">
-                {socialLinks.map((s, i) => (
-                  <motion.a
-                    key={i}
-                    href={s.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={s.label}
-                    title={s.label}
-                    className={`
-                      w-10 h-10 rounded-full flex items-center justify-center shadow
-                      transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-indigo-300
-                      bg-white text-gray-900 dark:bg-gray-800 dark:text-white
-                      hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 dark:hover:text-white
-                    `}
-                    whileHover={{ y: -3, rotate: 5 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <span className="text-[14px]">{s.icon}</span>
-                  </motion.a>
-                ))}
-              </div>
             </motion.div>
           </div>
         </div>
@@ -1209,6 +2126,77 @@ export default function Home() {
         }
         .swiper-slide:hover .card {
           z-index: 50;
+        }
+        .swiper-button-next-custom,
+        .swiper-button-prev-custom {
+          position: absolute;
+          top: 50%;
+          width: 30px;
+          height: 30px;
+          margin-top: -15px;
+          z-index: 10;
+          cursor: pointer;
+          background-size: 20px 20px;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        .swiper-button-next-custom {
+          right: 10px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z'/%3E%3C/svg%3E");
+        }
+        .swiper-button-prev-custom {
+          left: 10px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M15.41 7.41L10.83 12l4.58 4.59L14 18l-6-6 6-6 1.41 1.41z'/%3E%3C/svg%3E");
+        }
+        .articles-button-next-custom,
+        .articles-button-prev-custom {
+          position: absolute;
+          top: 50%;
+          width: 30px;
+          height: 30px;
+          margin-top: -15px;
+          z-index: 10;
+          cursor: pointer;
+          background-size: 20px 20px;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        .articles-button-next-custom {
+          right: 10px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a855f7'%3E%3Cpath d='M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z'/%3E%3C/svg%3E");
+        }
+        .articles-button-prev-custom {
+          left: 10px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a855f7'%3E%3Cpath d='M15.41 7.41L10.83 12l4.58 4.59L14 18l-6-6 6-6 1.41 1.41z'/%3E%3C/svg%3E");
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.4; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes bounceSlow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        .animate-bounceSlow {
+          animation: bounceSlow 2s infinite;
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+        @keyframes progress {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 100% 0%; }
+        }
+        .animate-progress {
+          background-size: 200% 100%;
+          animation: progress 2s linear infinite;
         }
       `}</style>
     </div>

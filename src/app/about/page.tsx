@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { 
@@ -266,12 +268,12 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
       <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-red-700 to-red-800 dark:from-red-900 dark:via-red-800 dark:to-red-900 rounded-3xl shadow-2xl transform rotate-1 animate-pulse-slow transition-transform duration-2000"></div>
       
       {/* الحاوية الرئيسية */}
-      <div className="relative z-10 bg-gradient-to-br from-red-500 to-red-700 dark:from-red-800 dark:to-red-900 rounded-3xl p-4 sm:p-6 md:p-8 md:p-10 shadow-2xl border-4 border-red-400 dark:border-red-700 overflow-hidden transition-all duration-700">
+      <div className="relative z-10 bg-gradient-to-br from-red-500 to-red-700 dark:from-red-800 dark:to-red-900 rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl border-4 border-red-400 dark:border-red-700 overflow-hidden transition-all duration-700">
         {/* أنماط الخلفية الزخرفية */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
           {/* دوائر زخرفية */}
-          <div className="absolute -top-20 -right-20 w-48 sm:w-64 h-48 sm:h-64 bg-red-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulseSlow transition-opacity duration-2000"></div>
-          <div className="absolute -bottom-20 -left-20 w-56 sm:w-72 h-56 sm:h-72 bg-yellow-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulseSlow transition-opacity duration-2000"></div>
+          <div className="absolute -top-20 -right-20 w-48 sm:w-64 h-48 sm:h-64 bg-red-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulse-slow"></div>
+          <div className="absolute -bottom-20 -left-20 w-56 sm:w-72 h-56 sm:h-72 bg-yellow-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulse-slow"></div>
           
           {/* شبكة زخرفية */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjwvcmVjdD4KPC9zdmc+')] opacity-10"></div>
@@ -296,7 +298,7 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
               <div className="mr-3 sm:mr-5">
                 <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white drop-shadow-lg mb-2">مشتركين يوتيوب</h2>
                 <div className="flex items-center">
-                  <FaFire className="text-yellow-300 mr-2 animate-bounceSlow" />
+                  <FaFire className="text-yellow-300 mr-2 animate-bounce-slow" />
                   <span className="text-yellow-200 font-medium text-sm sm:text-base">قناة متنامية</span>
                 </div>
               </div>
@@ -328,11 +330,11 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
               </div>
               
               {/* تأثيرات حول الرقم */}
-              <div className="absolute -top-3 -right-3 w-10 h-10 sm:w-12 sm:h-12 bg-yellow-400 rounded-full animate-pulseSlow opacity-70"></div>
-              <div className="absolute -bottom-3 -left-3 w-6 h-6 sm:w-8 sm:h-8 bg-red-400 rounded-full animate-pulseSlow opacity-70"></div>
+              <div className="absolute -top-3 -right-3 w-10 h-10 sm:w-12 sm:h-12 bg-yellow-400 rounded-full animate-pulse-slow opacity-70"></div>
+              <div className="absolute -bottom-3 -left-3 w-6 h-6 sm:w-8 sm:h-8 bg-red-400 rounded-full animate-pulse-slow opacity-70"></div>
             </div>
             
-            {/* شريط التقدم مع النسبة المئوية - بدون نسبة داخل الشريط */}
+            {/* شريط التقدم مع النسبة المئوية - مع تحسينات */}
             <div className="w-full max-w-xs">
               <div className="flex justify-between text-white text-opacity-80 text-xs sm:text-sm mb-1">
                 <span>التقدم</span>
@@ -340,8 +342,10 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
               </div>
               <div className="bg-black bg-opacity-20 rounded-full h-3 sm:h-4 overflow-hidden shadow-inner">
                 <div 
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-full rounded-full animate-progress shadow-lg shadow-yellow-500/50 transition-all duration-3000"
-                  style={{ width: `${percentage}%` }}
+                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-full rounded-full animate-progress shadow-lg shadow-yellow-500/50 transition-all duration-3000 ease-out"
+                  style={{ 
+                    width: `${percentage}%`
+                  }}
                 ></div>
               </div>
               <div className="text-white text-opacity-80 text-xs sm:text-sm mt-1 sm:mt-2">نحو {target.toLocaleString('en-US')} مشترك</div>
@@ -649,15 +653,50 @@ const SocialMediaSection = () => {
   );
 };
 
-const AboutPage = async () => {
-  const [members, subscribers, episodesCount, playlistsCount, seasonsCount, articlesCount] = await Promise.all([
-    getMembers(),
-    getSubscribers(),
-    getEpisodesCount(),
-    getPlaylistsCount(),
-    getSeasonsCount(),
-    getArticlesCount(),
-  ]);
+const AboutPage = () => {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [subscribers, setSubscribers] = useState<number | null>(null);
+  const [episodesCount, setEpisodesCount] = useState<number>(0);
+  const [playlistsCount, setPlaylistsCount] = useState<number>(0);
+  const [seasonsCount, setSeasonsCount] = useState<number>(0);
+  const [articlesCount, setArticlesCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [membersData, subscribersData, episodesData, playlistsData, seasonsData, articlesData] = await Promise.all([
+          getMembers(),
+          getSubscribers(),
+          getEpisodesCount(),
+          getPlaylistsCount(),
+          getSeasonsCount(),
+          getArticlesCount(),
+        ]);
+        
+        setMembers(membersData);
+        setSubscribers(subscribersData);
+        setEpisodesCount(episodesData);
+        setPlaylistsCount(playlistsData);
+        setSeasonsCount(seasonsData);
+        setArticlesCount(articlesData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen overflow-x-hidden">
@@ -748,7 +787,7 @@ const AboutPage = async () => {
           <div className="max-w-5xl mx-auto space-y-6 sm:space-y-10">
             <div className="group">
               <div className="bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-800 dark:to-purple-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-indigo-200 dark:border-indigo-700 relative overflow-hidden dark:shadow-indigo-900/30 hover:dark:shadow-indigo-900/50 origin-center">
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-indigo-300 to-purple-300 dark:from-indigo-700 dark:to-purple-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-indigo-300 to-purple-300 dark:from-indigo-700 dark:to-purple-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10 flex items-start">
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg mr-3 sm:mr-4 shadow-md animate-bounce">
                     <FaLightbulb className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
@@ -766,7 +805,7 @@ const AboutPage = async () => {
             
             <div className="group">
               <div className="bg-gradient-to-r from-green-500 to-teal-600 dark:from-green-800 dark:to-teal-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-green-200 dark:border-green-700 relative overflow-hidden dark:shadow-green-900/30 hover:dark:shadow-green-900/50 origin-center" style={{ animationDelay: '0.1s' }}>
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-green-300 to-teal-300 dark:from-green-700 dark:to-teal-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-green-300 to-teal-300 dark:from-green-700 dark:to-teal-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10 flex items-start">
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg mr-3 sm:mr-4 shadow-md animate-bounce" style={{ animationDelay: '0.2s' }}>
                     <FaRocket className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
@@ -784,7 +823,7 @@ const AboutPage = async () => {
             
             <div className="group">
               <div className="bg-gradient-to-r from-orange-500 to-red-600 dark:from-orange-800 dark:to-red-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-orange-200 dark:border-orange-700 relative overflow-hidden dark:shadow-orange-900/30 hover:dark:shadow-orange-900/50 origin-center" style={{ animationDelay: '0.2s' }}>
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-orange-300 to-red-300 dark:from-orange-700 dark:to-red-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-orange-300 to-red-300 dark:from-orange-700 dark:to-red-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10 flex items-start">
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg mr-3 sm:mr-4 shadow-md animate-bounce" style={{ animationDelay: '0.3s' }}>
                     <FaHandshake className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
@@ -815,7 +854,7 @@ const AboutPage = async () => {
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
             <div className="group">
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-800 dark:to-indigo-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-blue-200 dark:border-blue-700 relative overflow-hidden h-full dark:shadow-blue-900/30 hover:dark:shadow-blue-900/50 origin-center">
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-blue-300 to-indigo-300 dark:from-blue-700 dark:to-indigo-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-blue-300 to-indigo-300 dark:from-blue-700 dark:to-indigo-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10">
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 shadow-md animate-bounce">
                     <FaGem className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
@@ -831,7 +870,7 @@ const AboutPage = async () => {
             
             <div className="group">
               <div className="bg-gradient-to-r from-green-500 to-teal-600 dark:from-green-800 dark:to-teal-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-green-200 dark:border-green-700 relative overflow-hidden h-full dark:shadow-green-900/30 hover:dark:shadow-green-900/50 origin-center" style={{ animationDelay: '0.1s' }}>
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-green-300 to-teal-300 dark:from-green-700 dark:to-teal-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-green-300 to-teal-300 dark:from-green-700 dark:to-teal-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10">
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 shadow-md animate-bounce" style={{ animationDelay: '0.2s' }}>
                     <FaRocket className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
@@ -860,7 +899,7 @@ const AboutPage = async () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-7 max-w-5xl mx-auto">
             <div className="group">
               <div className="bg-gradient-to-r from-pink-500 to-rose-600 dark:from-pink-800 dark:to-rose-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-pink-200 dark:border-pink-700 relative overflow-hidden h-full dark:shadow-pink-900/30 hover:dark:shadow-pink-900/50 origin-center">
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-pink-300 to-rose-300 dark:from-pink-700 dark:to-rose-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-pink-300 to-rose-300 dark:from-pink-700 dark:to-rose-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10 flex flex-col items-center text-center">
                   <div className="group bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-full mb-3 sm:mb-4 shadow-md animate-bounce">
                     <FaHandshake className="text-white text-xl sm:text-2xl transition-transform duration-700 group-hover:scale-110" />
@@ -882,7 +921,7 @@ const AboutPage = async () => {
             
             <div className="group">
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-800 dark:to-indigo-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-blue-200 dark:border-blue-700 relative overflow-hidden h-full dark:shadow-blue-900/30 hover:dark:shadow-blue-900/50 origin-center" style={{ animationDelay: '0.1s' }}>
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-blue-300 to-indigo-300 dark:from-blue-700 dark:to-indigo-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-blue-300 to-indigo-300 dark:from-blue-700 dark:to-indigo-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10 flex flex-col items-center text-center">
                   <div className="group bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-full mb-3 sm:mb-4 shadow-md animate-bounce" style={{ animationDelay: '0.2s' }}>
                     <FaLightbulb className="text-white text-xl sm:text-2xl transition-transform duration-700 group-hover:scale-110" />
@@ -904,7 +943,7 @@ const AboutPage = async () => {
             
             <div className="group">
               <div className="bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-800 dark:to-emerald-900 p-5 sm:p-7 rounded-2xl shadow-lg transition-all duration-700 hover:shadow-xl transform hover:-translate-y-3 border border-green-200 dark:border-green-700 relative overflow-hidden h-full dark:shadow-green-900/30 hover:dark:shadow-green-900/50 origin-center" style={{ animationDelay: '0.2s' }}>
-                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-green-300 to-emerald-300 dark:from-green-700 dark:to-emerald-800 rounded-full filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
+                <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:w-32 bg-gradient-to-br from-green-300 to-emerald-300 dark:from-green-700 dark:to-emerald-800 rounded-full mix-blend-soft-light filter blur-3xl opacity-50 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 animate-pulse-slow group-hover:opacity-70 transition-opacity duration-2000"></div>
                 <div className="relative z-10 flex flex-col items-center text-center">
                   <div className="group bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-full mb-3 sm:mb-4 shadow-md animate-bounce" style={{ animationDelay: '0.3s' }}>
                     <FaGem className="text-white text-xl sm:text-2xl transition-transform duration-700 group-hover:scale-110" />
@@ -1011,6 +1050,53 @@ const AboutPage = async () => {
         <ContactSection />
         <SocialMediaSection />
       </div>
+      
+      {/* إضافة الأنماط العامة للصفحة */}
+      <style jsx global>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.4; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 2s infinite;
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+        @keyframes progress {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 100% 0%; }
+        }
+        .animate-progress {
+          background-size: 200% 100%;
+          animation: progress 2s linear infinite;
+        }
+        @keyframes float-animation {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        .float-animation {
+          animation: float-animation 6s ease-in-out infinite;
+        }
+        @keyframes spin-slow {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+      `}</style>
     </div>
   );
 };
