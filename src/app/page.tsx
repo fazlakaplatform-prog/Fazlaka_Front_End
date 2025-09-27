@@ -35,7 +35,12 @@ import {
   FaCompass,
   FaTimes,
   FaSearch,
-  FaBookmark
+  FaBookmark,
+  FaFire,
+  FaCalendar,
+  FaClock,
+  FaChevronLeft,
+  FaChevronRight
 } from "react-icons/fa";
 import { fetchArrayFromSanity, SanityImage, fetchFromSanity, HeroSlider, getImageUrl, getVideoUrl } from "@/lib/sanity";
 import imageUrlBuilder from '@sanity/image-url';
@@ -849,7 +854,7 @@ const HeroSearchBar = () => {
   );
 };
 
-// مكون سلايدر الهيرو المدمج
+// مكون سلايدر الهيرو المدمج - محسن
 const HeroSliderComponent = () => {
   const [sliders, setSliders] = useState<HeroSlider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -882,152 +887,241 @@ const HeroSliderComponent = () => {
   }
 
   return (
-    <section className="py-6 md:py-8 px-4 md:px-8 overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <Swiper
-          modules={[Autoplay, Pagination, Navigation]}
-          spaceBetween={20}
-          slidesPerView={1}
-          autoplay={{
-            delay: 5000,
-            disableOnInteraction: false,
-          }}
-          pagination={{
-            clickable: true,
-            dynamicBullets: true,
-          }}
-          navigation={{
-            nextEl: '.swiper-button-next',
-            prevEl: '.swiper-button-prev',
-          }}
-          className="hero-swiper rounded-2xl overflow-hidden shadow-2xl"
-          style={{
-            height: '60vh',
-            maxHeight: '500px',
-          }}
-        >
-          {sliders.map((slider) => (
-            <SwiperSlide key={slider._id}>
-              <div className="relative w-full h-full">
-                {slider.mediaType === 'image' && slider.image && (
-                  <Image
-                    src={getImageUrl(slider) || '/placeholder.png'}
-                    alt={slider.title}
-                    fill
-                    className="object-cover"
-                    priority
-                  />
-                )}
-                
-                {slider.mediaType === 'video' && (
-                  <div className="relative w-full h-full">
-                    {slider.videoUrl ? (
-                      <>
-                        {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
-                          <iframe
-                            src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0`}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : slider.videoUrl.includes('vimeo.com') ? (
-                          <iframe
-                            src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0`}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <video
-                            src={slider.videoUrl}
-                            className="w-full h-full object-cover"
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                          />
+    <section className="py-6 md:py-12 px-4 md:px-8 overflow-hidden relative">
+      {/* خلفية متدرجة جذابة */}
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-indigo-900/20 dark:to-purple-900/20 z-0"></div>
+      
+      {/* عناصر زخرفية */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-purple-200/10 dark:bg-purple-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 right-0 w-72 h-72 bg-blue-200/10 dark:bg-blue-500/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+      
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* عنوان القسم */}
+        <div className="text-center mb-8 md:mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-full mb-4"
+          >
+            <FaFire className="text-yellow-300" />
+            <span className="font-bold">أحدث العروض والأحداث</span>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2"
+          >
+            استكشف أحدث محتوانا
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
+          >
+            اطلع على أحدث العروض والأحداث والفعاليات التي نقدمها لك
+          </motion.p>
+        </div>
+        
+        {/* السلايدر */}
+        <div className="relative">
+          <Swiper
+            modules={[Autoplay, Pagination, Navigation]}
+            spaceBetween={30}
+            slidesPerView={1}
+            autoplay={{
+              delay: 5000,
+              disableOnInteraction: false,
+            }}
+            pagination={{
+              clickable: true,
+              dynamicBullets: true,
+            }}
+            navigation={{
+              nextEl: '.hero-slider-button-next',
+              prevEl: '.hero-slider-button-prev',
+            }}
+            className="hero-slider rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800"
+            style={{
+              height: '0',
+              paddingBottom: '56.25%', // نسبة 16:9 (فيديو يوتيوب)
+              maxHeight: '600px',
+            }}
+          >
+            {sliders.map((slider, index) => (
+              <SwiperSlide key={slider._id} className="relative pb-[56.25%]">
+                <div className="absolute inset-0 w-full h-full">
+                  {/* الخلفية */}
+                  {slider.mediaType === 'image' && slider.image && (
+                    <Image
+                      src={getImageUrl(slider) || '/placeholder.png'}
+                      alt={slider.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  )}
+                  
+                  {slider.mediaType === 'video' && (
+                    <div className="absolute inset-0 w-full h-full">
+                      {slider.videoUrl ? (
+                        <>
+                          {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&fs=0&playsinline=1`}
+                              className="absolute inset-0 w-full h-full"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0
+                              }}
+                            />
+                          ) : slider.videoUrl.includes('vimeo.com') ? (
+                            <iframe
+                              src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0&background=1`}
+                              className="absolute inset-0 w-full h-full"
+                              frameBorder="0"
+                              allow="autoplay; fullscreen; picture-in-picture"
+                              allowFullScreen
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0
+                              }}
+                            />
+                          ) : (
+                            <video
+                              src={slider.videoUrl}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                objectFit: 'cover'
+                              }}
+                            />
+                          )}
+                        </>
+                      ) : slider.video && (
+                        <video
+                          src={getVideoUrl(slider) || ''}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            objectFit: 'cover'
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* طبقة التعتيم */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                  
+                  {/* المحتوى */}
+                  <div className="absolute inset-0 flex items-end p-6 md:p-10">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.7, delay: 0.2 }}
+                      className="w-full max-w-3xl"
+                    >
+                      <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">
+                        {slider.title}
+                      </h2>
+                      
+                      <p className="text-base md:text-lg text-white/90 mb-6 max-w-2xl">
+                        {slider.description}
+                      </p>
+                      
+                      <div className="flex flex-wrap gap-4">
+                        {slider.link?.url && slider.link?.text && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.4 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            <Link
+                              href={slider.link.url}
+                              className="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-50 transition-all duration-300"
+                            >
+                              {slider.link.text}
+                              <FaArrowLeft className="transform rotate-180" />
+                            </Link>
+                          </motion.div>
                         )}
-                      </>
-                    ) : slider.video && (
-                      <video
-                        src={getVideoUrl(slider) || ''}
-                        className="w-full h-full object-cover"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                      />
-                    )}
+                      </div>
+                    </motion.div>
                   </div>
-                )}
-                
-                {/* طبقة التعتيم */}
-                <div className="absolute inset-0 bg-black/40"></div>
-                
-                {/* المحتوى */}
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className="text-center max-w-3xl px-4">
-                    <motion.h2
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="text-2xl md:text-4xl font-bold text-white mb-3"
-                    >
-                      {slider.title}
-                    </motion.h2>
-                    <motion.p
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                      className="text-base md:text-lg text-white/90 mb-6"
-                    >
-                      {slider.description}
-                    </motion.p>
-                    
-                    {slider.link?.url && slider.link?.text && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Link
-                          href={slider.link.url}
-                          className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-full font-bold shadow-lg hover:bg-blue-50 transition-all duration-300"
-                        >
-                          {slider.link.text}
-                          <FaArrowLeft className="transform rotate-180" />
-                        </Link>
-                      </motion.div>
-                    )}
+                  
+                  {/* مؤشر الشرائح */}
+                  <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm text-white text-sm px-3 py-1 rounded-full">
+                    {index + 1} / {sliders.length}
                   </div>
                 </div>
-              </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
-        
+              </SwiperSlide>
+            ))}
+          </Swiper>
+          
+          {/* أزرار التنقل المخصصة */}
+
+        </div>
       </div>
       
       <style jsx global>{`
-        .hero-swiper .swiper-pagination-bullet {
+        .hero-slider .swiper-pagination-bullet {
           background-color: rgba(255, 255, 255, 0.5);
         }
-        .hero-swiper .swiper-pagination-bullet-active {
+        .hero-slider .swiper-pagination-bullet-active {
           background-color: white;
         }
-        .swiper-button-next,
-        .swiper-button-prev {
+        .hero-slider-button-next,
+        .hero-slider-button-prev {
           color: white;
         }
         @media (max-width: 768px) {
-          .hero-swiper {
-            height: 50vh !important;
-            max-height: 400px !important;
+          .hero-slider {
+            height: 0 !important;
+            padding-bottom: 56.25% !important; /* نسبة 16:9 */
           }
+        }
+        /* إضافة أنماط للفيديو لملء الشاشة بدون حواف سوداء */
+        .hero-slider iframe,
+        .hero-slider video {
+          width: 100% !important;
+          height: 100% !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          object-fit: cover !important;
         }
       `}</style>
     </section>
@@ -1666,7 +1760,7 @@ export default function Home() {
         />
       </motion.header>
       
-      {/* ====== سلايدر الهيرو الجديد ====== */}
+      {/* ====== سلايدر الهيرو الجديد والمحسن ====== */}
       <HeroSliderComponent />
       
       {/* ====== الحلقات مع تحسينات ====== */}
