@@ -660,7 +660,7 @@ const HeroSearchBar = () => {
             </svg>
           </div>
         );
-    }
+      }
   };
   
   const getImageUrl = (result: SearchResult): string => {
@@ -1010,8 +1010,6 @@ const HeroSliderComponent = () => {
           ))}
         </Swiper>
         
-        <div className="swiper-button-next text-white hidden md:block"></div>
-        <div className="swiper-button-prev text-white hidden md:block"></div>
       </div>
       
       <style jsx global>{`
@@ -1476,12 +1474,38 @@ export default function Home() {
               className="w-full max-w-5xl mx-auto"
             >
               <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-xl">
+                {/* كرت مشتركي يوتيوب - في سطر منفصل على الموبايل */}
+                {subscribers !== null && (
+                  <motion.div 
+                    variants={itemVariant}
+                    className="md:hidden mb-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                    whileHover={{ scale: 1.02 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                      <div className="text-3xl md:text-4xl mb-3 text-white">
+                        <FaYoutube />
+                      </div>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">مشتركين يوتيوب</p>
+                      <motion.p 
+                        className="text-2xl md:text-3xl font-bold text-white"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                      >
+                        {subscribers.toLocaleString('en-US')}
+                      </motion.p>
+                    </div>
+                  </motion.div>
+                )}
+                
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
-                  {/* بطاقة المشتركين - بحجم عادي */}
+                  {/* كرت مشتركي يوتيوب - مخفي على الموبايل */}
                   {subscribers !== null && (
                     <motion.div 
                       variants={itemVariant}
-                      className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                      className="hidden md:block bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
                       whileHover={{ scale: 1.05 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
@@ -1503,7 +1527,7 @@ export default function Home() {
                     </motion.div>
                   )}
                   
-                  {/* باقي البطاقات - بدون ألوان زائدة */}
+                  {/* باقي البطاقات */}
                   <motion.div 
                     variants={itemVariant}
                     className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
@@ -1669,6 +1693,12 @@ export default function Home() {
             >
               جميع القوائم
             </Link>
+            <Link
+              href="/seasons"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+            >
+              المواسم
+            </Link>
           </motion.div>
         </div>
         {loading ? (
@@ -1788,12 +1818,24 @@ export default function Home() {
           >
             أحدث المقالات
           </motion.h2>
-          <motion.div initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }}>
+          <motion.div initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }} className="flex gap-2">
             <Link
               href="/articles"
               className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-95 transition-all duration-300"
             >
               جميع المقالات
+            </Link>
+            <Link
+              href="/seasons"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+            >
+              المواسم
+            </Link>
+            <Link
+              href="/playlists"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+            >
+              قوائم التشغيل
             </Link>
           </motion.div>
         </div>
@@ -1975,7 +2017,7 @@ export default function Home() {
                   >
                     <Link
                       href="/faq"
-                      className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium whitespace-nowrap"
+                      className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-2.5 rounded-full font-medium shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105"
                     >
                       جميع الأسئلة
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
