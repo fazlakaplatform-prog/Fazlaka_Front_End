@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromSanity, urlFor, getAllNotifications, NotificationItem } from "@/lib/sanity";
 
@@ -535,7 +535,6 @@ const SearchBar = ({ initialExpanded = false }: { initialExpanded?: boolean }) =
           onChange={(e) => setQuery(e.target.value)}
           onFocus={handleFocus}
           placeholder="بحث..."
-          suppressHydrationWarning
           className={`absolute right-0 top-0 h-10 pr-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-in-out text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
             isExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'
           }`}
@@ -703,7 +702,7 @@ const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDar
         transition={{ duration: 0.5 }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 00-1-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
         </svg>
       </motion.div>
       
@@ -978,7 +977,6 @@ export default function Navbar() {
   
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
   
@@ -1070,7 +1068,11 @@ export default function Navbar() {
     }, 100);
   };
   
-  const toggleMobileMenu = () => {
+  const toggleMobileMenu = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setMobileMenuOpen(!mobileMenuOpen);
   };
   
@@ -1096,6 +1098,10 @@ export default function Navbar() {
       if (showNotifications && !(e.target as Element).closest('.notification-dropdown')) {
         setShowNotifications(false);
       }
+      // إغلاق القائمة الجانبية عند النقر خارجها
+      if (mobileMenuOpen && !(e.target as Element).closest('.mobile-menu-container')) {
+        setMobileMenuOpen(false);
+      }
     }
     
     function handleEsc(e: KeyboardEvent) {
@@ -1116,20 +1122,6 @@ export default function Navbar() {
       document.removeEventListener("keydown", handleEsc);
     };
   }, [contentOpen, mobileMenuOpen, aboutOpen, contactOpen, showNotifications]);
-  
-  // إغلاق جميع القوائم عند تغيير الصفحة
-  useEffect(() => {
-    const handleRouteChange = () => {
-      setProfileOpen(false);
-      setContentOpen(false);
-      setAboutOpen(false);
-      setContactOpen(false);
-      setShowNotifications(false);
-      if (mobileMenuOpen) setMobileMenuOpen(false);
-    };
-
-    handleRouteChange();
-  }, [pathname, mobileMenuOpen]);
   
   if (!mounted) return null;
   
@@ -1450,6 +1442,7 @@ export default function Navbar() {
             
             {/* زر القائمة */}
             <button
+              id="mobile-menu-button"
               onClick={toggleMobileMenu}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
             >
@@ -1471,7 +1464,11 @@ export default function Navbar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={(e) => {
+                // تجاهل النقر إذا كان على زر القائمة
+                if ((e.target as Element).closest('#mobile-menu-button')) return;
+                setMobileMenuOpen(false);
+              }}
             />
             
             {/* القائمة الجانبية */}
@@ -1480,7 +1477,7 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 h-full w-80 max-w-full bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto md:hidden"
+              className="mobile-menu-container fixed top-0 left-0 h-full w-80 max-w-full bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto md:hidden"
             >
               <div className="flex flex-col h-full">
                 {/* رأس القائمة */}
