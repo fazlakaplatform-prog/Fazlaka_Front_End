@@ -34,9 +34,10 @@ import {
   FaStar,
   FaCompass,
   FaTimes,
-  FaSearch // تمت إضافة أيقونة البحث
+  FaSearch,
+  FaBookmark
 } from "react-icons/fa";
-import { fetchArrayFromSanity, SanityImage, fetchFromSanity } from "@/lib/sanity";
+import { fetchArrayFromSanity, SanityImage, fetchFromSanity, HeroSlider, getImageUrl, getVideoUrl } from "@/lib/sanity";
 import imageUrlBuilder from '@sanity/image-url';
 import { client } from "@/lib/sanity";
 
@@ -184,6 +185,25 @@ function renderHighlighted(text: string, q: string): React.ReactNode {
   } catch {
     return <>{text}</>;
   }
+}
+
+// دالة مساعدة لاستخراج معرف الفيديو من رابط YouTube أو Vimeo
+function extractVideoId(url: string): string | null {
+  // YouTube
+  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/;
+  const youtubeMatch = url.match(youtubeRegex);
+  if (youtubeMatch) {
+    return youtubeMatch[1];
+  }
+  
+  // Vimeo
+  const vimeoRegex = /vimeo\.com\/(\d+)/;
+  const vimeoMatch = url.match(vimeoRegex);
+  if (vimeoMatch) {
+    return vimeoMatch[1];
+  }
+  
+  return null;
 }
 
 // مكون السؤال المتحرك
@@ -829,6 +849,193 @@ const HeroSearchBar = () => {
   );
 };
 
+// مكون سلايدر الهيرو المدمج
+const HeroSliderComponent = () => {
+  const [sliders, setSliders] = useState<HeroSlider[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSliders = async () => {
+      try {
+        const data = await fetchFromSanity<HeroSlider[]>(`*[_type == "heroSlider"] | order(orderRank)`);
+        setSliders(data);
+      } catch (error) {
+        console.error('Error loading hero sliders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSliders();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="w-full h-64 md:h-96 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (sliders.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="py-6 md:py-8 px-4 md:px-8 overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        <Swiper
+          modules={[Autoplay, Pagination, Navigation]}
+          spaceBetween={20}
+          slidesPerView={1}
+          autoplay={{
+            delay: 5000,
+            disableOnInteraction: false,
+          }}
+          pagination={{
+            clickable: true,
+            dynamicBullets: true,
+          }}
+          navigation={{
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+          }}
+          className="hero-swiper rounded-2xl overflow-hidden shadow-2xl"
+          style={{
+            height: '60vh',
+            maxHeight: '500px',
+          }}
+        >
+          {sliders.map((slider) => (
+            <SwiperSlide key={slider._id}>
+              <div className="relative w-full h-full">
+                {slider.mediaType === 'image' && slider.image && (
+                  <Image
+                    src={getImageUrl(slider) || '/placeholder.png'}
+                    alt={slider.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                )}
+                
+                {slider.mediaType === 'video' && (
+                  <div className="relative w-full h-full">
+                    {slider.videoUrl ? (
+                      <>
+                        {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
+                          <iframe
+                            src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0`}
+                            className="w-full h-full"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : slider.videoUrl.includes('vimeo.com') ? (
+                          <iframe
+                            src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0`}
+                            className="w-full h-full"
+                            frameBorder="0"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            src={slider.videoUrl}
+                            className="w-full h-full object-cover"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        )}
+                      </>
+                    ) : slider.video && (
+                      <video
+                        src={getVideoUrl(slider) || ''}
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                      />
+                    )}
+                  </div>
+                )}
+                
+                {/* طبقة التعتيم */}
+                <div className="absolute inset-0 bg-black/40"></div>
+                
+                {/* المحتوى */}
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <div className="text-center max-w-3xl px-4">
+                    <motion.h2
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="text-2xl md:text-4xl font-bold text-white mb-3"
+                    >
+                      {slider.title}
+                    </motion.h2>
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                      className="text-base md:text-lg text-white/90 mb-6"
+                    >
+                      {slider.description}
+                    </motion.p>
+                    
+                    {slider.link?.url && slider.link?.text && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Link
+                          href={slider.link.url}
+                          className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-full font-bold shadow-lg hover:bg-blue-50 transition-all duration-300"
+                        >
+                          {slider.link.text}
+                          <FaArrowLeft className="transform rotate-180" />
+                        </Link>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+        
+        <div className="swiper-button-next text-white hidden md:block"></div>
+        <div className="swiper-button-prev text-white hidden md:block"></div>
+      </div>
+      
+      <style jsx global>{`
+        .hero-swiper .swiper-pagination-bullet {
+          background-color: rgba(255, 255, 255, 0.5);
+        }
+        .hero-swiper .swiper-pagination-bullet-active {
+          background-color: white;
+        }
+        .swiper-button-next,
+        .swiper-button-prev {
+          color: white;
+        }
+        @media (max-width: 768px) {
+          .hero-swiper {
+            height: 50vh !important;
+            max-height: 400px !important;
+          }
+        }
+      `}</style>
+    </section>
+  );
+};
+
 export default function Home() {
   // حالات المكون
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
@@ -846,16 +1053,6 @@ export default function Home() {
   
   // إنشاء imageBuilder مرة واحدة فقط
   const imageBuilder = useMemo(() => imageUrlBuilder(client), []);
-  
-  // مواقع الجزيئات المحسوبة مسبقًا
-  const particlePositions = useMemo(() => [
-    { top: "90%", left: "50%" },   // 0°
-    { top: "75%", left: "93.3%" }, // 60°
-    { top: "50%", left: "90%" },   // 120°
-    { top: "25%", left: "93.3%" }, // 180°
-    { top: "10%", left: "50%" },   // 240°
-    { top: "25%", left: "6.7%" },  // 300°
-  ], []);
   
   // روابط وسائل التواصل الاجتماعي
   const socialLinks = useMemo(() => [
@@ -1145,27 +1342,6 @@ export default function Home() {
                 {/* تأثير الإضاءة المحيطة محسن */}
                 <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/40 via-purple-500/40 to-blue-500/40 rounded-full blur-2xl transform scale-150"></div>
                 
-                {/* تأثير الجزيئات العلمية حول الشعار */}
-                {isClient && particlePositions.map((pos, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-3 h-3 rounded-full bg-indigo-400/80 dark:bg-indigo-300/60"
-                    style={{
-                      top: pos.top,
-                      left: pos.left,
-                    }}
-                    animate={{
-                      scale: [1, 2.5, 1],
-                      opacity: [0.5, 1, 0.5],
-                    }}
-                    transition={{
-                      duration: 2.5 + i * 0.8,
-                      repeat: Infinity,
-                      delay: i * 0.5,
-                    }}
-                  />
-                ))}
-                
                 {/* الشعار الرئيسي */}
                 <motion.div
                   className="relative w-24 md:w-32 h-auto drop-shadow-2xl z-10"
@@ -1241,20 +1417,9 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.8 }}
             >
-              <motion.h1 
-                className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 bg-gradient-to-r from-white via-indigo-100 to-purple-100 bg-clip-text text-transparent"
-                animate={{ 
-                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                }}
-                transition={{ 
-                  duration: 10, 
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
-              >
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4">
                 فذلَكة
-              </motion.h1>
-              
+              </h1>
               <motion.p
                 className="text-xl md:text-2xl lg:text-3xl text-indigo-100 max-w-3xl mx-auto font-medium"
                 initial={{ opacity: 0 }}
@@ -1303,133 +1468,134 @@ export default function Home() {
               </Link>
             </motion.div>
             
-            {/* قسم الإحصائيات الجديد */}
+            {/* ====== قسم الإحصائيات الجديد - مع أنيميشن محسن ====== */}
             <motion.div 
               variants={containerVariants}
               initial="hidden"
               animate="visible"
               className="w-full max-w-5xl mx-auto"
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                {/* بطاقة المشتركين المميزة */}
-                {subscribers !== null && (
+              <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-xl">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
+                  {/* بطاقة المشتركين - بحجم عادي */}
+                  {subscribers !== null && (
+                    <motion.div 
+                      variants={itemVariant}
+                      className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                      whileHover={{ scale: 1.05 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                    >
+                      <div className="relative z-10 flex flex-col items-center justify-center">
+                        <div className="text-3xl md:text-4xl mb-3 text-white">
+                          <FaYoutube />
+                        </div>
+                        <p className="text-base md:text-lg font-medium text-white/80 mb-1">مشتركين يوتيوب</p>
+                        <motion.p 
+                          className="text-2xl md:text-3xl font-bold text-white"
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.8, delay: 0.2 }}
+                        >
+                          {subscribers.toLocaleString('en-US')}
+                        </motion.p>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* باقي البطاقات - بدون ألوان زائدة */}
                   <motion.div 
                     variants={itemVariant}
-                    className="col-span-2 md:col-span-4 relative"
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                    whileHover={{ scale: 1.05 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
                   >
-                    {/* الخلفية الرئيسية */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-red-700 to-red-800 dark:from-red-900 dark:via-red-800 dark:to-red-900 rounded-3xl shadow-2xl transform rotate-1 animate-pulse-slow"></div>
-                    
-                    {/* الحاوية الرئيسية */}
-                    <div className="relative z-10 bg-gradient-to-br from-red-500 to-red-700 dark:from-red-800 dark:to-red-900 rounded-3xl p-4 md:p-6 shadow-2xl border-4 border-red-400 dark:border-red-700 overflow-hidden transition-all duration-700">
-                      {/* أنماط الخلفية الزخرفية */}
-                      <div className="absolute inset-0 opacity-20">
-                        <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgLz4KPC9zdmc+')]"></div>
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                      <div className="text-3xl md:text-4xl mb-3 text-white">
+                        <FaVideo />
                       </div>
-                      
-                      {/* المحتوى الرئيسي */}
-                      <div className="relative z-20 flex flex-col md:flex-row items-center justify-between">
-                        {/* القسم الأيسر - الأيقونة والعنوان */}
-                        <div className="flex-1 mb-4 md:mb-0 md:pr-4">
-                          <div className="flex items-center mb-2">
-                            <div className="relative">
-                              <div className="relative">
-                                <FaYoutube className="text-4xl md:text-5xl text-white drop-shadow-lg transform -rotate-6 animate-bounce transition-all duration-2000" />
-                                <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-1 animate-ping">
-                                  <FaStar className="text-red-800 text-xs" />
-                                </div>
-                              </div>
-                              <div className="absolute -bottom-2 -left-2 bg-blue-500 rounded-full p-1 animate-ping" style={{ animationDelay: '1s' }}>
-                                <FaPlay className="text-white text-xs" />
-                              </div>
-                            </div>
-                            <div className="mr-3">
-                              <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">مشتركين يوتيوب</h2>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* القسم الأيمن - الرقم */}
-                        <div className="flex-1 flex flex-col items-center md:items-end">
-                          <div className="relative">
-                            {/* خلفية الرقم */}
-                            <div className="absolute inset-0 bg-black bg-opacity-20 rounded-2xl blur-lg animate-pulse-slow"></div>
-                            
-                            {/* الرقم الرئيسي */}
-                            <div className="relative bg-gradient-to-r from-black to-red-900 bg-opacity-40 backdrop-blur-sm rounded-2xl px-4 py-3 border-2 border-white border-opacity-20 shadow-2xl transition-all duration-2000">
-                              <div className="text-3xl md:text-5xl font-extrabold text-white tracking-tighter leading-none">
-                                {subscribers.toLocaleString('en-US')}
-                              </div>
-                              <div className="mt-1 text-center">
-                                <div className="inline-flex items-center bg-yellow-500 text-red-900 px-2 py-0.5 rounded-full text-xs font-bold animate-bounce">
-                                  <FaHeart className="mr-1" />
-                                  <span>مشترك</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">حلقات</p>
+                      <motion.p 
+                        className="text-2xl md:text-3xl font-bold text-white"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.3 }}
+                      >
+                        {episodesCount}
+                      </motion.p>
                     </div>
                   </motion.div>
-                )}
-                
-                {/* باقي البطاقات - مع تدرجات ملونة جديدة */}
-                <motion.div variants={itemVariant} className="bg-gradient-to-br from-cyan-500 to-teal-500 dark:from-cyan-700 dark:to-teal-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-cyan-200 dark:border-cyan-700 dark:shadow-cyan-900/30 hover:dark:shadow-cyan-900/50 relative overflow-hidden group origin-center">
-                  {/* تأثير اللمعان */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
-                      <FaVideo />
+                  
+                  <motion.div 
+                    variants={itemVariant}
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                    whileHover={{ scale: 1.05 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                      <div className="text-3xl md:text-4xl mb-3 text-white">
+                        <FaListUl />
+                      </div>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">قوائم تشغيل</p>
+                      <motion.p 
+                        className="text-2xl md:text-3xl font-bold text-white"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.4 }}
+                      >
+                        {playlistsCount}
+                      </motion.p>
                     </div>
-                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">حلقات</p>
-                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-100">
-                      {episodesCount}
-                    </p>
-                  </div>
-                </motion.div>
-                
-                <motion.div variants={itemVariant} className="bg-gradient-to-br from-emerald-500 to-green-500 dark:from-emerald-700 dark:to-green-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-emerald-200 dark:border-emerald-700 dark:shadow-emerald-900/30 hover:dark:shadow-emerald-900/50 relative overflow-hidden group origin-center">
-                  {/* تأثير اللمعان */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
-                      <FaListUl />
+                  </motion.div>
+                  
+                  <motion.div 
+                    variants={itemVariant}
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                    whileHover={{ scale: 1.05 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                      <div className="text-3xl md:text-4xl mb-3 text-white">
+                        <FaCalendarAlt />
+                      </div>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">مواسم</p>
+                      <motion.p 
+                        className="text-2xl md:text-3xl font-bold text-white"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.5 }}
+                      >
+                        {seasonsCount}
+                      </motion.p>
                     </div>
-                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">قوائم تشغيل</p>
-                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-emerald-100">
-                      {playlistsCount}
-                    </p>
-                  </div>
-                </motion.div>
-                
-                <motion.div variants={itemVariant} className="bg-gradient-to-br from-purple-500 to-indigo-500 dark:from-purple-700 dark:to-indigo-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-purple-200 dark:border-purple-700 dark:shadow-purple-900/30 hover:dark:shadow-purple-900/50 relative overflow-hidden group origin-center">
-                  {/* تأثير اللمعان */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
-                      <FaCalendarAlt />
+                  </motion.div>
+                  
+                  <motion.div 
+                    variants={itemVariant}
+                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                    whileHover={{ scale: 1.05 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                      <div className="text-3xl md:text-4xl mb-3 text-white">
+                        <FaNewspaper />
+                      </div>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">مقالات</p>
+                      <motion.p 
+                        className="text-2xl md:text-3xl font-bold text-white"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.6 }}
+                      >
+                        {articlesCount}
+                      </motion.p>
                     </div>
-                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">مواسم</p>
-                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-purple-100">
-                      {seasonsCount}
-                    </p>
-                  </div>
-                </motion.div>
-                
-                <motion.div variants={itemVariant} className="bg-gradient-to-br from-amber-500 to-orange-500 dark:from-amber-700 dark:to-orange-800 rounded-2xl p-5 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 border border-amber-200 dark:border-amber-700 dark:shadow-amber-900/30 hover:dark:shadow-amber-900/50 relative overflow-hidden group origin-center">
-                  {/* تأثير اللمعان */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <div className="text-3xl md:text-4xl mb-3 text-white transition-transform duration-700 group-hover:scale-110">
-                      <FaNewspaper />
-                    </div>
-                    <p className="text-base md:text-lg font-medium text-white/90 mb-1 transition-colors duration-700 group-hover:text-white">مقالات</p>
-                    <p className="text-2xl md:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-orange-100">
-                      {articlesCount}
-                    </p>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -1474,14 +1640,10 @@ export default function Home() {
             delay: 2
           }}
         />
-        
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
-          <div className="w-10 h-14 rounded-full border-4 border-white/40 flex justify-center">
-            <div className="w-2 h-2 bg-white rounded-full mt-2 animate-pulse"></div>
-          </div>
-        </div>
       </motion.header>
+      
+      {/* ====== سلايدر الهيرو الجديد ====== */}
+      <HeroSliderComponent />
       
       {/* ====== الحلقات مع تحسينات ====== */}
       <section id="episodes-section" className="container mx-auto py-6 relative overflow-x-hidden">
@@ -1593,6 +1755,11 @@ export default function Home() {
                               <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                 حلقة
                               </span>
+                              {ep.publishedAt && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {new Date(ep.publishedAt).toLocaleDateString('ar-EG')}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2060,10 +2227,11 @@ export default function Home() {
                         </motion.div>
                         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                           <Link
-                            href="/episodes"
-                            className="block w-full py-3 px-6 rounded-full bg-white/10 backdrop-blur-sm text-white font-semibold shadow-lg hover:bg-white/20 transition"
+                            href="/favorites"
+                            className="block w-full py-3 px-6 rounded-full bg-white/10 backdrop-blur-sm text-white font-semibold shadow-lg hover:bg-white/20 transition flex items-center justify-center gap-2"
                           >
-                            استكشف الحلقات
+                            <FaBookmark />
+                            المفضلة
                           </Link>
                         </motion.div>
                       </div>
@@ -2072,16 +2240,6 @@ export default function Home() {
                 </div>
               </motion.div>
             </div>
-            
-            {/* ختام القسم */}
-            <motion.div 
-              variants={itemVariant}
-              className="mt-16 text-center"
-            >
-              <p className="text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
-                منصتنا - حيث يصبح العلم ممتعًا وملموسًا للجميع
-              </p>
-            </motion.div>
           </div>
         </div>
       </motion.section>
@@ -2174,7 +2332,7 @@ export default function Home() {
           50% { opacity: 0.4; }
         }
         .animate-pulse-slow {
-          animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          animation: pulse-slow 4s cubic-bezier(0.4, 0, 6, 1) infinite;
         }
         @keyframes bounceSlow {
           0%, 100% { transform: translateY(0); }

@@ -1,3 +1,4 @@
+// lib/sanity.ts
 import { createClient } from 'next-sanity'
 import imageUrlBuilder from '@sanity/image-url'
 
@@ -789,6 +790,82 @@ export interface NotificationItem {
   date: string;
   imageUrl?: string;
   linkUrl: string;
+}
+
+// واجهة HeroSlider
+export interface HeroSlider {
+  _id?: string;
+  _type: 'heroSlider';
+  title: string;
+  description: string;
+  mediaType: 'image' | 'video';
+  image?: SanityImage;
+  video?: {
+    _type: 'file';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  videoUrl?: string;
+  link?: {
+    text?: string;
+    url?: string;
+  };
+  order?: number;
+  _createdAt?: string;
+}
+
+// دالة لجلب عناصر السلايدر
+export async function fetchHeroSliders(): Promise<HeroSlider[]> {
+  try {
+    const query = `*[_type == "heroSlider"] | order(order asc) {
+      _id,
+      title,
+      description,
+      mediaType,
+      image,
+      video,
+      videoUrl,
+      link,
+      order,
+      _createdAt
+    }`;
+    return await fetchArrayFromSanity<HeroSlider>(query);
+  } catch (error) {
+    console.error('Error fetching hero sliders from Sanity:', error);
+    return [];
+  }
+}
+
+// دالة للحصول على رابط الفيديو
+export function getVideoUrl(slider: HeroSlider): string | null {
+  if (slider.mediaType === 'video') {
+    if (slider.videoUrl) {
+      return slider.videoUrl;
+    } else if (slider.video) {
+      try {
+        return builder.image(slider.video).url();
+      } catch (error) {
+        console.error('Error building video URL:', error);
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+// دالة للحصول على رابط الصورة
+export function getImageUrl(slider: HeroSlider): string | null {
+  if (slider.mediaType === 'image' && slider.image) {
+    try {
+      return builder.image(slider.image).url();
+    } catch (error) {
+      console.error('Error building image URL:', error);
+      return null;
+    }
+  }
+  return null;
 }
 
 // دالة لجلب كل الإشعارات
