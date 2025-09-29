@@ -1,4 +1,3 @@
-// lib/sanity.ts
 import { createClient } from 'next-sanity'
 import imageUrlBuilder from '@sanity/image-url'
 
@@ -688,6 +687,8 @@ export interface Season {
   title: string
   slug: SanitySlug
   thumbnail?: SanityImage
+  description?: string
+  _createdAt?: string
 }
 
 // نوع لبيانات Portable Text من Sanity
@@ -784,7 +785,7 @@ export interface TeamMember {
 // واجهة للإشعارات
 export interface NotificationItem {
   id: string;
-  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy' | 'team';
+  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy' | 'team' | 'season';
   title: string;
   description?: string;
   date: string;
@@ -909,6 +910,18 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
     }`;
     const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery);
 
+    // جلب المواسم
+    const seasonsQuery = `*[_type == "season"] | order(_createdAt desc) {
+      _id,
+      title,
+      description,
+      _createdAt,
+      "imageUrl": thumbnail.asset->url,
+      "slug": slug.current,
+      "type": "season"
+    }`;
+    const seasons = await fetchArrayFromSanity<Season & { type: string; slug: string; imageUrl?: string }>(seasonsQuery);
+
     // جلب الأسئلة الشائعة
     const faqsQuery = `*[_type == "faq"] | order(_createdAt desc) {
       _id,
@@ -992,6 +1005,16 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
       linkUrl: `/playlists/${playlist.slug}`
     }));
 
+    const seasonNotifications: NotificationItem[] = seasons.map(season => ({
+      id: season._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      type: 'season' as const,
+      title: season.title,
+      description: season.description,
+      date: getValidDate(season._createdAt),
+      imageUrl: season.imageUrl,
+      linkUrl: `/seasons/${season.slug}`
+    }));
+
     const faqNotifications: NotificationItem[] = faqs.map(faq => ({
       id: faq._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
       type: 'faq' as const,
@@ -1032,10 +1055,11 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
       ...episodeNotifications,
       ...articleNotifications,
       ...playlistNotifications,
+      ...seasonNotifications, // إضافة إشعارات المواسم
       ...faqNotifications,
       ...termsNotifications,
       ...privacyNotifications,
-      ...teamNotifications // إضافة إشعارات الفريق
+      ...teamNotifications
     ];
 
     // ترتيب الإشعارات حسب التاريخ (الأحدث أولاً)
