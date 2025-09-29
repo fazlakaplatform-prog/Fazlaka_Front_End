@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { 
   FaBell, FaEnvelope, FaInfoCircle, FaNewspaper, FaVideo, FaListUl, 
-  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook
+  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook, FaSearch, FaTimes
 } from 'react-icons/fa';
 import { useUser, SignInButton } from '@clerk/nextjs';
 
 // مكون الهيرو العام للإشعارات
 const NotificationsHeroSection = () => {
   return (
-    <div className="relative mb-12 sm:mb-16 mt-4 overflow-hidden rounded-3xl">
+    <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
       {/* الخلفية المتدرجة */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 dark:from-blue-900 dark:via-purple-900 dark:to-indigo-950"></div>
       
@@ -125,6 +125,20 @@ const NotificationsHeroSection = () => {
       
       {/* تأثيرات حركية */}
       <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent animate-shimmer"></div>
+    </div>
+  );
+};
+
+// مكون قسم الترحيب الخاص بالمستخدم
+const UserWelcomeSection = () => {
+  const { user } = useUser();
+  
+  return (
+    <div className="max-w-4xl mx-auto px-4 mb-8">
+      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+        <h2 className="text-2xl font-bold mb-2">مرحباً بك، {user?.firstName || 'مستخدم'}!</h2>
+        <p className="text-blue-100">تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة</p>
+      </div>
     </div>
   );
 };
@@ -452,6 +466,24 @@ function LoadingComponent() {
   );
 }
 
+// مكون تلميح تسجيل الدخول
+const SignInPrompt = () => {
+  return (
+    <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="text-6xl mb-5">🔐</div>
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">سجل دخولك لعرض الإشعارات</h3>
+      <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6">
+        يرجى تسجيل الدخول إلى حسابك لعرض الإشعارات والمستجدات الجديدة
+      </p>
+      <SignInButton mode="modal">
+        <button className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-full hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl active:scale-95">
+          تسجيل الدخول
+        </button>
+      </SignInButton>
+    </div>
+  );
+};
+
 // المكون الرئيسي للصفحة
 function NotificationsContent() {
   const { isLoaded, isSignedIn } = useUser();
@@ -485,10 +517,12 @@ function NotificationsContent() {
   return (
     <>
       {/* الهيرو العام للإشعارات - يظهر للجميع */}
-      <NotificationsHeroSection />
+      <div className="max-w-4xl mx-auto px-4 mt-12">
+        <NotificationsHeroSection />
+      </div>
       
       {/* قسم الترحيب الخاص بالمستخدم - يظهر فقط للمستخدمين المسجلين */}
-      <UserWelcomeSection />
+      {isSignedIn && <UserWelcomeSection />}
       
       {/* المحتوى الرئيسي */}
       <div className="max-w-4xl mx-auto px-4 pb-12">
