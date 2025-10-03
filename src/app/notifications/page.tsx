@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { 
   FaBell, FaEnvelope, FaInfoCircle, FaNewspaper, FaVideo, FaListUl, 
-  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook
+  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook,
+  FaSearch, FaTimes
 } from 'react-icons/fa';
 
 // مكون الهيرو الجديد للإشعارات
@@ -392,7 +393,7 @@ function NotificationListComponent({ notifications, language }: { notifications:
             <input
               type="text"
               className="w-full py-3 pr-10 pl-4 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-              placeholder="ابحث في الإشعارات..."
+              placeholder={texts[language].searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -451,7 +452,7 @@ function NotificationListComponent({ notifications, language }: { notifications:
         <div className="space-y-5">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {activeFilter === 'all' ? 'جميع الإشعارات' : notificationTypes.find(t => t.id === activeFilter)?.label}
+              {activeFilter === 'all' ? texts[language].allNotifications : notificationTypes.find(t => t.id === activeFilter)?.label}
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400">
               {filteredNotifications.length} من {notifications.length} إشعار
@@ -525,7 +526,7 @@ function NotificationsContent() {
     fetchNotifications();
   }, []);
 
-  if (!isLoaded) {
+  if (loading) {
     return <LoadingComponent />;
   }
 
@@ -536,15 +537,15 @@ function NotificationsContent() {
 
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
         <Suspense fallback={<LoadingComponent />}>
-          <NotificationListComponent notifications={notifications} />
+          <NotificationListComponent notifications={notifications} language="ar" />
         </Suspense>
       </div>
-    </>
+    </div>
   );
 }
 
 export default function NotificationsPage() {
-  const { isRTL } = useLanguage();
+  const isRTL = true; // Static RTL for Arabic
   
   return (
     <main className={`min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
