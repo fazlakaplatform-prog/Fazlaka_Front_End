@@ -2057,7 +2057,7 @@ export default function Navbar() {
         </div>
       </nav>
       
-      {/* القائمة الجانبية للموبايل من اليسار */}
+      {/* القائمة الجانبية للموبايل - تعديل اتجاه الظهور حسب اللغة */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
@@ -2074,13 +2074,13 @@ export default function Navbar() {
               }}
             />
             
-            {/* القائمة الجانبية */}
+            {/* القائمة الجانبية - تعديل اتجاه الظهور حسب اللغة */}
             <motion.div
-              initial={{ x: "-100%" }}
+              initial={{ x: isRTL ? "-100%" : "100%" }}
               animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
+              exit={{ x: isRTL ? "-100%" : "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="mobile-menu-container fixed top-0 left-0 h-full w-80 max-w-full bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto md:hidden"
+              className={`mobile-menu-container fixed top-0 ${isRTL ? 'left-0' : 'right-0'} h-full w-80 max-w-full bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto md:hidden`}
             >
               <div className="flex flex-col h-full">
                 {/* رأس القائمة */}
