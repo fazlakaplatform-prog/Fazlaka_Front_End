@@ -5,7 +5,17 @@ import { use } from "react";
 import Link from "next/link";
 import FavoriteButton from "@/components/FavoriteButton";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { fetchFromSanity, urlFor } from "@/lib/sanity";
+import { fetchFromSanity, urlFor, getLocalizedText } from "@/lib/sanity";
+import { useLanguage } from "@/components/LanguageProvider";
+import { 
+  FaCalendarAlt, 
+  FaVideo, 
+  FaNewspaper, 
+  FaSearch, 
+  FaTimes, 
+  FaTh, 
+  FaList
+} from "react-icons/fa";
 
 // Define proper types for Sanity image assets
 type SanityImageAsset = {
@@ -16,6 +26,52 @@ type SanityImageAsset = {
 type SanityImage = {
   _type: "image";
   asset: SanityImageAsset;
+};
+
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جاري التحميل...",
+    error: "حدث خطأ في تحميل الموسم",
+    retry: "إعادة المحاولة",
+    seasonNotFound: "الموسم غير موجود",
+    season: "موسم",
+    episodes: "حلقات",
+    articles: "مقالات",
+    allEpisodes: "جميع الحلقات",
+    allArticles: "جميع المقالات",
+    searchEpisode: "ابحث عن حلقة...",
+    searchArticle: "ابحث عن مقال...",
+    noEpisodes: "لا توجد حلقات مطابقة للبحث",
+    noArticles: "لا توجد مقالات مطابقة للبحث",
+    tryDifferent: "جرب تغيير كلمات البحث أو استخدم عبارات مختلفة للعثور على ما تبحث عنه.",
+    episode: "حلقة",
+    article: "مقال",
+    publishedAt: "تاريخ النشر",
+    gridView: "عرض شبكي",
+    listView: "عرض قائمة"
+  },
+  en: {
+    loading: "Loading...",
+    error: "Error loading season",
+    retry: "Retry",
+    seasonNotFound: "Season not found",
+    season: "Season",
+    episodes: "Episodes",
+    articles: "Articles",
+    allEpisodes: "All Episodes",
+    allArticles: "All Articles",
+    searchEpisode: "Search for an episode...",
+    searchArticle: "Search for an article...",
+    noEpisodes: "No episodes matching the search",
+    noArticles: "No articles matching the search",
+    tryDifferent: "Try changing the search terms or use different phrases to find what you're looking for.",
+    episode: "Episode",
+    article: "Article",
+    publishedAt: "Published Date",
+    gridView: "Grid View",
+    listView: "List View"
+  }
 };
 
 function buildMediaUrl(thumbnail?: SanityImage | null) {
@@ -102,44 +158,58 @@ interface SeasonData {
   _id: string;
   _type: "season";
   title?: string;
+  titleEn?: string;
   description?: string;
+  descriptionEn?: string;
   slug?: {
     current: string;
     _type: "slug";
   };
   thumbnail?: SanityImage;
+  language?: 'ar' | 'en';
 }
 
 interface EpisodeData {
   _id: string;
   _type: "episode";
   title?: string;
+  titleEn?: string;
   name?: string;
+  nameEn?: string;
   description?: string;
+  descriptionEn?: string;
   summary?: string;
+  summaryEn?: string;
   slug?: {
     current: string;
     _type: "slug";
   };
   thumbnail?: SanityImage;
   publishedAt?: string;
+  language?: 'ar' | 'en';
 }
 
 interface ArticleData {
   _id: string;
   _type: "article";
   title?: string;
+  titleEn?: string;
   excerpt?: string;
+  excerptEn?: string;
   slug?: {
     current: string;
     _type: "slug";
   };
   featuredImage?: SanityImage;
   publishedAt?: string;
+  language?: 'ar' | 'en';
 }
 
 export default function SeasonPageClient({ params }: SeasonProps) {
   const { slug } = use(params);
+  const { isRTL, language } = useLanguage();
+  const t = translations[language];
+  
   const [season, setSeason] = useState<SeasonData | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
   const [articles, setArticles] = useState<ArticleData[]>([]);
@@ -152,8 +222,8 @@ export default function SeasonPageClient({ params }: SeasonProps) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
   }, [searchTerm]);
   
   useEffect(() => {
@@ -161,16 +231,19 @@ export default function SeasonPageClient({ params }: SeasonProps) {
       try {
         setLoading(true);
         
-        // Fetch season from Sanity
-        const seasonQuery = `*[_type == "season" && slug.current == $slug][0] {
+        // Fetch season from Sanity with language filter
+        const seasonQuery = `*[_type == "season" && slug.current == $slug && language == $language][0] {
           _id,
           title,
+          titleEn,
           description,
+          descriptionEn,
           slug,
-          thumbnail
+          thumbnail,
+          language
         }`;
         
-        const seasonData = await fetchFromSanity(seasonQuery, { slug });
+        const seasonData = await fetchFromSanity(seasonQuery, { slug, language });
         
         if (!seasonData) throw new Error("Season not found");
         
@@ -178,31 +251,39 @@ export default function SeasonPageClient({ params }: SeasonProps) {
         const typedSeasonData = seasonData as SeasonData;
         setSeason(typedSeasonData);
         
-        // Fetch episodes for this season
-        const episodesQuery = `*[_type == "episode" && season._ref == $seasonId] | order(publishedAt desc) {
+        // Fetch episodes for this season with language filter
+        const episodesQuery = `*[_type == "episode" && season._ref == $seasonId && language == $language] | order(publishedAt desc) {
           _id,
           title,
+          titleEn,
           name,
+          nameEn,
           description,
+          descriptionEn,
           summary,
+          summaryEn,
           slug,
           thumbnail,
-          publishedAt
+          publishedAt,
+          language
         }`;
         
-        const episodesData = await fetchFromSanity(episodesQuery, { seasonId: typedSeasonData._id });
+        const episodesData = await fetchFromSanity(episodesQuery, { seasonId: typedSeasonData._id, language });
         
-        // Fetch articles for this season
-        const articlesQuery = `*[_type == "article" && season._ref == $seasonId] | order(publishedAt desc) {
+        // Fetch articles for this season with language filter
+        const articlesQuery = `*[_type == "article" && season._ref == $seasonId && language == $language] | order(publishedAt desc) {
           _id,
           title,
+          titleEn,
           excerpt,
+          excerptEn,
           slug,
           featuredImage,
-          publishedAt
+          publishedAt,
+          language
         }`;
         
-        const articlesData = await fetchFromSanity(articlesQuery, { seasonId: typedSeasonData._id });
+        const articlesData = await fetchFromSanity(articlesQuery, { seasonId: typedSeasonData._id, language });
         
         // Type assertion to ensure the data matches our interface
         setEpisodes((episodesData || []) as EpisodeData[]);
@@ -216,75 +297,107 @@ export default function SeasonPageClient({ params }: SeasonProps) {
       }
     }
     loadSeason();
-  }, [slug]);
+  }, [slug, language]);
   
-  function getSearchableTextForEpisode(ep: EpisodeData) {
-    const candidates = [
-      ep.title ?? ep.name ?? "",
-      ep.description ?? "",
-      ep.summary ?? "",
-      ep.slug?.current ?? "",
-      JSON.stringify(ep)
-    ];
-    return candidates.join(" ");
-  }
+  // Create memoized helper functions that accept language as parameter
+  const getSearchableTextForEpisode = useMemo(() => {
+    return (ep: EpisodeData, lang: 'ar' | 'en') => {
+      const candidates = [
+        getLocalizedText(ep.title, ep.titleEn, lang) ?? getLocalizedText(ep.name, ep.nameEn, lang) ?? "",
+        getLocalizedText(ep.description, ep.descriptionEn, lang) ?? "",
+        getLocalizedText(ep.summary, ep.summaryEn, lang) ?? "",
+        ep.slug?.current ?? "",
+        JSON.stringify(ep)
+      ];
+      return candidates.join(" ");
+    };
+  }, []);
   
-  function getSearchableTextForArticle(art: ArticleData) {
-    const candidates = [
-      art.title ?? "",
-      art.excerpt ?? "",
-      art.slug?.current ?? "",
-      JSON.stringify(art)
-    ];
-    return candidates.join(" ");
-  }
+  const getSearchableTextForArticle = useMemo(() => {
+    return (art: ArticleData, lang: 'ar' | 'en') => {
+      const candidates = [
+        getLocalizedText(art.title, art.titleEn, lang) ?? "",
+        getLocalizedText(art.excerpt, art.excerptEn, lang) ?? "",
+        art.slug?.current ?? "",
+        JSON.stringify(art)
+      ];
+      return candidates.join(" ");
+    };
+  }, []);
   
   const filteredEpisodes = useMemo(() => {
     const q = normalizeForSearch(debouncedSearch);
     if (!q) return episodes;
     const tokens = q.split(" ").filter(Boolean);
     return episodes.filter((ep) => {
-      const hay = normalizeForSearch(getSearchableTextForEpisode(ep));
+      const hay = normalizeForSearch(getSearchableTextForEpisode(ep, language));
       return tokens.every((t) => hay.includes(t));
     });
-  }, [episodes, debouncedSearch]);
+  }, [episodes, debouncedSearch, getSearchableTextForEpisode, language]);
   
   const filteredArticles = useMemo(() => {
     const q = normalizeForSearch(debouncedSearch);
     if (!q) return articles;
     const tokens = q.split(" ").filter(Boolean);
     return articles.filter((art) => {
-      const hay = normalizeForSearch(getSearchableTextForArticle(art));
+      const hay = normalizeForSearch(getSearchableTextForArticle(art, language));
       return tokens.every((t) => hay.includes(t));
     });
-  }, [articles, debouncedSearch]);
+  }, [articles, debouncedSearch, getSearchableTextForArticle, language]);
   
-  if (loading) return (
-    <div className="flex justify-center items-center min-h-[60vh]">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  );
-  if (error) return <div className="text-center p-6 text-red-500">{error}</div>;
-  if (!season) return <div className="text-center p-6 text-gray-600 dark:text-gray-400">الموسم غير موجود</div>;
-  
-  const seasonTitle = season.title ?? "موسم";
-  const seasonDescription = season.description ?? "";
-  const seasonThumbnailUrl = buildMediaUrl(season.thumbnail);
-  
-  // Function to format date in Arabic
+  // Function to format date based on language
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG', {
+    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
   };
   
+  if (loading) return (
+    <div className="flex justify-center items-center min-h-[60vh]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p className="text-gray-700 dark:text-gray-300 font-medium">{t.loading}</p>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="flex justify-center items-center min-h-[60vh]">
+      <div className="text-center max-w-md p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="text-red-500 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t.error}</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+        >
+          {t.retry}
+        </button>
+      </div>
+    </div>
+  );
+  
+  if (!season) return (
+    <div className="flex justify-center items-center min-h-[60vh]">
+      <div className="text-center p-6 text-gray-600 dark:text-gray-400">{t.seasonNotFound}</div>
+    </div>
+  );
+  
+  const seasonTitle = getLocalizedText(season.title, season.titleEn, language) ?? (language === 'ar' ? "موسم" : "Season");
+  const seasonDescription = getLocalizedText(season.description, season.descriptionEn, language) ?? "";
+  const seasonThumbnailUrl = buildMediaUrl(season.thumbnail);
+  
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
+    <div className="container mx-auto py-8 px-4 max-w-7xl" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Season info - Hero Section */}
       <div className="relative mt-14 rounded-2xl overflow-hidden mb-10 shadow-xl animate-fade-in">
         {/* Background gradient overlay with blue shadows for dark mode */}
@@ -318,7 +431,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           {/* Text content */}
           <div className="flex-1 flex flex-col justify-center">
             <div className="inline-block px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-full mb-4 self-start dark:bg-blue-700 dark:shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]">
-              موسم
+              {t.season}
             </div>
             <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg dark:text-blue-100">{seasonTitle}</h1>
             <p className="text-lg text-gray-100 mb-6 max-w-2xl leading-relaxed dark:text-blue-50">{seasonDescription}</p>
@@ -326,16 +439,12 @@ export default function SeasonPageClient({ params }: SeasonProps) {
             {/* Stats and meta info */}
             <div className="flex flex-wrap gap-4 mt-2">
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg dark:bg-blue-900/30 dark:border dark:border-blue-700/50 dark:shadow-[0_0_10px_2px_rgba(59,130,246,0.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <span className="text-white font-medium dark:text-blue-100">{episodes.length} حلقة</span>
+                <FaVideo className="h-5 w-5 text-blue-300 dark:text-blue-400" />
+                <span className="text-white font-medium dark:text-blue-100">{episodes.length} {t.episodes}</span>
               </div>
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg dark:bg-purple-900/30 dark:border dark:border-purple-700/50 dark:shadow-[0_0_10px_2px_rgba(139,92,246,0.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-300 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-                <span className="text-white font-medium dark:text-purple-100">{articles.length} مقال</span>
+                <FaNewspaper className="h-5 w-5 text-purple-300 dark:text-purple-400" />
+                <span className="text-white font-medium dark:text-purple-100">{articles.length} {t.articles}</span>
               </div>
             </div>
             
@@ -348,7 +457,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
-                جميع الحلقات
+                {t.allEpisodes}
               </Link>
               <Link
                 href="/articles"
@@ -357,7 +466,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
-                جميع المقالات
+                {t.allArticles}
               </Link>
             </div>
           </div>
@@ -377,10 +486,8 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
               }`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              الحلقات ({filteredEpisodes.length})
+              <FaVideo className="h-5 w-5" />
+              {t.episodes} ({filteredEpisodes.length})
             </button>
             <button
               onClick={() => setContentType("articles")}
@@ -390,10 +497,8 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
               }`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-              </svg>
-              المقالات ({filteredArticles.length})
+              <FaNewspaper className="h-5 w-5" />
+              {t.articles} ({filteredArticles.length})
             </button>
           </div>
           
@@ -404,25 +509,21 @@ export default function SeasonPageClient({ params }: SeasonProps) {
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={contentType === "articles" ? "ابحث عن مقال..." : "ابحث عن حلقة..."}
-                dir="rtl"
+                placeholder={contentType === "articles" ? t.searchArticle : t.searchEpisode}
+                dir={isRTL ? 'rtl' : 'ltr'}
                 className="w-full pl-12 pr-12 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-all duration-300 shadow-md dark:shadow-[0_0_10px_2px_rgba(59,130,246,0.3)] focus:shadow-lg"
               />
               {/* Search icon on the right */}
-              <span className="absolute right-4 top-3.5 text-gray-400 dark:text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+              <span className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-3.5 text-gray-400 dark:text-gray-500`}>
+                <FaSearch className="h-5 w-5" />
               </span>
               {/* Clear button on the left */}
               {searchTerm && (
                 <button 
                   onClick={() => setSearchTerm("")}
-                  className="absolute left-4 top-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                  className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <FaTimes className="h-5 w-5" />
                 </button>
               )}
             </div>
@@ -438,11 +539,9 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                       : "bg-purple-600 text-white"
                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
-                title="عرض شبكي"
+                title={t.gridView}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zM14 3h7v7h-7V3zM3 14h7v7H3v-7zM14 14h7v7h-7v-7z" />
-                </svg>
+                <FaTh className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
               </button>
               <button
                 onClick={() => setViewMode("list")}
@@ -453,11 +552,9 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                       : "bg-purple-600 text-white"
                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
-                title="عرض قائمة"
+                title={t.listView}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <FaList className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
               </button>
             </div>
           </div>
@@ -470,19 +567,17 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           {filteredEpisodes.length === 0 ? (
             <div className="text-center py-12 px-4 animate-fade-in">
               <div className="inline-block p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-4 dark:shadow-[0_0_15px_5px_rgba(59,130,246,0.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <FaVideo className="h-12 w-12 text-blue-500 dark:text-blue-400" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">لا توجد حلقات مطابقة للبحث</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.noEpisodes}</h3>
               <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                جرب تغيير كلمات البحث أو استخدم عبارات مختلفة للعثور على ما تبحث عنه.
+                {t.tryDifferent}
               </p>
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredEpisodes.map((ep: EpisodeData, index) => {
-                const title = ep.title ?? ep.name ?? "حلقة";
+                const title = getLocalizedText(ep.title, ep.titleEn, language) ?? getLocalizedText(ep.name, ep.nameEn, language) ?? (language === 'ar' ? "حلقة" : "Episode");
                 const thumbnailUrl = buildMediaUrl(ep.thumbnail);
                 const slug = ep.slug?.current ?? ep._id;
                 const episodeDate = formatDate(ep.publishedAt);
@@ -501,7 +596,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                       </Link>
                       <div className="absolute top-3 left-3">
                         <span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-600 text-white">
-                          حلقة
+                          {t.episode}
                         </span>
                       </div>
                     </div>
@@ -512,15 +607,15 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                         {/* Episode Date - Now prominently displayed */}
                         {episodeDate && (
                           <div className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 mb-3 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            <FaCalendarAlt className="h-4 w-4 ml-2" />
                             <span>{episodeDate}</span>
                           </div>
                         )}
                         
                         {ep.description && (
-                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">{ep.description}</p>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
+                            {getLocalizedText(ep.description, ep.descriptionEn, language)}
+                          </p>
                         )}
                       </Link>
                       
@@ -536,7 +631,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           ) : (
             <div className="space-y-4">
               {filteredEpisodes.map((ep: EpisodeData, index) => {
-                const title = ep.title ?? ep.name ?? "حلقة";
+                const title = getLocalizedText(ep.title, ep.titleEn, language) ?? getLocalizedText(ep.name, ep.nameEn, language) ?? (language === 'ar' ? "حلقة" : "Episode");
                 const thumbnailUrl = buildMediaUrl(ep.thumbnail);
                 const slug = ep.slug?.current ?? ep._id;
                 const episodeDate = formatDate(ep.publishedAt);
@@ -553,7 +648,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                       </Link>
                       <div className="absolute top-2 left-2">
                         <span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-600 text-white">
-                          حلقة
+                          {t.episode}
                         </span>
                       </div>
                     </div>
@@ -564,15 +659,15 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                         {/* Episode Date - Now prominently displayed */}
                         {episodeDate && (
                           <div className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 mt-2 mb-3 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg inline-block">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            <FaCalendarAlt className="h-4 w-4 ml-2" />
                             <span>{episodeDate}</span>
                           </div>
                         )}
                         
                         {ep.description && (
-                          <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 line-clamp-2">{ep.description}</p>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 line-clamp-2">
+                            {getLocalizedText(ep.description, ep.descriptionEn, language)}
+                          </p>
                         )}
                       </Link>
                       
@@ -595,19 +690,17 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           {filteredArticles.length === 0 ? (
             <div className="text-center py-12 px-4 animate-fade-in">
               <div className="inline-block p-4 rounded-full bg-purple-100 dark:bg-purple-900/30 mb-4 dark:shadow-[0_0_15px_5px_rgba(139,92,246,0.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-purple-500 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <FaNewspaper className="h-12 w-12 text-purple-500 dark:text-purple-400" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">لا توجد مقالات مطابقة للبحث</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.noArticles}</h3>
               <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                جرب تغيير كلمات البحث أو استخدم عبارات مختلفة للعثور على ما تبحث عنه.
+                {t.tryDifferent}
               </p>
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredArticles.map((art: ArticleData, index) => {
-                const title = art.title ?? "مقال";
+                const title = getLocalizedText(art.title, art.titleEn, language) ?? (language === 'ar' ? "مقال" : "Article");
                 const thumbnailUrl = buildMediaUrl(art.featuredImage);
                 const slug = art.slug?.current ?? art._id;
                 const articleDate = formatDate(art.publishedAt);
@@ -626,7 +719,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                       </Link>
                       <div className="absolute top-3 left-3">
                         <span className="px-2 py-1 rounded-full text-xs font-bold bg-purple-600 text-white">
-                          مقال
+                          {t.article}
                         </span>
                       </div>
                     </div>
@@ -637,15 +730,15 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                         {/* Article Date - Now prominently displayed */}
                         {articleDate && (
                           <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 mb-3 bg-purple-50 dark:bg-purple-900/20 px-3 py-2 rounded-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            <FaCalendarAlt className="h-4 w-4 ml-2" />
                             <span>{articleDate}</span>
                           </div>
                         )}
                         
                         {art.excerpt && (
-                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">{art.excerpt}</p>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
+                            {getLocalizedText(art.excerpt, art.excerptEn, language)}
+                          </p>
                         )}
                       </Link>
                       
@@ -661,7 +754,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           ) : (
             <div className="space-y-4">
               {filteredArticles.map((art: ArticleData, index) => {
-                const title = art.title ?? "مقال";
+                const title = getLocalizedText(art.title, art.titleEn, language) ?? (language === 'ar' ? "مقال" : "Article");
                 const thumbnailUrl = buildMediaUrl(art.featuredImage);
                 const slug = art.slug?.current ?? art._id;
                 const articleDate = formatDate(art.publishedAt);
@@ -678,7 +771,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                       </Link>
                       <div className="absolute top-2 left-2">
                         <span className="px-2 py-1 rounded-full text-xs font-bold bg-purple-600 text-white">
-                          مقال
+                          {t.article}
                         </span>
                       </div>
                     </div>
@@ -689,15 +782,15 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                         {/* Article Date - Now prominently displayed */}
                         {articleDate && (
                           <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 mt-2 mb-3 bg-purple-50 dark:bg-purple-900/20 px-3 py-2 rounded-lg inline-block">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            <FaCalendarAlt className="h-4 w-4 ml-2" />
                             <span>{articleDate}</span>
                           </div>
                         )}
                         
                         {art.excerpt && (
-                          <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 line-clamp-2">{art.excerpt}</p>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 line-clamp-2">
+                            {getLocalizedText(art.excerpt, art.excerptEn, language)}
+                          </p>
                         )}
                       </Link>
                       

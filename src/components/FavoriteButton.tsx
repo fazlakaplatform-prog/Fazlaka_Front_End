@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { Heart } from "lucide-react";
+import { useLanguage } from "./LanguageProvider";
 
 interface FavoriteButtonProps {
   contentId: string;
@@ -10,9 +11,26 @@ interface FavoriteButtonProps {
 
 export default function FavoriteButton({ contentId, contentType }: FavoriteButtonProps) {
   const { user } = useUser();
+  const { isRTL, language } = useLanguage();
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // نصوص التطبيق حسب اللغة
+  const texts = {
+    ar: {
+      addToFavorites: "إضافة للمفضلة",
+      removeFromFavorites: "إزالة من المفضلة",
+      errorMessage: "حدث خطأ أثناء تحديث المفضلة. يرجى المحاولة مرة أخرى."
+    },
+    en: {
+      addToFavorites: "Add to favorites",
+      removeFromFavorites: "Remove from favorites",
+      errorMessage: "An error occurred while updating favorites. Please try again."
+    }
+  };
+
+  const t = texts[language];
 
   useEffect(() => {
     if (user) {
@@ -61,11 +79,11 @@ export default function FavoriteButton({ contentId, contentType }: FavoriteButto
       } else {
         const errorData = await response.json();
         console.error("Error toggling favorite:", errorData);
-        alert("حدث خطأ أثناء تحديث المفضلة. يرجى المحاولة مرة أخرى.");
+        alert(t.errorMessage);
       }
     } catch (error) {
       console.error("Error toggling favorite:", error);
-      alert("حدث خطأ أثناء تحديث المفضلة. يرجى المحاولة مرة أخرى.");
+      alert(t.errorMessage);
     } finally {
       setActionLoading(false);
     }
@@ -77,8 +95,8 @@ export default function FavoriteButton({ contentId, contentType }: FavoriteButto
     <button
       onClick={handleToggle}
       disabled={actionLoading}
-      aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-      className="flex items-center justify-center p-2 rounded-full transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 md:px-4 md:py-2 disabled:opacity-50"
+      aria-label={isFavorite ? t.removeFromFavorites : t.addToFavorites}
+      className={`flex items-center justify-center p-2 rounded-full transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 md:px-4 md:py-2 disabled:opacity-50`}
       style={{
         backgroundColor: isFavorite ? '#ef4444' : '#e5e7eb',
         color: isFavorite ? 'white' : '#374151'
@@ -96,8 +114,8 @@ export default function FavoriteButton({ contentId, contentType }: FavoriteButto
           stroke={isFavorite ? "white" : "#374151"}
         />
       )}
-      <span className="hidden md:inline ml-2">
-        {isFavorite ? "إزالة من المفضلة" : "إضافة للمفضلة"}
+      <span className={`hidden md:inline ${isRTL ? "mr-2" : "ml-2"}`}>
+        {isFavorite ? t.removeFromFavorites : t.addToFavorites}
       </span>
     </button>
   );

@@ -5,16 +5,11 @@ import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import { 
-  FaEnvelope, FaPaperPlane, FaArrowRight, FaQuoteRight,
-  FaVideo, FaListUl, FaUsers, FaCalendarAlt, FaNewspaper,
-  FaStar, FaLightbulb, FaRocket, FaHandshake, FaGem,
-  FaCheck, FaPlay, FaBook, FaChartLine,
-  FaGraduationCap, FaChalkboardTeacher, FaMedal, FaGlobe,
-  FaYoutube, FaInstagram, FaFacebookF, FaTiktok,
-  FaHeart, FaAward, FaFire, FaUser, FaBriefcase, FaQuoteLeft,
-  FaPhone, FaMapMarkerAlt, FaClock, FaComments, FaHeadset,
-  FaTwitter, FaTelegram, FaComments as FaChat,
-  FaFlask, FaAtom, FaLandmark, FaBalanceScale
+  FaEnvelope, FaPaperPlane, FaUsers, FaLightbulb,
+  FaStar, FaHandshake, FaBook, FaChartLine,
+  FaGlobe, FaHeart, FaComments, FaHeadset,
+  FaFlask, FaAtom, FaLandmark, FaBalanceScale,
+  FaYoutube, FaInstagram, FaFacebookF, FaTiktok
 } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 
@@ -30,6 +25,7 @@ export default function ContactPage() {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isRTL, setIsRTL] = useState(true);
   const reduceMotion = useReducedMotion();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -42,13 +38,46 @@ export default function ContactPage() {
     const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleChange);
     
+    // Check for language preference
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage !== null) {
+      setIsRTL(savedLanguage === 'ar');
+    } else {
+      // Use browser language as fallback
+      const browserLang = navigator.language || (navigator as unknown as { userLanguage?: string }).userLanguage || '';
+      setIsRTL(browserLang.includes('ar'));
+    }
+    
+    // Listen for language changes
+    const handleLanguageChange = () => {
+      const currentLanguage = localStorage.getItem('language');
+      if (currentLanguage !== null) {
+        setIsRTL(currentLanguage === 'ar');
+      }
+    };
+    
+    window.addEventListener('storage', handleLanguageChange);
+    
+    // Also check for local changes
+    const checkLanguageInterval = setInterval(() => {
+      const currentLanguage = localStorage.getItem('language');
+      if (currentLanguage !== null) {
+        const shouldBeRTL = currentLanguage === 'ar';
+        if (shouldBeRTL !== isRTL) {
+          setIsRTL(shouldBeRTL);
+        }
+      }
+    }, 500);
+    
     return () => {
       darkModeMediaQuery.removeEventListener('change', handleChange);
+      window.removeEventListener('storage', handleLanguageChange);
+      clearInterval(checkLanguageInterval);
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
       }
     };
-  }, [previewUrl]);
+  }, [previewUrl, isRTL]);
   
   useEffect(() => {
     if (user) {
@@ -56,6 +85,120 @@ export default function ContactPage() {
       setName(user.firstName || "");
     }
   }, [user]);
+  
+  // Text translations based on language
+  const texts = {
+    ar: {
+      pageTitle: "تواصل معنا",
+      heroTitle: "نحن هنا",
+      heroHighlight: "لنساعدك",
+      heroSubtitle: "لأي استفسار أو ملاحظة، لا تتردد في التواصل معنا. فريق الدعم متاح دائماً لمساعدتك.",
+      contactUs: "تواصل معنا",
+      sendMessage: "أرسل رسالة",
+      name: "الاسم",
+      email: "الإيميل",
+      yourMessage: "رسالتك",
+      attachments: "مرفقات (اختياري)",
+      dragDropText: "اسحب وأفلت الملفات هنا أو انقر للاختيار",
+      dragActiveText: "أفلت الملفات هنا",
+      allowedFormats: "الصيغ المسموحة: jpg, png, pdf, doc, docx, zip",
+      attachedFiles: "الملفات المرفقة:",
+      sending: "جاري الإرسال...",
+      sendMessageBtn: "إرسال الرسالة",
+      successMessage: "تم الإرسال بنجاح!",
+      errorMessage: "فشل الإرسال",
+      mustSignIn: "يجب تسجيل الدخول لإرسال رسالة.",
+      signIn: "تسجيل الدخول",
+      whyContactUs: "لماذا",
+      whyContactUsHighlight: "تتواصل معنا",
+      whyContactUsSubtitle: "نقدم لك أفضل تجربة تواصل ممكنة مع ضمان الجودة والسرعة",
+      quickSupport: "دعم سريع",
+      quickSupportDesc: "فريق دعم متخصص متاح للإجابة على استفساراتك",
+      freeConsultations: "استشارات مجانية",
+      freeConsultationsDesc: "نقدم استشارات أولية مجانية لمساعدتك في البداية",
+      innovativeSolutions: "حلول مبتكرة",
+      innovativeSolutionsDesc: "نقدم حلولاً مبتكرة تناسب احتياجاتك الخاصة",
+      successfulPartnership: "شراكة ناجحة",
+      successfulPartnershipDesc: "نبني علاقات طويلة الأمد مع عملائنا",
+      followUsOn: "تابعنا على",
+      socialMediaHighlight: "وسائل التواصل",
+      socialMediaSubtitle: "كن على اطلاع دائم بأحدث الأخبار والعروض من خلال متابعتنا على منصات التواصل الاجتماعي",
+      viewFAQ: "عرض الأسئلة الشائعة",
+      youtube: "يوتيوب",
+      instagram: "انستجرام",
+      facebook: "فيس بوك",
+      tiktok: "تيك توك",
+      x: "اكس",
+      preview: "معاينة",
+      delete: "حذف",
+      close: "إغلاق",
+      download: "تحميل",
+      cannotPreview: "لا يمكن معاينة هذا الملف",
+      fileType: "نوع الملف",
+      fileSize: "الحجم",
+      downloadFile: "تحميل الملف",
+      fileNotImage: "الملف مش صورة",
+      fileSizeError: "حجم الصورة أكبر من 5 ميجا",
+      tryAgain: "حاول مرةً أخرى أو بلغ الإدارة",
+      platformName: "فذلكه"
+    },
+    en: {
+      pageTitle: "Contact Us",
+      heroTitle: "We are here",
+      heroHighlight: "to help you",
+      heroSubtitle: "For any inquiry or comment, don't hesitate to contact us. Our support team is always available to help you.",
+      contactUs: "Contact Us",
+      sendMessage: "Send Message",
+      name: "Name",
+      email: "Email",
+      yourMessage: "Your Message",
+      attachments: "Attachments (Optional)",
+      dragDropText: "Drag and drop files here or click to select",
+      dragActiveText: "Drop files here",
+      allowedFormats: "Allowed formats: jpg, png, pdf, doc, docx, zip",
+      attachedFiles: "Attached files:",
+      sending: "Sending...",
+      sendMessageBtn: "Send Message",
+      successMessage: "Sent successfully!",
+      errorMessage: "Sending failed",
+      mustSignIn: "You must sign in to send a message.",
+      signIn: "Sign In",
+      whyContactUs: "Why",
+      whyContactUsHighlight: "Contact Us",
+      whyContactUsSubtitle: "We provide you with the best possible contact experience with guaranteed quality and speed",
+      quickSupport: "Quick Support",
+      quickSupportDesc: "Specialized support team available to answer your inquiries",
+      freeConsultations: "Free Consultations",
+      freeConsultationsDesc: "We offer initial free consultations to help you get started",
+      innovativeSolutions: "Innovative Solutions",
+      innovativeSolutionsDesc: "We provide innovative solutions that suit your specific needs",
+      successfulPartnership: "Successful Partnership",
+      successfulPartnershipDesc: "We build long-term relationships with our clients",
+      followUsOn: "Follow us on",
+      socialMediaHighlight: "Social Media",
+      socialMediaSubtitle: "Stay up to date with the latest news and offers by following us on social media platforms",
+      viewFAQ: "View FAQ",
+      youtube: "YouTube",
+      instagram: "Instagram",
+      facebook: "Facebook",
+      tiktok: "TikTok",
+      x: "X",
+      preview: "Preview",
+      delete: "Delete",
+      close: "Close",
+      download: "Download",
+      cannotPreview: "Cannot preview this file",
+      fileType: "File type",
+      fileSize: "Size",
+      downloadFile: "Download File",
+      fileNotImage: "File is not an image",
+      fileSizeError: "Image size is larger than 5 MB",
+      tryAgain: "Try again or contact support",
+      platformName: "Falthaka"
+    }
+  };
+  
+  const t = texts[isRTL ? 'ar' : 'en'];
   
   const onDrop = (acceptedFiles: File[]) => {
     setFiles(prevFiles => [...prevFiles, ...acceptedFiles]);
@@ -125,14 +268,14 @@ export default function ContactPage() {
         setTimeout(() => setShowToast(false), 3500);
       } else {
         const data = await res.json().catch(() => null);
-        setErrorMsg(data?.message || "تعذر الإرسال.");
+        setErrorMsg(data?.message || (isRTL ? "تعذر الإرسال." : "Failed to send."));
         setStatus("error");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 4500);
       }
     } catch (err: unknown) {
       console.error("Error submitting form:", err);
-      const errorMessage = err instanceof Error ? err.message : "تعذر الإرسال.";
+      const errorMessage = err instanceof Error ? err.message : (isRTL ? "تعذر الإرسال." : "Failed to send.");
       setErrorMsg(errorMessage);
       setStatus("error");
       setShowToast(true);
@@ -156,7 +299,7 @@ export default function ContactPage() {
     } else if (fileType.includes('word')) {
       return (
         <svg className="w-6 h-6 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       );
     } else {
@@ -176,40 +319,40 @@ export default function ContactPage() {
 
   // Social links with enhanced colors
   const socialLinks = [
-    { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: "يوتيوب", color: "from-red-500 to-red-600", hover: "hover:from-red-600 hover:to-red-700" },
-    { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انستجرام", color: "from-pink-500 to-purple-500", hover: "hover:from-pink-600 hover:to-purple-600" },
-    { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيس بوك", color: "from-blue-500 to-blue-600", hover: "hover:from-blue-600 hover:to-blue-700" },
-    { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: "تيك توك", color: "from-gray-800 to-black", hover: "hover:from-gray-900 hover:to-black" },
-    { href: "https://x.com/FazlakaPlatform", icon: <FaXTwitter />, label: "اكس", color: "from-gray-700 to-gray-900", hover: "hover:from-gray-800 hover:to-black" },
+    { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: isRTL ? "يوتيوب" : "YouTube", color: "from-red-500 to-red-600", hover: "hover:from-red-600 hover:to-red-700" },
+    { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: isRTL ? "انستجرام" : "Instagram", color: "from-pink-500 to-purple-500", hover: "hover:from-pink-600 hover:to-purple-600" },
+    { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: isRTL ? "فيس بوك" : "Facebook", color: "from-blue-500 to-blue-600", hover: "hover:from-blue-600 hover:to-blue-700" },
+    { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: isRTL ? "تيك توك" : "TikTok", color: "from-gray-800 to-black", hover: "hover:from-gray-900 hover:to-black" },
+    { href: "https://x.com/FazlakaPlatform", icon: <FaXTwitter />, label: isRTL ? "اكس" : "X", color: "from-gray-700 to-gray-900", hover: "hover:from-gray-800 hover:to-black" },
   ];
 
   // Why contact us
   const whyContactUs = [
     {
       icon: <FaComments className="text-3xl" />,
-      title: "دعم سريع",
-      description: "فريق دعم متخصص متاح للإجابة على استفساراتك",
+      title: isRTL ? "دعم سريع" : "Quick Support",
+      description: isRTL ? "فريق دعم متخصص متاح للإجابة على استفساراتك" : "Specialized support team available to answer your inquiries",
       color: "from-blue-500 to-cyan-600",
       darkColor: "dark:from-blue-700 dark:to-cyan-800"
     },
     {
       icon: <FaHeadset className="text-3xl" />,
-      title: "استشارات مجانية",
-      description: "نقدم استشارات أولية مجانية لمساعدتك في البداية",
+      title: isRTL ? "استشارات مجانية" : "Free Consultations",
+      description: isRTL ? "نقدم استشارات أولية مجانية لمساعدتك في البداية" : "We offer initial free consultations to help you get started",
       color: "from-purple-500 to-indigo-600",
       darkColor: "dark:from-purple-700 dark:to-indigo-800"
     },
     {
       icon: <FaLightbulb className="text-3xl" />,
-      title: "حلول مبتكرة",
-      description: "نقدم حلولاً مبتكرة تناسب احتياجاتك الخاصة",
+      title: isRTL ? "حلول مبتكرة" : "Innovative Solutions",
+      description: isRTL ? "نقدم حلولاً مبتكرة تناسب احتياجاتك الخاصة" : "We provide innovative solutions that suit your specific needs",
       color: "from-yellow-500 to-orange-600",
       darkColor: "dark:from-yellow-700 dark:to-orange-800"
     },
     {
       icon: <FaHandshake className="text-3xl" />,
-      title: "شراكة ناجحة",
-      description: "نبني علاقات طويلة الأمد مع عملائنا",
+      title: isRTL ? "شراكة ناجحة" : "Successful Partnership",
+      description: isRTL ? "نبني علاقات طويلة الأمد مع عملائنا" : "We build long-term relationships with our clients",
       color: "from-green-500 to-teal-600",
       darkColor: "dark:from-green-700 dark:to-teal-800"
     }
@@ -259,14 +402,16 @@ export default function ContactPage() {
             <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
               <span className="text-white font-medium flex items-center text-sm sm:text-base">
                 <FaStar className="text-yellow-300 mr-2 animate-pulse" />
-                تواصل معنا
+                {t.contactUs}
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-              نحن هنا <span className="text-yellow-300">لنساعدك</span>
+            <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight ${isRTL ? '' : 'font-sans tracking-wide'}`}>
+              {t.heroTitle} <span className="text-yellow-300">{t.heroHighlight}</span>
             </h1>
             <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-              لأي استفسار أو ملاحظة، لا تتردد في التواصل معنا. فريق الدعم متاح دائماً لمساعدتك.
+              <span className={isRTL ? '' : 'font-sans'}>
+                {t.heroSubtitle}
+              </span>
             </p>
             
             {/* أيقونات المواد الدراسية في الأسفل */}
@@ -346,11 +491,11 @@ export default function ContactPage() {
     return (
       <section className="mb-16">
         <div className="text-center mb-12 px-4">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-            لماذا <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-teal-600">تتواصل معنا</span>؟
+          <h2 className={`text-2xl md:text-3xl lg:text-4xl font-bold mb-4 text-gray-900 dark:text-white ${isRTL ? '' : 'font-sans'}`}>
+            {t.whyContactUs} <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-teal-600">{t.whyContactUsHighlight}</span>?
           </h2>
-          <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            نقدم لك أفضل تجربة تواصل ممكنة مع ضمان الجودة والسرعة
+          <p className={`text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto ${isRTL ? '' : 'font-sans'}`}>
+            {t.whyContactUsSubtitle}
           </p>
         </div>
         
@@ -368,8 +513,8 @@ export default function ContactPage() {
                 <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-r ${item.color} ${item.darkColor} flex items-center justify-center mb-4`}>
                   <div className="text-white">{item.icon}</div>
                 </div>
-                <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-3">{item.title}</h3>
-                <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">{item.description}</p>
+                <h3 className={`text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-3 ${isRTL ? '' : 'font-sans'}`}>{item.title}</h3>
+                <p className={`text-sm md:text-base text-gray-600 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{item.description}</p>
               </div>
             </motion.div>
           ))}
@@ -383,11 +528,11 @@ export default function ContactPage() {
     return (
       <section id="social-media" className="mb-16">
         <div className="text-center mb-12 px-4">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-            تابعنا على <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">وسائل التواصل</span>
+          <h2 className={`text-2xl md:text-3xl lg:text-4xl font-bold mb-4 text-gray-900 dark:text-white ${isRTL ? '' : 'font-sans'}`}>
+            {t.followUsOn} <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">{t.socialMediaHighlight}</span>
           </h2>
-          <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            كن على اطلاع دائم بأحدث الأخبار والعروض من خلال متابعتنا على منصات التواصل الاجتماعي
+          <p className={`text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto ${isRTL ? '' : 'font-sans'}`}>
+            {t.socialMediaSubtitle}
           </p>
         </div>
         
@@ -419,7 +564,9 @@ export default function ContactPage() {
               
               {/* تسمية المنصة */}
               <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 transition-opacity duration-700 group-hover:opacity-100 whitespace-nowrap">
-                {social.label}
+                <span className={isRTL ? '' : 'font-sans'}>
+                  {social.label}
+                </span>
               </div>
               
               {/* تأثير اللمعان */}
@@ -432,7 +579,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* خلفية هندسية عصرية مع تحسينات */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-indigo-200 to-blue-200 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-full mix-blend-multiply filter blur-3xl opacity-20 dark:opacity-10"></div>
@@ -548,8 +695,8 @@ export default function ContactPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </motion.svg>
-              <span className="font-medium group-hover:text-indigo-100 transition-colors">
-                عرض الأسئلة الشائعة
+              <span className={`font-medium group-hover:text-indigo-100 transition-colors ${isRTL ? '' : 'font-sans'}`}>
+                {t.viewFAQ}
               </span>
             </Link>
           </motion.div>
@@ -564,7 +711,7 @@ export default function ContactPage() {
             isDarkMode ? 'dark-mode-shadow' : 'shadow-md'
           }`}
         >
-          <h2 id="contact-heading" className="text-2xl md:text-3xl lg:text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100 relative z-10 flex items-center">
+          <h2 id="contact-heading" className={`text-2xl md:text-3xl lg:text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100 relative z-10 flex items-center ${isRTL ? '' : 'font-sans'}`}>
             <motion.div
               animate={reduceMotion ? {} : { 
                 rotate: [0, 5, 0, -5, 0],
@@ -580,7 +727,7 @@ export default function ContactPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </motion.div>
-            أرسل رسالة
+            {t.sendMessage}
           </h2>
           
           <SignedOut>
@@ -608,9 +755,9 @@ export default function ContactPage() {
                 </motion.div>
                 <div className="ml-4">
                   <p className="text-yellow-700 dark:text-yellow-300 font-medium">
-                    يجب تسجيل الدخول لإرسال رسالة. {" "}
+                    {t.mustSignIn} {" "}
                     <Link href="/sign-in" className="font-bold underline text-yellow-800 dark:text-yellow-200 hover:text-yellow-900 dark:hover:text-yellow-100 transition-colors">
-                      تسجيل الدخول
+                      {t.signIn}
                     </Link>
                   </p>
                 </div>
@@ -641,7 +788,9 @@ export default function ContactPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </motion.div>
-                    الاسم
+                    <span className={isRTL ? '' : 'font-sans'}>
+                      {t.name}
+                    </span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -653,7 +802,7 @@ export default function ContactPage() {
                       id="name"
                       name="name"
                       type="text"
-                      placeholder="الاسم"
+                      placeholder={t.name}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full border border-gray-300 dark:border-gray-600 p-4 pr-12 h-14 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-all duration-300 shadow-sm hover:shadow-md focus:shadow-lg"
@@ -683,7 +832,9 @@ export default function ContactPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </motion.div>
-                    الإيميل
+                    <span className={isRTL ? '' : 'font-sans'}>
+                      {t.email}
+                    </span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -696,7 +847,7 @@ export default function ContactPage() {
                       id="email"
                       name="email"
                       type="email"
-                      placeholder="الإيميل"
+                      placeholder={t.email}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full border border-gray-300 dark:border-gray-600 p-4 pr-12 h-14 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-all duration-300 shadow-sm hover:shadow-md focus:shadow-lg"
@@ -728,7 +879,9 @@ export default function ContactPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                     </svg>
                   </motion.div>
-                  رسالتك
+                  <span className={isRTL ? '' : 'font-sans'}>
+                    {t.yourMessage}
+                  </span>
                 </label>
                 <div className="relative">
                   <div className="absolute top-4 right-4 pointer-events-none">
@@ -739,7 +892,7 @@ export default function ContactPage() {
                   <textarea
                     id="message"
                     name="message"
-                    placeholder="اكتب رسالتك هنا..."
+                    placeholder={isRTL ? "اكتب رسالتك هنا..." : "Write your message here..."}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full border border-gray-300 dark:border-gray-600 p-4 pr-12 pt-4 rounded-lg h-48 resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-all duration-300 shadow-sm hover:shadow-md focus:shadow-lg"
@@ -769,7 +922,9 @@ export default function ContactPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.585a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                     </svg>
                   </motion.div>
-                  مرفقات (اختياري)
+                  <span className={isRTL ? '' : 'font-sans'}>
+                    {t.attachments}
+                  </span>
                 </label>
                 
                 <div 
@@ -802,17 +957,17 @@ export default function ContactPage() {
                         color: ['#4F46E5', '#7C3AED', '#4F46E5']
                       } : {}}
                       transition={{ duration: 0.5 }}
-                      className="text-base md:text-lg text-gray-600 dark:text-gray-300 font-medium mb-2"
+                      className={`text-base md:text-lg text-gray-600 dark:text-gray-300 font-medium mb-2 ${isRTL ? '' : 'font-sans'}`}
                     >
-                      {isDragActive ? "أفلت الملفات هنا" : "اسحب وأفلت الملفات هنا أو انقر للاختيار"}
+                      {isDragActive ? t.dragActiveText : t.dragDropText}
                     </motion.p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">الصيغ المسموحة: jpg, png, pdf, doc, docx, zip</p>
+                    <p className={`text-sm text-gray-500 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{t.allowedFormats}</p>
                   </div>
                 </div>
                 
                 {files.length > 0 && (
                   <div className="mt-6 space-y-3 max-h-60 overflow-y-auto pr-2">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الملفات المرفقة:</h3>
+                    <h3 className={`text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? '' : 'font-sans'}`}>{t.attachedFiles}</h3>
                     {files.map((file, index) => (
                       <motion.div 
                         key={index}
@@ -842,8 +997,8 @@ export default function ContactPage() {
                         <div className="flex items-center min-w-0">
                           {getFileIcon(file.type)}
                           <div className="mr-3 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{file.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
+                            <p className={`text-sm font-medium text-gray-800 dark:text-gray-200 truncate ${isRTL ? '' : 'font-sans'}`}>{file.name}</p>
+                            <p className={`text-xs text-gray-500 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{formatFileSize(file.size)}</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
@@ -859,7 +1014,7 @@ export default function ContactPage() {
                             type="button"
                             onClick={() => handlePreview(file)}
                             className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/30 shadow-sm"
-                            title="معاينة"
+                            title={t.preview}
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -878,7 +1033,7 @@ export default function ContactPage() {
                             type="button"
                             onClick={() => removeFile(file.name)}
                             className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 shadow-sm"
-                            title="حذف"
+                            title={t.delete}
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -924,7 +1079,7 @@ export default function ContactPage() {
                       <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg mr-3 flex-shrink-0">
                         {getFileIcon(previewFile.type)}
                       </div>
-                      <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-100 truncate">{previewFile.name}</h3>
+                      <h3 className={`text-lg font-bold text-indigo-900 dark:text-indigo-100 truncate ${isRTL ? '' : 'font-sans'}`}>{previewFile.name}</h3>
                     </div>
                     <button
                       onClick={closePreview}
@@ -977,9 +1132,9 @@ export default function ContactPage() {
                             {getFileIcon(previewFile.type)}
                           </div>
                         </motion.div>
-                        <p className="text-xl text-indigo-800 dark:text-indigo-200 font-medium mb-2">لا يمكن معاينة هذا الملف</p>
-                        <p className="text-indigo-600 dark:text-indigo-300 mb-1">نوع الملف: {previewFile.type}</p>
-                        <p className="text-indigo-600 dark:text-indigo-300 mb-6">الحجم: {formatFileSize(previewFile.size)}</p>
+                        <p className={`text-xl text-indigo-800 dark:text-indigo-200 font-medium mb-2 ${isRTL ? '' : 'font-sans'}`}>{t.cannotPreview}</p>
+                        <p className={`text-indigo-600 dark:text-indigo-300 mb-1 ${isRTL ? '' : 'font-sans'}`}>{t.fileType}: {previewFile.type}</p>
+                        <p className={`text-indigo-600 dark:text-indigo-300 mb-6 ${isRTL ? '' : 'font-sans'}`}>{t.fileSize}: {formatFileSize(previewFile.size)}</p>
                         <button
                           onClick={() => {
                             const url = URL.createObjectURL(previewFile);
@@ -996,22 +1151,24 @@ export default function ContactPage() {
                           <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                          تحميل الملف
+                          <span className={isRTL ? '' : 'font-sans'}>
+                            {t.downloadFile}
+                          </span>
                         </button>
                       </motion.div>
                     )}
                   </div>
                   
                   <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border-t border-indigo-100 dark:border-indigo-800 flex flex-col sm:flex-row justify-between items-center">
-                    <div className="text-sm text-indigo-700 dark:text-indigo-300 mb-2 sm:mb-0">
+                    <div className={`text-sm text-indigo-700 dark:text-indigo-300 mb-2 sm:mb-0 ${isRTL ? '' : 'font-sans'}`}>
                       {previewFile.name} • {formatFileSize(previewFile.size)}
                     </div>
                     <div className="flex space-x-2">
                       <button
                         onClick={closePreview}
-                        className="px-4 py-2 bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors font-medium"
+                        className={`px-4 py-2 bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors font-medium ${isRTL ? '' : 'font-sans'}`}
                       >
-                        إغلاق
+                        {t.close}
                       </button>
                       <button
                         onClick={() => {
@@ -1024,9 +1181,9 @@ export default function ContactPage() {
                           document.body.removeChild(a);
                           URL.revokeObjectURL(url);
                         }}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md font-medium"
+                        className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md font-medium ${isRTL ? '' : 'font-sans'}`}
                       >
-                        تحميل
+                        {t.download}
                       </button>
                     </div>
                   </div>
@@ -1055,14 +1212,18 @@ export default function ContactPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      جاري الإرسال...
+                      <span className={isRTL ? '' : 'font-sans'}>
+                        {t.sending}
+                      </span>
                     </span>
                   ) : (
                     <span className="flex items-center justify-center text-center">
                       <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
-                      إرسال الرسالة
+                      <span className={isRTL ? '' : 'font-sans'}>
+                        {t.sendMessageBtn}
+                      </span>
                       <svg className="w-6 h-6 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
@@ -1080,7 +1241,9 @@ export default function ContactPage() {
                       <svg className="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      تم الإرسال بنجاح!
+                      <span className={isRTL ? '' : 'font-sans'}>
+                        {t.successMessage}
+                      </span>
                     </motion.p>
                   )}
                   {status === "error" && (
@@ -1092,7 +1255,9 @@ export default function ContactPage() {
                       <svg className="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
-                      {errorMsg || "حدث خطأ، حاول مرة أخرى."}
+                      <span className={isRTL ? '' : 'font-sans'}>
+                        {t.errorMessage}
+                      </span>
                     </motion.p>
                   )}
                 </div>
@@ -1159,13 +1324,13 @@ export default function ContactPage() {
                 )}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="font-bold text-lg truncate">
-                  {status === "success" ? "تم الإرسال بنجاح!" : "فشل الإرسال"}
+                <span className={`font-bold text-lg truncate ${isRTL ? '' : 'font-sans'}`}>
+                  {status === "success" ? t.successMessage : t.errorMessage}
                 </span>
-                <span className="text-sm opacity-90">
+                <span className={`text-sm opacity-90 ${isRTL ? '' : 'font-sans'}`}>
                   {status === "success" 
-                    ? "شكراً لتواصلك معنا، سنرد عليك قريباً" 
-                    : errorMsg || "يرجى المحاولة مرة أخرى لاحقاً"}
+                    ? (isRTL ? "شكراً لتواصلك معنا، سنرد عليك قريباً" : "Thank you for contacting us, we will get back to you soon") 
+                    : (errorMsg || (isRTL ? "يرجى المحاولة مرة أخرى لاحقاً" : "Please try again later"))}
                 </span>
               </div>
               <motion.button

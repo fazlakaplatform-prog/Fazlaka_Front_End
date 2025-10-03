@@ -2,75 +2,160 @@
 import { motion } from "framer-motion";
 import { 
   Facebook, Instagram, Youtube, Mail, ChevronRight, Play, List, Calendar, Users, MessageSquare, 
-  FileText, Shield, BookOpen, Star, Sparkles, Zap, Share2
+  FileText, Shield, BookOpen, Star, Zap, Share2
 } from "lucide-react";
 import { FaTiktok, FaXTwitter } from "react-icons/fa6";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+
+// كائن الترجمات - نفس المستخدم في الناف بار
+const translations = {
+  ar: {
+    followUs: "تابعنا على منصات التواصل",
+    content: "المحتوى",
+    episodes: "الحلقات",
+    playlists: "قوائم التشغيل",
+    seasons: "المواسم",
+    articles: "المقالات",
+    aboutUs: "تعرف علينا",
+    whoWeAre: "من نحن",
+    team: "الفريق",
+    contact: "التواصل",
+    contactUs: "تواصل معنا",
+    faq: "الأسئلة الشائعة",
+    policies: "السياسات",
+    privacyPolicy: "سياسة الخصوصية",
+    termsConditions: "الشروط والأحكام",
+    backToHome: "العودة إلى الصفحة الرئيسية",
+    copyright: "جميع الحقوق محفوظة.",
+    scienceMeaning: "العلم معنى",
+    fun: "ممتع",
+    organized: "منظم",
+    easy: "سهل",
+    platformDescription: "منصة تعليمية حديثة لعرض العلوم بشكل",
+    toDevelopSkills: "لتطوير مهاراتك.",
+    youtube: "YouTube",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "TikTok",
+    twitter: "Twitter"
+  },
+  en: {
+    followUs: "Follow us on social media",
+    content: "Content",
+    episodes: "Episodes",
+    playlists: "Playlists",
+    seasons: "Seasons",
+    articles: "Articles",
+    aboutUs: "About Us",
+    whoWeAre: "Who We Are",
+    team: "Team",
+    contact: "Contact",
+    contactUs: "Contact Us",
+    faq: "FAQ",
+    policies: "Policies",
+    privacyPolicy: "Privacy Policy",
+    termsConditions: "Terms & Conditions",
+    backToHome: "Back to Home",
+    copyright: "All rights reserved.",
+    scienceMeaning: "Science with meaning",
+    fun: "fun",
+    organized: "organized",
+    easy: "easy",
+    platformDescription: "A modern educational platform for presenting science in a",
+    toDevelopSkills: "way to develop your skills.",
+    youtube: "YouTube",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "TikTok",
+    twitter: "Twitter"
+  }
+};
 
 export default function Footer() {
   const year = new Date().getFullYear();
-  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [isRTL, setIsRTL] = useState(true); // القيمة الافتراضية هي العربية (RTL)
+  
+  useEffect(() => {
+    setMounted(true);
+    
+    // التحقق من تفضيل اللغة المحفوظ في localStorage
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage !== null) {
+      setIsRTL(savedLanguage === 'ar');
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
+      const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage || 'en';
+      setIsRTL(browserLang.includes('ar'));
+    }
+  }, []);
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
+  // تحديد الشعار بناءً على اللغة
+  const logoSrc = isRTL ? "/logo.png" : "/logoE.png";
+  const logoAlt = isRTL ? "فذلكة" : "fazlaka";
   
   // روابط السوشيال ميديا
   const socialLinks = [
     {
       href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA",
       icon: <Youtube className="w-5 h-5" />,
-      label: "YouTube",
+      label: t.youtube,
       color: "hover:bg-red-500/20 hover:text-red-400",
     },
     {
       href: "https://www.instagram.com/fazlaka_platform/",
       icon: <Instagram className="w-5 h-5" />,
-      label: "Instagram",
+      label: t.instagram,
       color: "hover:bg-pink-500/20 hover:text-pink-400",
     },
     {
       href: "https://www.facebook.com/profile.php?id=61579582675453",
       icon: <Facebook className="w-5 h-5" />,
-      label: "Facebook",
+      label: t.facebook,
       color: "hover:bg-blue-500/20 hover:text-blue-400",
     },
     {
       href: "https://www.tiktok.com/@fazlaka_platform",
       icon: <FaTiktok className="w-5 h-5" />,
-      label: "TikTok",
+      label: t.tiktok,
       color: "hover:bg-gray-500/20 hover:text-gray-300",
     },
     {
       href: "https://x.com/FazlakaPlatform",
       icon: <FaXTwitter className="w-5 h-5" />,
-      label: "Twitter",
+      label: t.twitter,
       color: "hover:bg-blue-400/20 hover:text-blue-300",
     },
   ];
   
   // روابط المحتوى
   const contentLinks = [
-    { href: "/episodes", text: "الحلقات", icon: <Play className="w-4 h-4" /> },
-    { href: "/playlists", text: "قوائم التشغيل", icon: <List className="w-4 h-4" /> },
-    { href: "/seasons", text: "المواسم", icon: <Calendar className="w-4 h-4" /> },
-    { href: "/articles", text: "المقالات", icon: <FileText className="w-4 h-4" /> },
+    { href: "/episodes", text: t.episodes, icon: <Play className="w-4 h-4" /> },
+    { href: "/playlists", text: t.playlists, icon: <List className="w-4 h-4" /> },
+    { href: "/seasons", text: t.seasons, icon: <Calendar className="w-4 h-4" /> },
+    { href: "/articles", text: t.articles, icon: <FileText className="w-4 h-4" /> },
   ];
   
   // روابط من نحن
   const aboutLinks = [
-    { href: "/about", text: "من نحن", icon: <BookOpen className="w-4 h-4" /> },
-    { href: "/team", text: "الفريق", icon: <Users className="w-4 h-4" /> },
+    { href: "/about", text: t.whoWeAre, icon: <BookOpen className="w-4 h-4" /> },
+    { href: "/team", text: t.team, icon: <Users className="w-4 h-4" /> },
   ];
   
   // روابط التواصل
   const contactLinks = [
-    { href: "/contact", text: "تواصل معنا", icon: <Mail className="w-4 h-4" /> },
-    { href: "/faq", text: "الأسئلة الشائعة", icon: <MessageSquare className="w-4 h-4" /> },
+    { href: "/contact", text: t.contactUs, icon: <Mail className="w-4 h-4" /> },
+    { href: "/faq", text: t.faq, icon: <MessageSquare className="w-4 h-4" /> },
   ];
   
   // روابط السياسات
   const policyLinks = [
-    { href: "/privacy-policy", text: "سياسة الخصوصية", icon: <Shield className="w-4 h-4" /> },
-    { href: "/terms-conditions", text: "الشروط والأحكام", icon: <FileText className="w-4 h-4" /> },
+    { href: "/privacy-policy", text: t.privacyPolicy, icon: <Shield className="w-4 h-4" /> },
+    { href: "/terms-conditions", text: t.termsConditions, icon: <FileText className="w-4 h-4" /> },
   ];
   
   const handleLogoClick = () => {
@@ -109,6 +194,8 @@ export default function Footer() {
     return Math.round(value * 1000) / 1000;
   };
   
+  if (!mounted) return null;
+  
   return (
     <>
       {/* فاصل علوي متحرك */}
@@ -126,6 +213,7 @@ export default function Footer() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
         className="bg-gradient-to-br from-[#0a0a1a] via-[#1a1a3a] to-[#0f172a] text-gray-200 pt-16 pb-12 relative overflow-hidden"
+        dir={isRTL ? 'rtl' : 'ltr'}
       >
         {/* خلفية متحركة */}
         <div className="absolute inset-0 overflow-hidden">
@@ -241,8 +329,8 @@ export default function Footer() {
                 onClick={handleLogoClick}
               >
                 <Image
-                  src="/logo.png"
-                  alt="Fazlaka Logo"
+                  src={logoSrc}
+                  alt={logoAlt}
                   width={160}
                   height={160}
                   className="object-contain drop-shadow-2xl transition-all duration-300"
@@ -313,7 +401,7 @@ export default function Footer() {
                 }}
                 onClick={handleLogoClick}
               >
-                فذلكه
+                {isRTL ? 'فذلكه' : 'fazlaka'}
               </motion.h2>
               
               {/* خط فاصل متحرك */}
@@ -353,7 +441,7 @@ export default function Footer() {
               
               {/* زخارف جانبية */}
               <motion.div 
-                className="absolute top-1/2 -left-12 w-8 h-1 bg-gradient-to-r from-transparent to-blue-400"
+                className={`absolute top-1/2 ${isRTL ? '-right-12' : '-left-12'} w-8 h-1 bg-gradient-to-r ${isRTL ? 'from-transparent to-blue-400' : 'from-blue-400 to-transparent'}`}
                 animate={{ 
                   opacity: [0.3, 0.8, 0.3],
                   scaleX: [0.8, 1.2, 0.8]
@@ -365,7 +453,7 @@ export default function Footer() {
                 }}
               />
               <motion.div 
-                className="absolute top-1/2 -right-12 w-8 h-1 bg-gradient-to-l from-transparent to-purple-400"
+                className={`absolute top-1/2 ${isRTL ? '-left-12' : '-right-12'} w-8 h-1 bg-gradient-to-l ${isRTL ? 'from-transparent to-purple-400' : 'from-purple-400 to-transparent'}`}
                 animate={{ 
                   opacity: [0.3, 0.8, 0.3],
                   scaleX: [0.8, 1.2, 0.8]
@@ -396,7 +484,7 @@ export default function Footer() {
                 }}
                 onClick={handleLogoClick}
               >
-                العلم معنى 
+                {t.scienceMeaning} 
                 <motion.span 
                   className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-400 mx-3 font-medium cursor-pointer transition-all duration-300"
                   animate={{ 
@@ -411,7 +499,7 @@ export default function Footer() {
                     scale: 1.05,
                   }}
                 >
-                  ممتع
+                  {t.fun}
                 </motion.span>
               </motion.p>
               
@@ -487,7 +575,7 @@ export default function Footer() {
                 }}
                 onClick={handleLogoClick}
               >
-                منصة تعليمية حديثة لعرض العلوم بشكل 
+                {t.platformDescription} 
                 <motion.span 
                   className="text-blue-400 font-medium mx-2 cursor-pointer transition-all duration-300"
                   animate={{ 
@@ -502,9 +590,9 @@ export default function Footer() {
                     scale: 1.02,
                   }}
                 >
-                  ممتع
+                  {t.fun}
                 </motion.span>
-                ، 
+                , 
                 <motion.span 
                   className="text-purple-400 font-medium mx-2 cursor-pointer transition-all duration-300"
                   animate={{ 
@@ -520,9 +608,9 @@ export default function Footer() {
                     scale: 1.02,
                   }}
                 >
-                  منظم
+                  {t.organized}
                 </motion.span>
-                ، و 
+                , {isRTL ? 'و' : 'and'} 
                 <motion.span 
                   className="text-pink-400 font-medium mx-2 cursor-pointer transition-all duration-300"
                   animate={{ 
@@ -538,9 +626,9 @@ export default function Footer() {
                     scale: 1.02,
                   }}
                 >
-                  سهل
+                  {t.easy}
                 </motion.span>
-                لتطوير مهاراتك.
+                {t.toDevelopSkills}
               </motion.p>
             </motion.div>
           </motion.div>
@@ -561,7 +649,7 @@ export default function Footer() {
               <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center mr-4">
                 <Share2 className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-white">تابعنا على منصات التواصل</h3>
+              <h3 className="text-2xl font-bold text-white">{t.followUs}</h3>
             </motion.div>
             
             <motion.div 
@@ -629,7 +717,7 @@ export default function Footer() {
                 <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mr-3">
                   <Play className="w-5 h-5 text-blue-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white">المحتوى</h3>
+                <h3 className="text-xl font-bold text-white">{t.content}</h3>
               </motion.div>
               <ul className="space-y-3">
                 {contentLinks.map((link, index) => (
@@ -650,13 +738,13 @@ export default function Footer() {
                       <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-blue-400/50 transition-all duration-300"></div>
                       
                       {/* الأيقونة مع تأثير اللمعان */}
-                      <span className="ml-3 text-blue-400 transition-all duration-300 group-hover:scale-110 z-10">{link.icon}</span>
+                      <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-blue-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
                       
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
                       {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 z-10" />
+                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
                     </Link>
                   </motion.li>
                 ))}
@@ -679,7 +767,7 @@ export default function Footer() {
                 <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mr-3">
                   <Users className="w-5 h-5 text-purple-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white">تعرف علينا</h3>
+                <h3 className="text-xl font-bold text-white">{t.aboutUs}</h3>
               </motion.div>
               <ul className="space-y-3">
                 {aboutLinks.map((link, index) => (
@@ -700,13 +788,13 @@ export default function Footer() {
                       <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-purple-400/50 transition-all duration-300"></div>
                       
                       {/* الأيقونة مع تأثير اللمعان */}
-                      <span className="ml-3 text-purple-400 transition-all duration-300 group-hover:scale-110 z-10">{link.icon}</span>
+                      <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-purple-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
                       
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
                       {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 z-10" />
+                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
                     </Link>
                   </motion.li>
                 ))}
@@ -729,7 +817,7 @@ export default function Footer() {
                 <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center mr-3">
                   <MessageSquare className="w-5 h-5 text-green-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white">التواصل</h3>
+                <h3 className="text-xl font-bold text-white">{t.contact}</h3>
               </motion.div>
               <ul className="space-y-3">
                 {contactLinks.map((link, index) => (
@@ -750,13 +838,13 @@ export default function Footer() {
                       <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-green-400/50 transition-all duration-300"></div>
                       
                       {/* الأيقونة مع تأثير اللمعان */}
-                      <span className="ml-3 text-green-400 transition-all duration-300 group-hover:scale-110 z-10">{link.icon}</span>
+                      <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-green-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
                       
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
                       {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 z-10" />
+                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
                     </Link>
                   </motion.li>
                 ))}
@@ -779,7 +867,7 @@ export default function Footer() {
                 <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center mr-3">
                   <Shield className="w-5 h-5 text-pink-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white">السياسات</h3>
+                <h3 className="text-xl font-bold text-white">{t.policies}</h3>
               </motion.div>
               <ul className="space-y-3">
                 {policyLinks.map((link, index) => (
@@ -800,13 +888,13 @@ export default function Footer() {
                       <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-pink-400/50 transition-all duration-300"></div>
                       
                       {/* الأيقونة مع تأثير اللمعان */}
-                      <span className="ml-3 text-pink-400 transition-all duration-300 group-hover:scale-110 z-10">{link.icon}</span>
+                      <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-pink-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
                       
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
                       {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 z-10" />
+                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
                     </Link>
                   </motion.li>
                 ))}
@@ -826,8 +914,8 @@ export default function Footer() {
               className="group relative overflow-hidden inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-300 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-purple-700"
             >
               <span className="relative z-10 flex items-center">
-                <Zap className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:scale-110" />
-                العودة إلى الصفحة الرئيسية
+                <Zap className={`w-5 h-5 ${isRTL ? 'mr-2' : 'ml-2'} transition-transform duration-300 group-hover:scale-110`} />
+                {t.backToHome}
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="absolute inset-0 rounded-full border-2 border-transparent group-hover:border-white/30 transition-all duration-300"></div>
@@ -848,7 +936,7 @@ export default function Footer() {
               transition={{ delay: 4.6, duration: 0.8 }}
             >
               <Star className="w-4 h-4 mx-2 text-yellow-400" />
-              {year} فذلكه. جميع الحقوق محفوظة.
+              {year} {isRTL ? 'فذلكة' : 'fazlaka'}. {t.copyright}
               <Star className="w-4 h-4 mx-2 text-yellow-400" />
             </motion.p>
           </motion.div>

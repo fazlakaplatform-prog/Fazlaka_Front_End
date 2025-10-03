@@ -3,9 +3,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { fetchFromSanity, urlFor } from "@/lib/sanity";
+import { fetchFromSanity, urlFor, getLocalizedText } from "@/lib/sanity";
+import { useLanguage } from "@/components/LanguageProvider";
+import { 
+  FaCalendarAlt, 
+  FaVideo, 
+  FaNewspaper, 
+  FaSearch, 
+  FaTimes, 
+  FaTh, 
+  FaList,
+  FaStar
+} from "react-icons/fa";
 
-// تعريف الواجهات
+// تعريف الواجهات مع دعم اللغة
 interface Thumbnail {
   _type: "image";
   asset: {
@@ -18,14 +29,18 @@ interface Season {
   _id: string;
   _type: "season";
   title?: string;
+  titleEn?: string;
   name?: string;
+  nameEn?: string;
   slug?: {
     current: string;
     _type: "slug";
   };
   thumbnail?: Thumbnail;
   description?: string;
+  descriptionEn?: string;
   publishedAt?: string;
+  language?: 'ar' | 'en';
 }
 
 interface Episode {
@@ -35,6 +50,9 @@ interface Episode {
     _ref: string;
     _type: "reference";
   };
+  title?: string;
+  titleEn?: string;
+  language?: 'ar' | 'en';
 }
 
 interface Article {
@@ -44,6 +62,9 @@ interface Article {
     _ref: string;
     _type: "reference";
   };
+  title?: string;
+  titleEn?: string;
+  language?: 'ar' | 'en';
 }
 
 // Define the type for the URL builder object
@@ -51,6 +72,62 @@ interface ImageUrlBuilder {
   width(width: number): ImageUrlBuilder;
   url(): string;
 }
+
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جاري التحميل...",
+    error: "حدث خطأ في تحميل المواسم",
+    retry: "إعادة المحاولة",
+    seasons: "المواسم التعليمية",
+    journey: "رحلة",
+    learning: "التعلم",
+    description: "استعرض جميع مواسم البرامج التعليمية وتعرف على عدد الحلقات والمقالات في كل موسم",
+    search: "ابحث عن موسم...",
+    clearSearch: "مسح",
+    grid: "شبكي",
+    list: "قائمة",
+    episodes: "جميع الحلقات",
+    articles: "جميع المقالات",
+    searchResults: "نتائج البحث",
+    results: "نتيجة",
+    noResults: "لا توجد نتائج",
+    tryDifferent: "لم يتم العثور على أي مواسم تطابق بحثك. حاول استخدام كلمات مفتاحية مختلفة.",
+    noSeasons: "لا توجد مواسم حالياً",
+    noSeasonsDesc: "لم يتم إضافة أي مواسم بعد. يرجى التحقق لاحقاً.",
+    episodesCount: "حلقة",
+    articlesCount: "مقال",
+    viewDetails: "عرض التفاصيل",
+    publishedAt: "تاريخ النشر",
+    view: "عرض"
+  },
+  en: {
+    loading: "Loading...",
+    error: "Error loading seasons",
+    retry: "Retry",
+    seasons: "Educational Seasons",
+    journey: "Journey",
+    learning: "Learning",
+    description: "Browse all educational program seasons and discover the number of episodes and articles in each season",
+    search: "Search for a season...",
+    clearSearch: "Clear",
+    grid: "Grid",
+    list: "List",
+    episodes: "All Episodes",
+    articles: "All Articles",
+    searchResults: "Search Results",
+    results: "result",
+    noResults: "No results",
+    tryDifferent: "No seasons found matching your search. Try using different keywords.",
+    noSeasons: "No seasons available",
+    noSeasonsDesc: "No seasons have been added yet. Please check back later.",
+    episodesCount: "episode",
+    articlesCount: "article",
+    viewDetails: "View Details",
+    publishedAt: "Published Date",
+    view: "View"
+  }
+};
 
 function buildMediaUrl(thumbnail?: Thumbnail) {
   if (!thumbnail) return "/placeholder.png";
@@ -99,11 +176,12 @@ function normalizeForSearch(s?: string) {
 }
 
 export default function SeasonsPageClient() {
+  const { isRTL, language } = useLanguage();
+  const t = translations[language];
+  
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<Record<string, number>>({});
   const [articleCounts, setArticleCounts] = useState<Record<string, number>>({});
-  const [totalEpisodes, setTotalEpisodes] = useState(0);
-  const [totalArticles, setTotalArticles] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // UI states
@@ -114,8 +192,8 @@ export default function SeasonsPageClient() {
   
   // debounce search input (300ms)
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
   }, [searchTerm]);
   
   useEffect(() => {
@@ -123,34 +201,42 @@ export default function SeasonsPageClient() {
       try {
         setLoading(true);
         
-        // Fetch seasons from Sanity
-        const seasonsQuery = `*[_type == "season"] | order(publishedAt desc) {
+        // Fetch seasons from Sanity with language filter
+        const seasonsQuery = `*[_type == "season" && language == $language] | order(publishedAt desc) {
           _id,
           title,
+          titleEn,
           name,
+          nameEn,
           slug,
           thumbnail,
           description,
-          publishedAt
+          descriptionEn,
+          publishedAt,
+          language
         }`;
         
-        const seasonsData: Season[] = await fetchFromSanity(seasonsQuery);
+        const seasonsData: Season[] = await fetchFromSanity(seasonsQuery, { language });
         
-        // Fetch episodes from Sanity
-        const episodesQuery = `*[_type == "episode"] {
+        // Fetch episodes from Sanity with language filter
+        const episodesQuery = `*[_type == "episode" && language == $language] {
           _id,
+          title,
+          titleEn,
           season->{_id}
         }`;
         
-        const episodesData: Episode[] = await fetchFromSanity(episodesQuery);
+        const episodesData: Episode[] = await fetchFromSanity(episodesQuery, { language });
         
-        // Fetch articles from Sanity
-        const articlesQuery = `*[_type == "article"] {
+        // Fetch articles from Sanity with language filter
+        const articlesQuery = `*[_type == "article" && language == $language] {
           _id,
+          title,
+          titleEn,
           season->{_id}
         }`;
         
-        const articlesData: Article[] = await fetchFromSanity(articlesQuery);
+        const articlesData: Article[] = await fetchFromSanity(articlesQuery, { language });
         
         // Count episodes per season
         const counts: Record<string, number> = {};
@@ -172,15 +258,9 @@ export default function SeasonsPageClient() {
           }
         });
         
-        // Calculate total episodes and articles
-        const totalEpisodes = episodesData.length;
-        const totalArticles = articlesData.length;
-        
         setSeasons(seasonsData);
         setEpisodeCounts(counts);
         setArticleCounts(articleCounts);
-        setTotalEpisodes(totalEpisodes);
-        setTotalArticles(totalArticles);
         setError(null);
       } catch (err: unknown) {
         console.error(err);
@@ -188,19 +268,17 @@ export default function SeasonsPageClient() {
         setSeasons([]);
         setEpisodeCounts({});
         setArticleCounts({});
-        setTotalEpisodes(0);
-        setTotalArticles(0);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [language]);
   
   useEffect(() => {
     if (!loading) {
-      const t = setTimeout(() => setFadeIn(true), 40);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setFadeIn(true), 40);
+      return () => clearTimeout(timer);
     }
   }, [loading]);
   
@@ -209,21 +287,21 @@ export default function SeasonsPageClient() {
     const q = normalizeForSearch(debouncedSearch);
     if (!q) return seasons;
     return seasons.filter((s: Season) => {
-      const title = normalizeForSearch(s.title ?? s.name ?? "");
+      const title = normalizeForSearch(getLocalizedText(s.title, s.titleEn, language) ?? getLocalizedText(s.name, s.nameEn, language) ?? "");
       const slug = normalizeForSearch(s.slug?.current ?? "");
       const idStr = normalizeForSearch(s._id ?? "");
-      const description = normalizeForSearch(s.description ?? "");
+      const description = normalizeForSearch(getLocalizedText(s.description, s.descriptionEn, language) ?? "");
       return title.includes(q) || slug.includes(q) || idStr.includes(q) || description.includes(q);
     });
-  }, [seasons, debouncedSearch]);
+  }, [seasons, debouncedSearch, language]);
   
   const isSearching = debouncedSearch.trim() !== "";
   
-  // Format date for display
+  // Format date for display based on language
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG', { 
+    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
@@ -234,7 +312,7 @@ export default function SeasonsPageClient() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="text-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-gray-700 dark:text-gray-300 font-medium">جاري التحميل...</p>
+        <p className="text-gray-700 dark:text-gray-300 font-medium">{t.loading}</p>
       </div>
     </div>
   );
@@ -248,22 +326,22 @@ export default function SeasonsPageClient() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">حدث خطأ في تحميل المواسم</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t.error}</h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <button 
             onClick={() => window.location.reload()}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
           >
-            إعادة المحاولة
+            {t.retry}
           </button>
         </div>
       </div>
     );
   
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen overflow-x-hidden">
+    <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen overflow-x-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="container mx-auto px-4 py-8 sm:py-12 max-w-6xl">
-        {/* Hero Section - المحدث */}
+        {/* Hero Section */}
         <div className="relative mt-14 mb-12 sm:mb-16 overflow-hidden rounded-3xl">
           {/* الخلفية المتدرجة */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 dark:from-blue-900 dark:via-purple-900 dark:to-indigo-950"></div>
@@ -316,17 +394,15 @@ export default function SeasonsPageClient() {
             <div className="w-full text-center mb-8 md:mb-0">
               <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
                 <span className="text-white font-medium flex items-center text-sm sm:text-base">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-300 mr-2 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                  المواسم التعليمية
+                  <FaStar className="text-yellow-300 mr-2 animate-pulse" />
+                  {t.seasons}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-                رحلة <span className="text-yellow-300">التعلم</span> تبدأ من هنا
+                {t.journey} <span className="text-yellow-300">{t.learning}</span> {language === 'ar' ? 'تبدأ من هنا' : 'starts here'}
               </h1>
               <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-                استعرض جميع مواسم البرامج التعليمية وتعرف على عدد الحلقات والمقالات في كل موسم
+                {t.description}
               </p>
               
               {/* أيقونات المواد الدراسية في الأسفل */}
@@ -432,26 +508,22 @@ export default function SeasonsPageClient() {
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="ابحث عن موسم..."
+                  placeholder={t.search}
                   className="w-full py-3 sm:py-4 pr-12 sm:pr-14 pl-4 sm:pl-6 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-300"
-                  aria-label="ابحث عن موسم"
+                  aria-label={t.search}
                 />
                 <div className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 flex items-center">
                   {searchTerm ? (
                     <button 
                       onClick={() => { setSearchTerm(""); setDebouncedSearch(""); }} 
                       className="p-1.5 sm:p-2 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 transition-all duration-200"
-                      aria-label="مسح البحث"
+                      aria-label={t.clearSearch}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <FaTimes className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" />
                     </button>
                   ) : (
                     <div className="p-1.5 sm:p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
+                      <FaSearch className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
                     </div>
                   )}
                 </div>
@@ -460,19 +532,14 @@ export default function SeasonsPageClient() {
             
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <Link href="/episodes" className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl font-medium text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="hidden sm:inline">جميع الحلقات</span>
-                <span className="sm:hidden">حلقات</span>
+                <FaVideo className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">{t.episodes}</span>
+                <span className="sm:hidden">{language === 'ar' ? 'حلقات' : 'Episodes'}</span>
               </Link>
               <Link href="/articles" className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl font-medium text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-                <span className="hidden sm:inline">جميع المقالات</span>
-                <span className="sm:hidden">مقالات</span>
+                <FaNewspaper className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">{t.articles}</span>
+                <span className="sm:hidden">{language === 'ar' ? 'مقالات' : 'Articles'}</span>
               </Link>
               
               <div className="inline-flex rounded-xl bg-gray-100 dark:bg-gray-700 p-1 shadow-inner">
@@ -480,23 +547,19 @@ export default function SeasonsPageClient() {
                   onClick={() => setViewMode("grid")}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 ${viewMode === "grid" ? "bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"}`}
                   aria-pressed={viewMode === "grid"}
-                  title="عرض شبكي"
+                  title={t.grid}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 sm:h-5 sm:w-5 ${viewMode === "grid" ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zM14 3h7v7h-7V3zM3 14h7v7H3v-7zM14 14h7v7h-7v-7z" />
-                  </svg>
-                  <span className="hidden sm:inline">شبكي</span>
+                  <FaTh className={`h-4 w-4 sm:h-5 sm:w-5 ${viewMode === "grid" ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} />
+                  <span className="hidden sm:inline">{t.grid}</span>
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 ${viewMode === "list" ? "bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"}`}
                   aria-pressed={viewMode === "list"}
-                  title="عرض قائمة"
+                  title={t.list}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 sm:h-5 sm:w-5 ${viewMode === "list" ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                  <span className="hidden sm:inline">قائمة</span>
+                  <FaList className={`h-4 w-4 sm:h-5 sm:w-5 ${viewMode === "list" ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} />
+                  <span className="hidden sm:inline">{t.list}</span>
                 </button>
               </div>
             </div>
@@ -508,11 +571,11 @@ export default function SeasonsPageClient() {
           <div className="mb-10 sm:mb-12">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
               <div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">نتائج البحث عن</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t.searchResults}</div>
                 <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                   <span>«{debouncedSearch}»</span>
                   <span className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full">
-                    {filtered.length} نتيجة
+                    {filtered.length} {t.results}
                   </span>
                 </div>
               </div>
@@ -521,13 +584,13 @@ export default function SeasonsPageClient() {
                   onClick={() => { setSearchTerm(""); setDebouncedSearch(""); }}
                   className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300 font-medium text-sm"
                 >
-                  مسح البحث
+                  {t.clearSearch}
                 </button>
                 <button
                   onClick={() => { setSearchTerm(""); setDebouncedSearch(""); }}
                   className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-all duration-300 font-medium shadow-md hover:shadow-lg text-sm"
                 >
-                  عرض الكل
+                  {language === 'ar' ? 'عرض الكل' : 'View All'}
                 </button>
               </div>
             </div>
@@ -535,18 +598,16 @@ export default function SeasonsPageClient() {
             {filtered.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 sm:p-12 text-center border border-gray-200 dark:border-gray-700">
                 <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 dark:bg-gray-700 mb-4 sm:mb-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <FaSearch className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
                 </div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">لا توجد نتائج</h3>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">لم يتم العثور على أي مواسم تطابق بحثك. حاول استخدام كلمات مفتاحية مختلفة.</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">{t.noResults}</h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">{t.tryDifferent}</p>
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filtered.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
-                  const title = season.title ?? season.name ?? "موسم";
+                  const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
                   const thumbnailUrl = buildMediaUrl(season.thumbnail);
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
@@ -569,10 +630,10 @@ export default function SeasonsPageClient() {
                           <div className="absolute bottom-3 left-3 right-3">
                             <div className="flex gap-1.5">
                               <div className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                {episodeCount} حلقة
+                                {episodeCount} {t.episodesCount}
                               </div>
                               <div className="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                {articleCount} مقال
+                                {articleCount} {t.articlesCount}
                               </div>
                             </div>
                           </div>
@@ -583,18 +644,16 @@ export default function SeasonsPageClient() {
                           </h2>
                           {season.description && (
                             <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 sm:mb-4 line-clamp-2">
-                              {season.description}
+                              {getLocalizedText(season.description, season.descriptionEn, language)}
                             </p>
                           )}
                           <div className="mt-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                             <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
+                              <FaCalendarAlt className="h-3 w-3 sm:h-4 sm:w-4" />
                               {publishDate}
                             </div>
                             <div className="text-blue-600 dark:text-blue-400 font-medium text-xs sm:text-sm flex items-center gap-1 group-hover:gap-2 transition-all duration-300">
-                              عرض التفاصيل
+                              {t.viewDetails}
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -611,7 +670,7 @@ export default function SeasonsPageClient() {
               <div className="space-y-4">
                 {filtered.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
-                  const title = season.title ?? season.name ?? "موسم";
+                  const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
                   const thumbnailUrl = buildMediaUrl(season.thumbnail);
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
@@ -652,19 +711,17 @@ export default function SeasonsPageClient() {
                             
                             {season.description && (
                               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 line-clamp-1">
-                                {season.description}
+                                {getLocalizedText(season.description, season.descriptionEn, language)}
                               </p>
                             )}
                             
                             <div className="flex items-center justify-between">
                               <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
+                                <FaCalendarAlt className="h-3 w-3" />
                                 {publishDate}
                               </div>
                               <div className="text-blue-600 dark:text-blue-400 font-medium text-xs flex items-center gap-1 group-hover:gap-2 transition-all duration-300">
-                                عرض
+                                {t.view}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -692,14 +749,14 @@ export default function SeasonsPageClient() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">لا توجد مواسم حالياً</h3>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">لم يتم إضافة أي مواسم بعد. يرجى التحقق لاحقاً.</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">{t.noSeasons}</h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">{t.noSeasonsDesc}</p>
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {seasons.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
-                  const title = season.title ?? season.name ?? "موسم";
+                  const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
                   const thumbnailUrl = buildMediaUrl(season.thumbnail);
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
@@ -722,10 +779,10 @@ export default function SeasonsPageClient() {
                           <div className="absolute bottom-3 left-3 right-3">
                             <div className="flex gap-1.5">
                               <div className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                {episodeCount} حلقة
+                                {episodeCount} {t.episodesCount}
                               </div>
                               <div className="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                {articleCount} مقال
+                                {articleCount} {t.articlesCount}
                               </div>
                             </div>
                           </div>
@@ -736,18 +793,16 @@ export default function SeasonsPageClient() {
                           </h2>
                           {season.description && (
                             <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 sm:mb-4 line-clamp-2">
-                              {season.description}
+                              {getLocalizedText(season.description, season.descriptionEn, language)}
                             </p>
                           )}
                           <div className="mt-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
                             <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
+                              <FaCalendarAlt className="h-3 w-3 sm:h-4 sm:w-4" />
                               {publishDate}
                             </div>
                             <div className="text-blue-600 dark:text-blue-400 font-medium text-xs sm:text-sm flex items-center gap-1 group-hover:gap-2 transition-all duration-300">
-                              عرض التفاصيل
+                              {t.viewDetails}
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -764,7 +819,7 @@ export default function SeasonsPageClient() {
               <div className="space-y-4">
                 {seasons.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
-                  const title = season.title ?? season.name ?? "موسم";
+                  const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
                   const thumbnailUrl = buildMediaUrl(season.thumbnail);
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
@@ -805,19 +860,17 @@ export default function SeasonsPageClient() {
                             
                             {season.description && (
                               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 line-clamp-1">
-                                {season.description}
+                                {getLocalizedText(season.description, season.descriptionEn, language)}
                               </p>
                             )}
                             
                             <div className="flex items-center justify-between">
                               <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
+                                <FaCalendarAlt className="h-3 w-3" />
                                 {publishDate}
                               </div>
                               <div className="text-blue-600 dark:text-blue-400 font-medium text-xs flex items-center gap-1 group-hover:gap-2 transition-all duration-300">
-                                عرض
+                                {t.view}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />

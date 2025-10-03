@@ -1,30 +1,33 @@
+// app/about/page.tsx
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { 
   FaVideo, FaListUl, FaUsers, 
   FaYoutube, FaInstagram, FaFacebookF, FaTiktok,
-  FaCalendarAlt, FaNewspaper, FaHeart,
+  FaCalendarAlt, FaHeart,
   FaStar, FaAward, FaFire, 
   FaLightbulb, FaRocket, FaHandshake, FaGem,
   FaArrowRight, FaCheck, FaQuoteRight,
   FaPlay, FaBook, FaChartLine,
-  FaGraduationCap, FaChalkboardTeacher, FaMedal, FaGlobe,
-  FaEnvelope, FaPaperPlane, FaLinkedin, FaTwitter,
-  FaUser, FaBriefcase, FaQuoteLeft, FaFlask, FaAtom, FaLandmark, 
+  FaChalkboardTeacher, FaMedal, FaGlobe,
+  FaEnvelope, FaPaperPlane, FaTwitter, // Changed from FaX to FaTwitter
+  FaFlask, FaAtom, FaLandmark, 
   FaBalanceScale, FaFileAlt
-} from "react-icons/fa";
-import { FaXTwitter } from "react-icons/fa6";
-import { urlFor, fetchFromSanity } from '@/lib/sanity';
+} from 'react-icons/fa';
+import { urlFor, fetchFromSanity, fetchTeamMembers, getLocalizedText } from '@/lib/sanity';
 
 // Interfaces
 interface Member {
-  _id: string;
+  _id?: string; // تعديل: جعل _id اختيارية
   name: string;
+  nameEn?: string;
   role?: string;
+  roleEn?: string;
   bio?: string;
+  bioEn?: string;
   slug: {
     current: string;
   };
@@ -36,6 +39,7 @@ interface Member {
     };
   };
   skills?: string[];
+  language: 'ar' | 'en';
 }
 
 // Social links
@@ -44,30 +48,15 @@ const socialLinks = [
   { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انستجرام" },
   { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيس بوك" },
   { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: "تيك توك" },
-  { href: "https://x.com/FazlakaPlatform", icon: <FaXTwitter />, label: "اكس" },
+  { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: "اكس" }, // Changed from FaX to FaTwitter
 ];
 
 // APIs - تعريف جميع الدوال هنا
-async function getMembers(): Promise<Member[]> {
-  const query = `*[_type == "teamMember"]{
-    _id,
-    name,
-    role,
-    bio,
-    slug,
-    image{
-      _type,
-      asset{
-        _ref,
-        _type
-      }
-    },
-    skills
-  }`;
-  
+async function getMembers(language: string = 'ar'): Promise<Member[]> {
   try {
-    const members = await fetchFromSanity<Member[]>(query);
-    return members || [];
+    const members = await fetchTeamMembers(language);
+    // تصفية الأعضاء الذين لديهم _id فقط
+    return members.filter(member => member._id !== undefined) || [];
   } catch (error) {
     console.error("Error fetching team members:", error);
     return [];
@@ -87,180 +76,223 @@ async function getSubscribers(): Promise<number | null> {
   } catch { return null; }
 }
 
-async function getEpisodesCount(): Promise<number> {
-  try {
-    const query = `count(*[_type == "episode"])`;
-    const count = await fetchFromSanity<number>(query);
-    return count || 0;
-  } catch { return 0; }
+// مكون قسم الإحصائيات - مع إصلاح مشكلة جلب البيانات
+interface StatisticsSectionProps {
+  isRTL: boolean;
 }
 
-async function getPlaylistsCount(): Promise<number> {
-  try {
-    const query = `count(*[_type == "playlist"])`;
-    const count = await fetchFromSanity<number>(query);
-    return count || 0;
-  } catch { return 0; }
-}
+const StatisticsSection = ({ isRTL }: StatisticsSectionProps) => {
+  const [stats, setStats] = useState({
+    articles: 0,
+    episodes: 0,
+    playlists: 0,
+    seasons: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-async function getSeasonsCount(): Promise<number> {
-  try {
-    const query = `count(*[_type == "season"])`;
-    const count = await fetchFromSanity<number>(query);
-    return count || 0;
-  } catch { return 0; }
-}
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // استخدام نفس الطريقة المستخدمة في الصفحة الرئيسية
+        const [articlesCount, episodesCount, playlistsCount, seasonsCount] = await Promise.all([
+          fetchFromSanity<number>(`count(*[_type == "article"])`),
+          fetchFromSanity<number>(`count(*[_type == "episode"])`),
+          fetchFromSanity<number>(`count(*[_type == "playlist"])`),
+          fetchFromSanity<number>(`count(*[_type == "season"])`)
+        ]);
+        
+        setStats({
+          articles: articlesCount || 0,
+          episodes: episodesCount || 0,
+          playlists: playlistsCount || 0,
+          seasons: seasonsCount || 0
+        });
+      } catch (error) {
+        console.error("Error fetching statistics:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-async function getArticlesCount(): Promise<number> {
-  try {
-    const query = `count(*[_type == "article"])`;
-    const count = await fetchFromSanity<number>(query);
-    return count || 0;
-  } catch { return 0; }
-}
+    fetchStats();
+  }, [isRTL]);
 
-// Components
-interface StatCardProps {
-  icon: React.ReactNode;
-  title: string;
-  value: string | number;
-  bgColor: string;
-  iconColor: string;
-  darkBgColor: string;
-  darkIconColor: string;
-  darkShadowColor: string;
-}
-
-const StatCard = ({ icon, title, value, bgColor, iconColor, darkBgColor, darkIconColor, darkShadowColor }: StatCardProps) => (
-  <div className={`${bgColor} ${darkBgColor} rounded-xl p-4 sm:p-6 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 w-full max-w-md mx-auto border border-gray-100 dark:border-gray-700 dark:shadow-${darkShadowColor}/30 hover:dark:shadow-${darkShadowColor}/50 relative overflow-hidden group origin-center`}>
-    {/* Shimmer effect - تم تعديل سرعة الأنيميشن */}
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-    
-    <div className="relative z-10 flex flex-col items-center justify-center">
-      <div className={`text-3xl sm:text-4xl mb-3 sm:mb-4 ${iconColor} ${darkIconColor} transition-transform duration-700 group-hover:scale-110`}>{icon}</div>
-      <p className="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-700 group-hover:text-gray-900 dark:group-hover:text-white">{title}</p>
-      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">{value}</p>
-    </div>
-  </div>
-);
-
-// مكون بطاقة عضو الفريق المحدث
-interface MemberCardProps {
-  member: Member;
-  index: number;
-}
-
-const MemberCard = ({ member, index }: MemberCardProps) => {
-  const imageUrl = member.image && member.image.asset && member.image.asset._ref
-    ? urlFor(member.image)
-    : "/placeholder.png";
+  // الترجمات
+  const translations = {
+    ar: {
+      title: "إحصائيات <span class='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600'>فذلكة</span>",
+      subtitle: "نحن فخورون بالمحتوى الذي نقدمه لكم",
+      articles: "مقال",
+      episodes: "حلقة",
+      playlists: "قائمة تشغيل",
+      seasons: "موسم",
+      total: "إجمالي المحتوى"
+    },
+    en: {
+      title: "Fazlaka <span class='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600'>Statistics</span>",
+      subtitle: "We are proud of the content we provide to you",
+      articles: "Article",
+      episodes: "Episode",
+      playlists: "Playlist",
+      seasons: "Season",
+      total: "Total Content"
+    }
+  };
   
+  const t = translations[isRTL ? 'ar' : 'en'];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  const totalContent = stats.articles + stats.episodes + stats.playlists + stats.seasons;
+
   return (
-    <div 
-      className="group relative bg-gradient-to-br from-white via-gray-50 to-blue-50 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900/30 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/20 dark:shadow-blue-500/10 transition-all duration-1000 hover:shadow-3xl hover:shadow-blue-500/30 dark:hover:shadow-blue-500/20 transform hover:-translate-y-4 w-full mx-auto border border-gray-100 dark:border-gray-700 origin-center"
-      style={{ animationDelay: `${index * 0.1}s` }}
-    >
-      {/* خلفية متحركة متدرجة */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-100/20 via-purple-100/20 to-pink-100/20 dark:from-blue-900/30 dark:via-purple-900/30 dark:to-pink-900/30 opacity-70 transition-opacity duration-1000 group-hover:opacity-90"></div>
+    <section className="mb-12 sm:mb-16">
+      <div className="text-center mb-8 sm:mb-12">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4" dangerouslySetInnerHTML={{ __html: t.title }}></h2>
+        <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm sm:text-base">
+          {t.subtitle}
+        </p>
+        <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full mt-4"></div>
+      </div>
       
-      {/* دوائر زخرفية متحركة */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full opacity-20 transform rotate-12 animate-pulse-slow transition-transform duration-1000 group-hover:scale-125"></div>
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 transform -rotate-12 animate-pulse-slow transition-transform duration-1000 group-hover:scale-125" style={{ animationDelay: '0.5s' }}></div>
-      
-      {/* تأثير لمعان */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -translate-x-full transition-transform duration-1500 group-hover:translate-x-full"></div>
-      
-      <div className="relative z-10 p-6 sm:p-8">
-        {/* قسم الصورة */}
-        <div className="flex justify-center mb-6 sm:mb-8">
-          <div className="relative">
-            {/* الإطار الخارجي المتحرك */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-purple-600 p-2 animate-border-rotate transition-all duration-1000 group-hover:animate-pulse shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20"></div>
-            
-            {/* الصورة */}
-            <div className="relative bg-white dark:bg-gray-700 p-2 rounded-full shadow-lg shadow-blue-500/20 dark:shadow-blue-500/10">
-              <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-white dark:border-gray-600 transition-all duration-1000 group-hover:border-purple-400 shadow-lg group-hover:shadow-xl">
-                <Image 
-                  src={imageUrl}
-                  alt={member.name}
-                  width={160}
-                  height={160}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto">
+        {/* بطاقة المقالات */}
+        <div className="group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-700 dark:to-blue-800 rounded-2xl shadow-lg transform rotate-1 group-hover:rotate-2 transition-all duration-300"></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg border border-blue-100 dark:border-blue-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
+            <div className="flex flex-col items-center justify-center">
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full mb-3">
+                <FaFileAlt className="text-blue-600 dark:text-blue-400 text-2xl" />
               </div>
-              
-              {/* تأثير لمعان على الصورة */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/30 to-transparent opacity-0 transition-opacity duration-1000 group-hover:opacity-100"></div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                {stats.articles}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                {stats.articles === 1 ? t.articles : t.articles + (isRTL ? 'ات' : 's')}
+              </div>
             </div>
           </div>
         </div>
         
-        {/* معلومات العضو */}
-        <div className="text-center mb-6 sm:mb-8">
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 transition-all duration-1000 group-hover:text-purple-600 dark:group-hover:text-purple-400 drop-shadow-md">
-            {member.name}
-          </h3>
-          
-          {member.role && (
-            <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base px-4 sm:px-6 py-1 sm:py-2 bg-gradient-to-r from-gray-100 to-blue-100 dark:from-gray-700 dark:to-blue-900/50 rounded-full inline-block transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-purple-100 group-hover:to-blue-100 dark:group-hover:from-purple-900/50 dark:group-hover:to-blue-900/50 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10">
-              {member.role}
-            </p>
-          )}
+        {/* بطاقة الحلقات */}
+        <div className="group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-700 dark:to-purple-800 rounded-2xl shadow-lg transform -rotate-1 group-hover:-rotate-2 transition-all duration-300"></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg border border-purple-100 dark:border-purple-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
+            <div className="flex flex-col items-center justify-center">
+              <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-full mb-3">
+                <FaVideo className="text-purple-600 dark:text-purple-400 text-2xl" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                {stats.episodes}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                {stats.episodes === 1 ? t.episodes : t.episodes + (isRTL ? 'ات' : 's')}
+              </div>
+            </div>
+          </div>
         </div>
         
-        {/* المهارات */}
-        {member.skills && member.skills.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
-            {member.skills.slice(0, 3).map((skill, idx) => (
-              <span 
-                key={idx} 
-                className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 text-blue-800 dark:text-blue-200 rounded-full transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-blue-200 group-hover:to-indigo-200 dark:group-hover:from-blue-800 dark:group-hover:to-indigo-800 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10"
-              >
-                {skill}
-              </span>
-            ))}
-            {member.skills.length > 3 && (
-              <span className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 rounded-full shadow-md shadow-gray-500/20 dark:shadow-gray-500/10">
-                +{member.skills.length - 3}
-              </span>
-            )}
+        {/* بطاقة قوائم التشغيل */}
+        <div className="group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-green-600 dark:from-green-700 dark:to-green-800 rounded-2xl shadow-lg transform rotate-1 group-hover:rotate-2 transition-all duration-300"></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg border border-green-100 dark:border-green-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
+            <div className="flex flex-col items-center justify-center">
+              <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full mb-3">
+                <FaListUl className="text-green-600 dark:text-green-400 text-2xl" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                {stats.playlists}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                {stats.playlists === 1 ? t.playlists : t.playlists + (isRTL ? '' : 's')}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
         
-        {/* زر الملف الشخصي */}
-        <div className="flex justify-center">
-          <Link 
-            href={`/team/${member.slug.current}`}
-            className="relative inline-flex items-center justify-center overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 rounded-full transition-all duration-1000 transform hover:scale-105 shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/40 dark:hover:shadow-purple-500/30 text-sm sm:text-base"
-          >
-            <span className="relative z-10 flex items-center">
-              عرض الملف الشخصي
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 transition-transform duration-1000 group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </span>
-            
-            {/* تأثير الموجة على الزر */}
-            <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-purple-700 to-blue-700 opacity-0 transition-opacity duration-1000 rounded-full transform scale-0 group-hover:scale-100"></span>
-          </Link>
+        {/* بطاقة المواسم */}
+        <div className="group relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-700 dark:to-orange-800 rounded-2xl shadow-lg transform -rotate-1 group-hover:-rotate-2 transition-all duration-300"></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg border border-orange-100 dark:border-orange-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
+            <div className="flex flex-col items-center justify-center">
+              <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-full mb-3">
+                <FaCalendarAlt className="text-orange-600 dark:text-orange-400 text-2xl" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                {stats.seasons}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                {stats.seasons === 1 ? t.seasons : t.seasons + (isRTL ? '' : 's')}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+      
+      {/* بطاقة الإجمالي */}
+      <div className="mt-8 sm:mt-12 max-w-md mx-auto">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-700 dark:to-purple-800 rounded-2xl shadow-lg transform rotate-1"></div>
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-indigo-100 dark:border-indigo-800">
+            <div className="flex flex-col items-center justify-center">
+              <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-full mb-4">
+                <FaChartLine className="text-indigo-600 dark:text-indigo-400 text-3xl" />
+              </div>
+              <div className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                {totalContent}
+              </div>
+              <div className="text-base text-gray-600 dark:text-gray-400 text-center font-medium">
+                {t.total}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 };
 
-// مكون جديد لبطاقة المشتركين المميزة مع تحسينات كبيرة
+// مكون بطاقة المشتركين المميزة مع تحسينات كبيرة
 interface YouTubeSubscribersCardProps {
   subscribers: number;
+  isRTL: boolean;
 }
 
-const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) => {
+const YouTubeSubscribersCard = ({ subscribers, isRTL }: YouTubeSubscribersCardProps) => {
   // تنسيق الرقم بالإنجليزية مع فواصل
   const formattedSubscribers = subscribers.toLocaleString('en-US');
   
   // حساب النسبة المئوية نحو 100 ألف مشترك - لا تظهر صفر أبداً
   const target = 100000;
   const percentage = subscribers === 0 ? 0 : Math.max(1, Math.min(100, Math.round((subscribers / target) * 100)));
+  
+  // الترجمات
+  const translations = {
+    ar: {
+      title: "مشتركين يوتيوب",
+      subtitle: "قناة متنامية",
+      thanks: "شكراً لكم على دعمكم المستمر!",
+      progress: "التقدم",
+      towards: "نحو",
+      subscriber: "مشترك"
+    },
+    en: {
+      title: "YouTube Subscribers",
+      subtitle: "Growing Channel",
+      thanks: "Thank you for your continued support!",
+      progress: "Progress",
+      towards: "Towards",
+      subscriber: "subscribers"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
   
   return (
     <div className="relative w-full max-w-4xl mx-auto mb-12 sm:mb-16">
@@ -295,18 +327,18 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
                   <FaPlay className="text-white text-xs" />
                 </div>
               </div>
-              <div className="mr-3 sm:mr-5">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white drop-shadow-lg mb-2">مشتركين يوتيوب</h2>
+              <div className={`${isRTL ? 'mr-3 sm:mr-5' : 'ml-3 sm:ml-5'}`}>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white drop-shadow-lg mb-2">{t.title}</h2>
                 <div className="flex items-center">
                   <FaFire className="text-yellow-300 mr-2 animate-bounce-slow" />
-                  <span className="text-yellow-200 font-medium text-sm sm:text-base">قناة متنامية</span>
+                  <span className="text-yellow-200 font-medium text-sm sm:text-base">{t.subtitle}</span>
                 </div>
               </div>
             </div>
             
             <div className="flex items-center mt-4 sm:mt-6">
               <FaAward className="text-yellow-300 text-base sm:text-lg mr-2 sm:mr-3 animate-pulse" />
-              <span className="text-white text-opacity-90 text-sm sm:text-base">شكراً لكم على دعمكم المستمر!</span>
+              <span className="text-white text-opacity-90 text-sm sm:text-base">{t.thanks}</span>
             </div>
           </div>
           
@@ -323,8 +355,8 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
                 </div>
                 <div className="mt-1 sm:mt-2 text-center">
                   <div className="inline-flex items-center bg-yellow-500 text-red-900 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold animate-bounce">
-                    <FaHeart className="mr-1" />
-                    <span>مشترك</span>
+                    <FaHeart className={`${isRTL ? 'ml-1' : 'mr-1'}`} />
+                    <span>{t.subscriber}</span>
                   </div>
                 </div>
               </div>
@@ -337,7 +369,7 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
             {/* شريط التقدم مع النسبة المئوية - مع تحسينات */}
             <div className="w-full max-w-xs">
               <div className="flex justify-between text-white text-opacity-80 text-xs sm:text-sm mb-1">
-                <span>التقدم</span>
+                <span>{t.progress}</span>
                 <span className="font-bold">{percentage}%</span>
               </div>
               <div className="bg-black bg-opacity-20 rounded-full h-3 sm:h-4 overflow-hidden shadow-inner">
@@ -348,7 +380,9 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
                   }}
                 ></div>
               </div>
-              <div className="text-white text-opacity-80 text-xs sm:text-sm mt-1 sm:mt-2">نحو {target.toLocaleString('en-US')} مشترك</div>
+              <div className="text-white text-opacity-80 text-xs sm:text-sm mt-1 sm:mt-2">
+                {t.towards} {target.toLocaleString('en-US')} {t.subscriber}
+              </div>
             </div>
           </div>
         </div>
@@ -369,7 +403,22 @@ const YouTubeSubscribersCard = ({ subscribers }: YouTubeSubscribersCardProps) =>
 };
 
 // مكون الهيرو الجديد
-const HeroSection = () => {
+const HeroSection = ({ isRTL }: { isRTL: boolean }) => {
+  const translations = {
+    ar: {
+      title: "رحلة <span class='text-yellow-300'>التعلم</span> تبدأ من هنا",
+      subtitle: "نقدم محتوى تعليمي مبتكر وعالي الجودة يساعدك على تطوير مهاراتك وتحقيق أهدافك التعليمية والمهنية.",
+      tagline: "العلم في قصة"
+    },
+    en: {
+      title: "Your <span class='text-yellow-300'>Learning</span> Journey Starts Here",
+      subtitle: "We provide innovative and high-quality educational content that helps you develop your skills and achieve your educational and professional goals.",
+      tagline: "Science in a Story"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
   return (
     <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
       {/* الخلفية المتدرجة */}
@@ -412,14 +461,12 @@ const HeroSection = () => {
           <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
             <span className="text-white font-medium flex items-center text-sm sm:text-base">
               <FaStar className="text-yellow-300 mr-2 animate-pulse" />
-              العلم في قصة
+              {t.tagline}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-            رحلة <span className="text-yellow-300">التعلم</span> تبدأ من هنا
-          </h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight" dangerouslySetInnerHTML={{ __html: t.title }}></h1>
           <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-            نقدم محتوى تعليمي مبتكر وعالي الجودة يساعدك على تطوير مهاراتك وتحقيق أهدافك التعليمية والمهنية.
+            {t.subtitle}
           </p>
           
           {/* أيقونات المواد الدراسية في الأسفل */}
@@ -495,7 +542,24 @@ const HeroSection = () => {
 };
 
 // مكون قسم "هل لديك استفسار" المحسن بشكل أكبر - بدون النقاط الثلاث
-const ContactSection = () => {
+const ContactSection = ({ isRTL }: { isRTL: boolean }) => {
+  const translations = {
+    ar: {
+      title: "هل لديك أي <span class='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600'>استفسار</span>؟",
+      subtitle: "نحن هنا لمساعدتك والإجابة على جميع استفساراتك. لا تتردد في التواصل معنا، فريقنا الدعم متاح دائماً لمساعدتك في أي وقت.",
+      contactUs: "تواصل معنا",
+      faq: "الأسئلة الشائعة"
+    },
+    en: {
+      title: "Do you have any <span class='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600'>questions</span>?",
+      subtitle: "We are here to help you and answer all your inquiries. Do not hesitate to contact us, our support team is always available to help you at any time.",
+      contactUs: "Contact Us",
+      faq: "FAQ"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
   return (
     <div className="text-center mt-12 mb-12 sm:mt-16 sm:mb-16">
       <div className="max-w-4xl mx-auto relative">
@@ -538,11 +602,9 @@ const ContactSection = () => {
               </div>
             </div>
             
-            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
-              هل لديك أي <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">استفسار</span>؟
-            </h3>
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4" dangerouslySetInnerHTML={{ __html: t.title }}></h3>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-5 sm:mb-7 max-w-2xl mx-auto">
-              نحن هنا لمساعدتك والإجابة على جميع استفساراتك. لا تتردد في التواصل معنا، فريقنا الدعم متاح دائماً لمساعدتك في أي وقت.
+              {t.subtitle}
             </p>
             
             {/* الأزرار المحسنة */}
@@ -553,7 +615,7 @@ const ContactSection = () => {
               >
                 <span className="relative z-10 flex items-center">
                   <FaPaperPlane className="ml-2 sm:ml-3 text-base sm:text-lg transition-transform duration-700 group-hover:translate-x-1" />
-                  تواصل معنا
+                  {t.contactUs}
                 </span>
                 {/* تأثير الموجة على الزر */}
                 <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-purple-600 to-blue-700 opacity-0 transition-opacity duration-700 rounded-full transform scale-0 group-hover:scale-100"></span>
@@ -565,7 +627,7 @@ const ContactSection = () => {
                 style={{ animationDelay: '0.2s' }}
               >
                 <span className="relative z-10 flex items-center">
-                  الأسئلة الشائعة
+                  {t.faq}
                   <FaArrowRight className="mr-2 sm:mr-3 text-base sm:text-lg transition-transform duration-700 group-hover:translate-x-1" />
                 </span>
                 {/* تأثير الموجة على الزر */}
@@ -653,34 +715,150 @@ const SocialMediaSection = () => {
   );
 };
 
+// مكون بطاقة عضو الفريق المحدث
+interface MemberCardProps {
+  member: Member;
+  index: number;
+  isRTL: boolean;
+}
+
+const MemberCard = ({ member, index, isRTL }: MemberCardProps) => {
+  const imageUrl = member.image && member.image.asset && member.image.asset._ref
+    ? urlFor(member.image)
+    : "/placeholder.png";
+  
+  const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
+  const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');
+  
+  return (
+    <div 
+      className="group relative bg-gradient-to-br from-white via-gray-50 to-blue-50 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900/30 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/20 dark:shadow-blue-500/10 transition-all duration-1000 hover:shadow-3xl hover:shadow-blue-500/30 dark:hover:shadow-blue-500/20 transform hover:-translate-y-4 w-full mx-auto border border-gray-100 dark:border-gray-700 origin-center"
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
+      {/* خلفية متحركة متدرجة */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-100/20 via-purple-100/20 to-pink-100/20 dark:from-blue-900/30 dark:via-purple-900/30 dark:to-pink-900/30 opacity-70 transition-opacity duration-1000 group-hover:opacity-90"></div>
+      
+      {/* دوائر زخرفية متحركة */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full opacity-20 transform rotate-12 animate-pulse-slow transition-transform duration-1000 group-hover:scale-125"></div>
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 transform -rotate-12 animate-pulse-slow transition-transform duration-1000 group-hover:scale-125" style={{ animationDelay: '0.5s' }}></div>
+      
+      {/* تأثير لمعان */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -translate-x-full transition-transform duration-1500 group-hover:translate-x-full"></div>
+      
+      <div className="relative z-10 p-6 sm:p-8">
+        {/* قسم الصورة */}
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <div className="relative">
+            {/* الإطار الخارجي المتحرك */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-purple-600 p-2 animate-border-rotate transition-all duration-1000 group-hover:animate-pulse shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20"></div>
+            
+            {/* الصورة */}
+            <div className="relative bg-white dark:bg-gray-700 p-2 rounded-full shadow-lg shadow-blue-500/20 dark:shadow-blue-500/10">
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-white dark:border-gray-600 transition-all duration-1000 group-hover:border-purple-400 shadow-lg group-hover:shadow-xl">
+                <Image 
+                  src={imageUrl}
+                  alt={name}
+                  width={160}
+                  height={160}
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                />
+              </div>
+              
+              {/* تأثير لمعان على الصورة */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/30 to-transparent opacity-0 transition-opacity duration-1000 group-hover:opacity-100"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* معلومات العضو */}
+        <div className="text-center mb-6 sm:mb-8">
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 transition-all duration-1000 group-hover:text-purple-600 dark:group-hover:text-purple-400 drop-shadow-md">
+            {name}
+          </h3>
+          
+          {role && (
+            <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base px-4 sm:px-6 py-1 sm:py-2 bg-gradient-to-r from-gray-100 to-blue-100 dark:from-gray-700 dark:to-blue-900/50 rounded-full inline-block transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-purple-100 group-hover:to-blue-100 dark:group-hover:from-purple-900/50 dark:group-hover:to-blue-900/50 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10">
+              {role}
+            </p>
+          )}
+        </div>
+        
+        {/* المهارات */}
+        {member.skills && member.skills.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+            {member.skills.slice(0, 3).map((skill, idx) => (
+              <span 
+                key={idx} 
+                className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 text-blue-800 dark:text-blue-200 rounded-full transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-blue-200 group-hover:to-indigo-200 dark:group-hover:from-blue-800 dark:group-hover:to-indigo-800 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10"
+              >
+                {skill}
+              </span>
+            ))}
+            {member.skills.length > 3 && (
+              <span className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 rounded-full shadow-md shadow-gray-500/20 dark:shadow-gray-500/10">
+                +{member.skills.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+        
+        {/* زر الملف الشخصي */}
+        <div className="flex justify-center">
+          <Link 
+            href={`/team/${member.slug.current}`}
+            className="relative inline-flex items-center justify-center overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 rounded-full transition-all duration-1000 transform hover:scale-105 shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/40 dark:hover:shadow-purple-500/30 text-sm sm:text-base"
+          >
+            <span className="relative z-10 flex items-center">
+              {isRTL ? 'عرض الملف الشخصي' : 'View Profile'}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 transition-transform duration-1000 group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </span>
+            
+            {/* تأثير الموجة على الزر */}
+            <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-purple-700 to-blue-700 opacity-0 transition-opacity duration-1000 rounded-full transform scale-0 group-hover:scale-100"></span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // مكون المحتوى الرئيسي
 function AboutContent() {
   const [members, setMembers] = useState<Member[]>([]);
   const [subscribers, setSubscribers] = useState<number | null>(null);
-  const [episodesCount, setEpisodesCount] = useState<number>(0);
-  const [playlistsCount, setPlaylistsCount] = useState<number>(0);
-  const [seasonsCount, setSeasonsCount] = useState<number>(0);
-  const [articlesCount, setArticlesCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [isRTL, setIsRTL] = useState(true);
+
+  useEffect(() => {
+    // التحقق من تفضيل اللغة المحفوظ في localStorage
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage !== null) {
+      setIsRTL(savedLanguage === 'ar');
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
+      const browserLang = navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage;
+      setIsRTL(browserLang.includes('ar'));
+    }
+    
+    // تطبيق اتجاه الصفحة بناءً على اللغة
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.documentElement.lang = isRTL ? 'ar' : 'en';
+  }, [isRTL]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [membersData, subscribersData, episodesData, playlistsData, seasonsData, articlesData] = await Promise.all([
-          getMembers(),
+        const language = isRTL ? 'ar' : 'en';
+        
+        const [membersData, subscribersData] = await Promise.all([
+          getMembers(language),
           getSubscribers(),
-          getEpisodesCount(),
-          getPlaylistsCount(),
-          getSeasonsCount(),
-          getArticlesCount(),
         ]);
         
         setMembers(membersData);
         setSubscribers(subscribersData);
-        setEpisodesCount(episodesData);
-        setPlaylistsCount(playlistsData);
-        setSeasonsCount(seasonsData);
-        setArticlesCount(articlesData);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -689,7 +867,7 @@ function AboutContent() {
     };
 
     fetchData();
-  }, []);
+  }, [isRTL]);
 
   if (loading) {
     return (
@@ -699,89 +877,92 @@ function AboutContent() {
     );
   }
 
+  // الترجمات
+  const translations = {
+    ar: {
+      philosophy: "منهجنا وفلسفتنا",
+      philosophyDesc: "نلتزم بأعلى معايير الجودة والابتكار في تقديم المحتوى التعليمي",
+      dedication: "التفاني للتعليم",
+      dedicationDesc: "نحن ملتزمون بتقديم محتوى تعليمي عالي الجودة يساعد المتعلمين على تحقيق أهدافهم وتطوير مهاراتهم بفعالية. نؤمن بأن التعليم هو المفتاح للتطور والتميز.",
+      innovation: "الابتكار والتطوير",
+      innovationDesc: "نحرص دائماً على البحث عن طرق جديدة لتحسين تجربة المستخدم وتقديم محتوى مبتكر يتماشى مع التطورات الحديثة في مجال التعليم.",
+      transparency: "الشفافية والموثوقية",
+      transparencyDesc: "نحن ملتزمون بالشفافية في جميع أعمالنا وتقديم معلومات موثوقة ودقيقة يمكن للمستخدمين الاعتماد عليها في رحلتهم التعليمية.",
+      visionMission: "الرؤية والرسالة",
+      vision: "الرؤية",
+      visionDesc: "أن نكون المنصة التعليمية الرائدة في العالم العربي، التي تقدم محتوى مبتكر وعالي الجودة يساهم في تطوير المجتمع وتمكين الأفراد من تحقيق إمكانياتهم الكاملة.",
+      mission: "الرسالة",
+      missionDesc: "توفير محتوى معرفي حديث وعملي يساعد على تطوير مهارات الأفراد وتمكينهم من تحقيق أهدافهم التعليمية والمهنية من خلال تجربة تعليمية شاملة وممتعة.",
+      coreValues: "قيمنا الأساسية",
+      cooperation: "التعاون",
+      cooperationDesc: "نعمل بروح الفريق الواحد لتحقيق نتائج أفضل وتقديم حلول مبتكرة تلبي احتياجات المستخدمين وتساهم في نجاحهم.",
+      creativity: "الإبداع",
+      creativityDesc: "نفكر دائماً خارج الصندوق لنبتكر حلول جديدة ومبتكرة تساهم في تطوير التعليم وتجعل عملية التعلم أكثر متعة وفائدة.",
+      excellence: "التميز",
+      excellenceDesc: "نسعى لتحقيق الجودة في كل ما نقدمه ونلتزم بأعلى معايير الأداء والمهنية لتقديم أفضل تجربة تعليمية لمستخدمينا.",
+      team: "فريقنا المميز",
+      teamDesc: "يلتزم فريقنا بتقديم محتوى تعليمي مبتكر وعالي الجودة يساعدك على تطوير مهاراتك وتحقيق أهدافك التعليمية والمهنية.",
+      viewAllTeam: "عرض جميع أعضاء الفريق",
+      noTeamData: "لا توجد بيانات عن أعضاء الفريق حالياً",
+      noTeamDataDesc: "سيتم تحديث هذا القسم قريباً",
+      coreValue: "قيمة أساسية"
+    },
+    en: {
+      philosophy: "Our Philosophy and Methodology",
+      philosophyDesc: "We are committed to the highest standards of quality and innovation in providing educational content",
+      dedication: "Dedication to Education",
+      dedicationDesc: "We are committed to providing high-quality educational content that helps learners achieve their goals and develop their skills effectively. We believe that education is the key to development and excellence.",
+      innovation: "Innovation and Development",
+      innovationDesc: "We always seek new ways to improve the user experience and provide innovative content that keeps pace with modern developments in the field of education.",
+      transparency: "Transparency and Reliability",
+      transparencyDesc: "We are committed to transparency in all our work and providing reliable and accurate information that users can rely on in their educational journey.",
+      visionMission: "Vision and Mission",
+      vision: "Vision",
+      visionDesc: "To be the leading educational platform in the Arab world, offering innovative and high-quality content that contributes to community development and empowers individuals to achieve their full potential.",
+      mission: "Mission",
+      missionDesc: "To provide modern and practical knowledge content that helps individuals develop their skills and empowers them to achieve their educational and professional goals through a comprehensive and enjoyable learning experience.",
+      coreValues: "Our Core Values",
+      cooperation: "Cooperation",
+      cooperationDesc: "We work with a team spirit to achieve better results and provide innovative solutions that meet users' needs and contribute to their success.",
+      creativity: "Creativity",
+      creativityDesc: "We always think outside the box to create new and innovative solutions that contribute to the development of education and make the learning process more enjoyable and useful.",
+      excellence: "Excellence",
+      excellenceDesc: "We strive for quality in everything we offer and are committed to the highest standards of performance and professionalism to provide the best educational experience for our users.",
+      team: "Our Distinguished Team",
+      teamDesc: "Our team is committed to providing innovative and high-quality educational content that helps you develop your skills and achieve your educational and professional goals.",
+      viewAllTeam: "View All Team Members",
+      noTeamData: "No team member data available at the moment",
+      noTeamDataDesc: "This section will be updated soon",
+      coreValue: "Core Value"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+
   return (
     <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen overflow-x-hidden">
       <div className="container mx-auto px-4 pt-24 pb-12 max-w-6xl">
         {/* الهيرو الجديد */}
-        <HeroSection />
+        <HeroSection isRTL={isRTL} />
         
-        {/* Stats - مع تدرجات ملونة */}
-        <div className="mb-12 sm:mb-16">
-          {/* بطاقة المشتركين المميزة */}
-          {subscribers !== null && (
-            <YouTubeSubscribersCard subscribers={subscribers} />
-          )}
-          
-          {/* باقي البطاقات - مع تدرجات ملونة */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-gradient-to-br from-blue-400 to-cyan-500 dark:from-blue-700 dark:to-cyan-800 rounded-xl p-4 sm:p-6 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 w-full max-w-md mx-auto border border-blue-200 dark:border-blue-700 dark:shadow-blue-900/30 hover:dark:shadow-blue-900/50 relative overflow-hidden group origin-center">
-              {/* تأثير اللمعان - تم تعديل سرعة الأنيميشن */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              <div className="relative z-10 flex flex-col items-center justify-center">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-white transition-transform duration-700 group-hover:scale-110">
-                  <FaVideo />
-                </div>
-                <p className="text-base sm:text-lg font-medium text-white/90 mb-2 transition-colors duration-700 group-hover:text-white">عدد الحلقات</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-100">
-                  {episodesCount}
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-green-400 to-emerald-500 dark:from-green-700 dark:to-emerald-800 rounded-xl p-4 sm:p-6 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 w-full max-w-md mx-auto border border-green-200 dark:border-green-700 dark:shadow-green-900/30 hover:dark:shadow-green-900/50 relative overflow-hidden group origin-center">
-              {/* تأثير اللمعان - تم تعديل سرعة الأنيميشن */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              <div className="relative z-10 flex flex-col items-center justify-center">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-white transition-transform duration-700 group-hover:scale-110">
-                  <FaListUl />
-                </div>
-                <p className="text-base sm:text-lg font-medium text-white/90 mb-2 transition-colors duration-700 group-hover:text-white">عدد قوائم التشغيل</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-emerald-100">
-                  {playlistsCount}
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-purple-400 to-pink-500 dark:from-purple-700 dark:to-pink-800 rounded-xl p-4 sm:p-6 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 w-full max-w-md mx-auto border border-purple-200 dark:border-purple-700 dark:shadow-purple-900/30 hover:dark:shadow-purple-900/50 relative overflow-hidden group origin-center">
-              {/* تأثير اللمعان - تم تعديل سرعة الأنيميشن */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              <div className="relative z-10 flex flex-col items-center justify-center">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-white transition-transform duration-700 group-hover:scale-110">
-                  <FaCalendarAlt />
-                </div>
-                <p className="text-base sm:text-lg font-medium text-white/90 mb-2 transition-colors duration-700 group-hover:text-white">عدد المواسم</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-pink-100">
-                  {seasonsCount}
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-red-400 to-orange-500 dark:from-red-700 dark:to-orange-800 rounded-xl p-4 sm:p-6 shadow-lg transition-all duration-700 hover:shadow-2xl transform hover:-translate-y-3 w-full max-w-md mx-auto border border-red-200 dark:border-red-700 dark:shadow-red-900/30 hover:dark:shadow-red-900/50 relative overflow-hidden group origin-center">
-              {/* تأثير اللمعان - تم تعديل سرعة الأنيميشن */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              <div className="relative z-10 flex flex-col items-center justify-center">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-white transition-transform duration-700 group-hover:scale-110">
-                  <FaNewspaper />
-                </div>
-                <p className="text-base sm:text-lg font-medium text-white/90 mb-2 transition-colors duration-700 group-hover:text-white">عدد المقالات</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-700 group-hover:text-transparent bg-clip-text bg-gradient-to-r from-white to-orange-100">
-                  {articlesCount}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* بطاقة المشتركين المميزة */}
+        {subscribers !== null && (
+          <YouTubeSubscribersCard subscribers={subscribers} isRTL={isRTL} />
+        )}
+        
+        {/* قسم الإحصائيات الجديد - مع إصلاح مشكلة جلب البيانات */}
+        <StatisticsSection isRTL={isRTL} />
         
         {/* Philosophy - مع تدرجات ملونة */}
         <section className="mb-12 sm:mb-16">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 inline-block relative">
-              <span className="relative z-10">منهجنا وفلسفتنا</span>
+              <span className="relative z-10">{t.philosophy}</span>
               <span className="absolute bottom-0 left-0 w-full h-3 bg-blue-200 dark:bg-blue-900/50 z-0 transform -skew-x-12"></span>
             </h2>
             <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
             <p className="mt-4 text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm sm:text-base">
-              نلتزم بأعلى معايير الجودة والابتكار في تقديم المحتوى التعليمي
+              {t.philosophyDesc}
             </p>
           </div>
           
@@ -794,8 +975,8 @@ function AboutContent() {
                     <FaLightbulb className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 transition-colors duration-700 group-hover:text-indigo-100">التفاني للتعليم</h3>
-                    <p className="text-indigo-100 dark:text-indigo-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">نحن ملتزمون بتقديم محتوى تعليمي عالي الجودة يساعد المتعلمين على تحقيق أهدافهم وتطوير مهاراتهم بفعالية. نؤمن بأن التعليم هو المفتاح للتطور والتميز.</p>
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 transition-colors duration-700 group-hover:text-indigo-100">{t.dedication}</h3>
+                    <p className="text-indigo-100 dark:text-indigo-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.dedicationDesc}</p>
                   </div>
                 </div>
                 
@@ -812,8 +993,8 @@ function AboutContent() {
                     <FaRocket className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 transition-colors duration-700 group-hover:text-green-100">الابتكار والتطوير</h3>
-                    <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">نحرص دائماً على البحث عن طرق جديدة لتحسين تجربة المستخدم وتقديم محتوى مبتكر يتماشى مع التطورات الحديثة في مجال التعليم.</p>
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 transition-colors duration-700 group-hover:text-green-100">{t.innovation}</h3>
+                    <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.innovationDesc}</p>
                   </div>
                 </div>
                 
@@ -830,8 +1011,8 @@ function AboutContent() {
                     <FaHandshake className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 transition-colors duration-700 group-hover:text-orange-100">الشفافية والموثوقية</h3>
-                    <p className="text-orange-100 dark:text-orange-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">نحن ملتزمون بالشفافية في جميع أعمالنا وتقديم معلومات موثوقة ودقيقة يمكن للمستخدمين الاعتماد عليها في رحلتهم التعليمية.</p>
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 transition-colors duration-700 group-hover:text-orange-100">{t.transparency}</h3>
+                    <p className="text-orange-100 dark:text-orange-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.transparencyDesc}</p>
                   </div>
                 </div>
                 
@@ -846,7 +1027,7 @@ function AboutContent() {
         <section className="mb-12 sm:mb-16">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 inline-block relative">
-              <span className="relative z-10">الرؤية والرسالة</span>
+              <span className="relative z-10">{t.visionMission}</span>
               <span className="absolute bottom-0 left-0 w-full h-3 bg-purple-200 dark:bg-purple-900/50 z-0 transform -skew-x-12"></span>
             </h2>
             <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-purple-500 to-pink-500 mx-auto rounded-full"></div>
@@ -860,8 +1041,8 @@ function AboutContent() {
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 shadow-md animate-bounce">
                     <FaGem className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-blue-100">الرؤية</h3>
-                  <p className="text-blue-100 dark:text-blue-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">أن نكون المنصة التعليمية الرائدة في العالم العربي، التي تقدم محتوى مبتكر وعالي الجودة يساهم في تطوير المجتمع وتمكين الأفراد من تحقيق إمكانياتهم الكاملة.</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-blue-100">{t.vision}</h3>
+                  <p className="text-blue-100 dark:text-blue-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.visionDesc}</p>
                 </div>
                 
                 {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
@@ -876,8 +1057,8 @@ function AboutContent() {
                   <div className="group bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 shadow-md animate-bounce" style={{ animationDelay: '0.2s' }}>
                     <FaRocket className="text-white text-lg sm:text-xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-green-100">الرسالة</h3>
-                  <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">توفير محتوى معرفي حديث وعملي يساعد على تطوير مهارات الأفراد وتمكينهم من تحقيق أهدافهم التعليمية والمهنية من خلال تجربة تعليمية شاملة وممتعة.</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-green-100">{t.mission}</h3>
+                  <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.missionDesc}</p>
                 </div>
                 
                 {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
@@ -891,7 +1072,7 @@ function AboutContent() {
         <section className="mb-12 sm:mb-16">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 inline-block relative">
-              <span className="relative z-10">قيمنا الأساسية</span>
+              <span className="relative z-10">{t.coreValues}</span>
               <span className="absolute bottom-0 left-0 w-full h-3 bg-pink-200 dark:bg-pink-900/50 z-0 transform -skew-x-12"></span>
             </h2>
             <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-pink-500 to-red-500 mx-auto rounded-full"></div>
@@ -905,12 +1086,12 @@ function AboutContent() {
                   <div className="group bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-full mb-3 sm:mb-4 shadow-md animate-bounce">
                     <FaHandshake className="text-white text-xl sm:text-2xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-pink-100">التعاون</h3>
-                  <p className="text-pink-100 dark:text-pink-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">نعمل بروح الفريق الواحد لتحقيق نتائج أفضل وتقديم حلول مبتكرة تلبي احتياجات المستخدمين وتساهم في نجاحهم.</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-pink-100">{t.cooperation}</h3>
+                  <p className="text-pink-100 dark:text-pink-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.cooperationDesc}</p>
                   <div className="mt-auto mt-4 sm:mt-6">
                     <div className="inline-flex items-center bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold animate-pulse transition-colors duration-700 group-hover:bg-white/30">
                       <FaCheck className="mr-1" />
-                      <span>قيمة أساسية</span>
+                      <span>{t.coreValue}</span>
                     </div>
                   </div>
                 </div>
@@ -927,12 +1108,12 @@ function AboutContent() {
                   <div className="group bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-full mb-3 sm:mb-4 shadow-md animate-bounce" style={{ animationDelay: '0.2s' }}>
                     <FaLightbulb className="text-white text-xl sm:text-2xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-blue-100">الإبداع</h3>
-                  <p className="text-blue-100 dark:text-blue-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">نفكر دائماً خارج الصندوق لنبتكر حلول جديدة ومبتكرة تساهم في تطوير التعليم وتجعل عملية التعلم أكثر متعة وفائدة.</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-blue-100">{t.creativity}</h3>
+                  <p className="text-blue-100 dark:text-blue-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.creativityDesc}</p>
                   <div className="mt-auto mt-4 sm:mt-6">
                     <div className="inline-flex items-center bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold animate-pulse transition-colors duration-700 group-hover:bg-white/30">
                       <FaCheck className="mr-1" />
-                      <span>قيمة أساسية</span>
+                      <span>{t.coreValue}</span>
                     </div>
                   </div>
                 </div>
@@ -949,12 +1130,12 @@ function AboutContent() {
                   <div className="group bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-full mb-3 sm:mb-4 shadow-md animate-bounce" style={{ animationDelay: '0.3s' }}>
                     <FaGem className="text-white text-xl sm:text-2xl transition-transform duration-700 group-hover:scale-110" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-green-100">التميز</h3>
-                  <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">نسعى لتحقيق الجودة في كل ما نقدمه ونلتزم بأعلى معايير الأداء والمهنية لتقديم أفضل تجربة تعليمية لمستخدمينا.</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3 transition-colors duration-700 group-hover:text-green-100">{t.excellence}</h3>
+                  <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.excellenceDesc}</p>
                   <div className="mt-auto mt-4 sm:mt-6">
                     <div className="inline-flex items-center bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold animate-pulse transition-colors duration-700 group-hover:bg-white/30">
                       <FaCheck className="mr-1" />
-                      <span>قيمة أساسية</span>
+                      <span>{t.coreValue}</span>
                     </div>
                   </div>
                 </div>
@@ -1000,16 +1181,16 @@ function AboutContent() {
               <div className="inline-block bg-white/10 backdrop-blur-sm px-4 sm:px-6 py-2 rounded-full mb-4 sm:mb-6 border border-white/20">
                 <span className="text-white font-medium flex items-center text-sm sm:text-base">
                   <FaStar className="text-yellow-300 mr-2 animate-pulse" />
-                  فريقنا المميز
+                  {t.team}
                 </span>
               </div>
               
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
-                تعرف على <span className="text-yellow-300">أبطال</span> فذلكة
+                {isRTL ? "تعرف على " : "Meet Our "}<span className="text-yellow-300">{isRTL ? "أبطال" : "Distinguished"}</span> {isRTL ? "فذلكة" : "Team"}
               </h2>
               
               <p className="text-base sm:text-lg text-indigo-200 max-w-2xl mx-auto mb-6 sm:mb-10">
-                يضم فريقنا مجموعة من المتخصصين الموهوبين الذين يعملون بجد لتحقيق رؤيتنا وتقديم أفضل تجربة تعليمية لكم.
+                {t.teamDesc}
               </p>
               
               <div className="w-20 sm:w-28 h-1 bg-gradient-to-r from-yellow-400 to-orange-400 mx-auto rounded-full animate-pulse"></div>
@@ -1020,7 +1201,7 @@ function AboutContent() {
                 href="/team" 
                 className="inline-flex items-center bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-2 sm:py-3 px-5 sm:px-7 rounded-full shadow-lg transition-all duration-700 transform hover:scale-105 animate-bounce text-sm sm:text-base"
               >
-                <span>عرض جميع أعضاء الفريق</span>
+                <span>{t.viewAllTeam}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -1030,15 +1211,15 @@ function AboutContent() {
             {members.length > 0 ? (
               <div className="flex flex-wrap justify-center gap-4 sm:gap-6 max-w-6xl mx-auto px-2 sm:px-4">
                 {members.map((member, idx) => (
-                  <div key={member._id} className="w-full sm:w-80 md:w-96" style={{ animationDelay: `${idx * 0.1}s` }}>
-                    <MemberCard member={member} index={idx} />
+                  <div key={member._id || idx} className="w-full sm:w-80 md:w-96" style={{ animationDelay: `${idx * 0.1}s` }}>
+                    <MemberCard member={member} index={idx} isRTL={isRTL} />
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 sm:py-10 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 max-w-2xl mx-auto animate-pulse">
-                <p className="text-white/80 italic text-sm sm:text-base">لا توجد بيانات عن أعضاء الفريق حالياً</p>
-                <p className="text-white/60 mt-2 text-xs sm:text-sm">سيتم تحديث هذا القسم قريباً</p>
+                <p className="text-white/80 italic text-sm sm:text-base">{t.noTeamData}</p>
+                <p className="text-white/60 mt-2 text-xs sm:text-sm">{t.noTeamDataDesc}</p>
               </div>
             )}
           </div>
@@ -1048,7 +1229,7 @@ function AboutContent() {
         </section>
         
         {/* Contact and Social - المحسن */}
-        <ContactSection />
+        <ContactSection isRTL={isRTL} />
         <SocialMediaSection />
       </div>
       

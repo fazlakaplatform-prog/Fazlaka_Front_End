@@ -2,16 +2,30 @@
 
 import { getAllNotifications, NotificationItem } from '@/lib/sanity';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { 
   FaBell, FaEnvelope, FaInfoCircle, FaNewspaper, FaVideo, FaListUl, 
-  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook
+  FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaSearch, FaTimes
 } from 'react-icons/fa';
+import { useUser, SignInButton } from '@clerk/nextjs';
+import { useLanguage } from '@/components/LanguageProvider';
 
-// مكون الهيرو الجديد للإشعارات
-const NotificationsHeroSection = () => {
+// مكون الهيرو العام للإشعارات
+const NotificationsHeroSection = ({ language }: { language: 'ar' | 'en' }) => {
+  const texts = {
+    ar: {
+      title: "كل المحتويات <span class='text-yellow-300'>الجديدة</span> في مكان واحد",
+      subtitle: "تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة، مرتبة حسب التاريخ لتسهيل الوصول إلى ما يهمك"
+    },
+    en: {
+      title: "All <span class='text-yellow-300'>New</span> Content in One Place",
+      subtitle: "Follow the latest updates and updated content from the Falthaka team, sorted by date to facilitate access to what interests you"
+    }
+  };
+  
   return (
-    <div className="relative mb-12 sm:mb-16 mt-4 overflow-hidden rounded-3xl">
+    <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
       {/* الخلفية المتدرجة */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 dark:from-blue-900 dark:via-purple-900 dark:to-indigo-950"></div>
       
@@ -46,20 +60,12 @@ const NotificationsHeroSection = () => {
       </div>
       
       {/* المحتوى الرئيسي */}
-      <div className="relative z-10 py-10 sm:py-12 md:py-16 px-4 sm:px-6 md:px-10 flex flex-col items-center justify-center">
+      <div className="relative z-10 py-6 sm:py-8 px-4 sm:px-6 flex flex-col items-center justify-center">
         {/* القسم الأيسر - النص */}
-        <div className="w-full text-center mb-8 md:mb-0">
-          <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
-            <span className="text-white font-medium flex items-center text-sm sm:text-base">
-              <FaStar className="text-yellow-300 mr-2 animate-pulse" />
-              آخر التحديثات
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-            كل المحتويات <span className="text-yellow-300">الجديدة</span> في مكان واحد
-          </h1>
-          <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-            تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة، مرتبة حسب التاريخ لتسهيل الوصول إلى ما يهمك
+        <div className="w-full text-center mb-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3 leading-tight" dangerouslySetInnerHTML={{ __html: texts[language].title }}></h1>
+          <p className="text-sm sm:text-base text-blue-100 mb-4 max-w-xl mx-auto">
+            {texts[language].subtitle}
           </p>
           
           {/* أيقونات الإشعارات في الأسفل */}
@@ -86,7 +92,7 @@ const NotificationsHeroSection = () => {
         </div>
         
         {/* القسم الأيمن - الأيقونات المتحركة */}
-        <div className="w-full max-w-xs sm:max-w-sm md:max-w-md flex justify-center">
+        <div className="w-full max-w-xs flex justify-center">
           <div className="relative">
             {/* دائرة خلفية */}
             <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-full filter blur-3xl w-40 h-40 sm:w-56 sm:h-56 md:w-64 md:h-64 animate-pulse-slow"></div>
@@ -134,8 +140,33 @@ const NotificationsHeroSection = () => {
   );
 };
 
+// مكون قسم الترحيب الخاص بالمستخدم
+const UserWelcomeSection = ({ language }: { language: 'ar' | 'en' }) => {
+  const { user } = useUser();
+  
+  const texts = {
+    ar: {
+      welcome: `مرحباً بك، ${user?.firstName || 'مستخدم'}!`,
+      subtitle: "تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة"
+    },
+    en: {
+      welcome: `Welcome, ${user?.firstName || 'User'}!`,
+      subtitle: "Follow the latest updates and updated content from the Falthaka team"
+    }
+  };
+  
+  return (
+    <div className="max-w-4xl mx-auto px-4 mb-8">
+      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+        <h2 className="text-2xl font-bold mb-2">{texts[language].welcome}</h2>
+        <p className="text-blue-100">{texts[language].subtitle}</p>
+      </div>
+    </div>
+  );
+};
+
 // مكون عنصر الإشعار المعدل
-function NotificationItemComponent({ notification }: { notification: NotificationItem }) {
+function NotificationItemComponent({ notification, language }: { notification: NotificationItem; language: 'ar' | 'en' }) {
   const getTypeIcon = () => {
     switch (notification.type) {
       case 'episode': return '🎬';
@@ -150,15 +181,34 @@ function NotificationItemComponent({ notification }: { notification: Notificatio
   };
 
   const getTypeLabel = () => {
-    switch (notification.type) {
-      case 'episode': return 'حلقة جديدة';
-      case 'article': return 'مقال جديد';
-      case 'playlist': return 'قائمة تشغيل جديدة';
-      case 'faq': return 'سؤال شائع جديد';
-      case 'terms': return 'تحديث في الشروط والأحكام';
-      case 'privacy': return 'تحديث في سياسة الخصوصية';
-      case 'team': return 'عضو جديد في الفريق';
-      default: return 'إشعار جديد';
+    if (language === 'ar') {
+      switch (notification.type) {
+        case 'episode': return 'حلقة جديدة';
+        case 'article': return 'مقال جديد';
+        case 'playlist': return 'قائمة تشغيل جديدة';
+        case 'faq': return 'سؤال شائع جديد';
+        case 'terms': return 'تحديث في الشروط والأحكام';
+        case 'privacy': return 'تحديث في سياسة الخصوصية';
+        case 'team': 
+          const teamTitle = notification.title.replace(/^عضو جديد في الفريق:\s*/, '');
+          return `عضو جديد في الفريق: ${teamTitle}`;
+        case 'season': return 'موسم جديد';
+        default: return 'إشعار جديد';
+      }
+    } else {
+      switch (notification.type) {
+        case 'episode': return 'New Episode';
+        case 'article': return 'New Article';
+        case 'playlist': return 'New Playlist';
+        case 'faq': return 'New FAQ';
+        case 'terms': return 'Terms Update';
+        case 'privacy': return 'Privacy Update';
+        case 'team': 
+          const teamTitle = notification.title.replace(/^New team member:\s*/, '');
+          return `New team member: ${teamTitle}`;
+        case 'season': return 'New Season';
+        default: return 'New Notification';
+      }
     }
   };
 
@@ -176,38 +226,64 @@ function NotificationItemComponent({ notification }: { notification: Notificatio
   };
 
   const getCustomMessage = () => {
-    switch (notification.type) {
-      case 'episode': return `تمت إضافة حلقة جديدة: ${notification.title}`;
-      case 'article': return `نشرنا مقالًا جديدًا: ${notification.title}`;
-      case 'playlist': return `قائمة تشغيل جديدة متاحة الآن: ${notification.title}`;
-      case 'faq': return `أضفنا سؤالًا شائعًا جديدًا: ${notification.title}`;
-      case 'terms': return `تم تحديث الشروط والأحكام: ${notification.title}`;
-      case 'privacy': return `تم تحديث سياسة الخصوصية: ${notification.title}`;
-      case 'team': 
-        const teamTitle = notification.title.replace(/^عضو جديد في الفريق:\s*/, '');
-        return `انضم إلينا عضو جديد في الفريق: ${teamTitle}`;
-      default: return `إشعار جديد: ${notification.title}`;
+    if (language === 'ar') {
+      switch (notification.type) {
+        case 'episode': return `تمت إضافة حلقة جديدة: ${notification.title}`;
+        case 'article': return `نشرنا مقالًا جديدًا: ${notification.title}`;
+        case 'playlist': return `قائمة تشغيل جديدة متاحة الآن: ${notification.title}`;
+        case 'faq': return `أضفنا سؤالًا شائعًا جديدًا: ${notification.title}`;
+        case 'terms': return `تم تحديث الشروط والأحكام: ${notification.title}`;
+        case 'privacy': return `تم تحديث سياسة الخصوصية: ${notification.title}`;
+        case 'team': 
+          const teamTitle = notification.title.replace(/^عضو جديد في الفريق:\s*/, '');
+          return `انضم إلينا عضو جديد في الفريق: ${teamTitle}`;
+        case 'season': return `بدأ موسم جديد: ${notification.title}`;
+        default: return `إشعار جديد: ${notification.title}`;
+      }
+    } else {
+      switch (notification.type) {
+        case 'episode': return `New episode added: ${notification.title}`;
+        case 'article': return `New article published: ${notification.title}`;
+        case 'playlist': return `New playlist available: ${notification.title}`;
+        case 'faq': return `New FAQ added: ${notification.title}`;
+        case 'terms': return `Terms updated: ${notification.title}`;
+        case 'privacy': return `Privacy policy updated: ${notification.title}`;
+        case 'team': 
+          const teamTitle = notification.title.replace(/^New team member:\s*/, '');
+          return `New team member joined: ${teamTitle}`;
+        case 'season': return `New season started: ${notification.title}`;
+        default: return `New notification: ${notification.title}`;
+      }
     }
   };
 
   const formatDate = (dateString: string) => {
     try {
-      if (!dateString) return 'تاريخ غير متوفر';
+      if (!dateString) return language === 'ar' ? 'تاريخ غير متوفر' : 'Date not available';
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'تاريخ غير صالح';
+      if (isNaN(date.getTime())) return language === 'ar' ? 'تاريخ غير صالح' : 'Invalid date';
       
       const now = new Date();
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
       
-      if (diffInSeconds < 60) return 'منذ لحظات';
-      else if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
-      else if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
-      else if (diffInSeconds < 2592000) return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
-      else if (diffInSeconds < 31536000) return `منذ ${Math.floor(diffInSeconds / 2592000)} شهر`;
-      else return `منذ ${Math.floor(diffInSeconds / 31536000)} سنة`;
+      if (language === 'ar') {
+        if (diffInSeconds < 60) return 'منذ لحظات';
+        else if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
+        else if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
+        else if (diffInSeconds < 2592000) return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
+        else if (diffInSeconds < 31536000) return `منذ ${Math.floor(diffInSeconds / 2592000)} شهر`;
+        else return `منذ ${Math.floor(diffInSeconds / 31536000)} سنة`;
+      } else {
+        if (diffInSeconds < 60) return 'Just now';
+        else if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+        else if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+        else if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+        else if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+        else return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+      }
     } catch (error) {
       console.error('Error formatting date:', error);
-      return 'خطأ في التاريخ';
+      return language === 'ar' ? 'خطأ في التاريخ' : 'Date error';
     }
   };
 
@@ -224,10 +300,10 @@ function NotificationItemComponent({ notification }: { notification: Notificatio
   return (
     <Link href={finalLink} className="block group">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 dark:border-gray-700 overflow-hidden relative">
-        <div className={`h-1.5 w-full bg-gradient-to-r ${getTypeColor()}`}></div>
+        <div className={`h-1 w-full bg-gradient-to-r ${getTypeColor()}`}></div>
         
-        <div className="flex flex-col sm:flex-row items-start p-6">
-          <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl flex items-center justify-center text-3xl mb-4 sm:mb-0 sm:mr-5 shadow-inner group-hover:shadow-lg transition-shadow duration-300">
+        <div className="flex flex-col sm:flex-row items-start p-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl flex items-center justify-center text-2xl mb-3 sm:mb-0 sm:mr-4 shadow-inner group-hover:shadow-lg transition-shadow duration-300">
             {getTypeIcon()}
           </div>
           
@@ -237,41 +313,45 @@ function NotificationItemComponent({ notification }: { notification: Notificatio
                 {getTypeLabel()}
               </span>
               
-              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1 text-[10px] text-gray-600 dark:text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {formatDate(notification.date)}
               </div>
             </div>
             
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mt-1 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 line-clamp-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-1 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 line-clamp-2">
               {getCustomMessage()}
             </h3>
             
             {notification.description && (
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors duration-300">
+              <p className="text-gray-600 dark:text-gray-300 text-xs mb-3 line-clamp-2 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors duration-300">
                 {notification.description}
               </p>
             )}
             
-            <div className="flex items-center text-sm text-blue-500 dark:text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-2">
-              <span>اقرأ المزيد</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-center text-xs text-blue-500 dark:text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-2">
+              <span>{language === 'ar' ? 'اقرأ المزيد' : 'Read more'}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9.2-9.2M17 17V7m0 0H7" />
               </svg>
             </div>
           </div>
           
           {notification.imageUrl && (
-            <div className="flex-shrink-0 mt-4 sm:mt-0 sm:ml-5 overflow-hidden rounded-xl shadow-md">
+            <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4 overflow-hidden rounded-xl shadow-md">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
-                <img 
-                  className="h-24 w-24 object-cover transform group-hover:scale-110 transition-transform duration-500" 
-                  src={notification.imageUrl} 
-                  alt={notification.title} 
-                />
+                <div className="relative h-20 w-20">
+                  <Image 
+                    className="object-cover transform group-hover:scale-110 transition-transform duration-500" 
+                    src={notification.imageUrl} 
+                    alt={notification.title}
+                    fill
+                    sizes="80px"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -284,19 +364,60 @@ function NotificationItemComponent({ notification }: { notification: Notificatio
 }
 
 // مكون قائمة الإشعارات
-function NotificationListComponent({ notifications }: { notifications: NotificationItem[] }) {
+function NotificationListComponent({ notifications, language }: { notifications: NotificationItem[]; language: 'ar' | 'en' }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   
+  const texts = {
+    ar: {
+      searchPlaceholder: "ابحث في الإشعارات...",
+      clearSearch: "مسح",
+      all: "الكل",
+      episodes: "حلقات",
+      articles: "مقالات",
+      playlists: "قوائم تشغيل",
+      faqs: "أسئلة",
+      terms: "شروط",
+      privacy: "خصوصية",
+      team: "الفريق",
+      allNotifications: "جميع الإشعارات",
+      noResults: "لا توجد نتائج للبحث",
+      noResultsMessage: "لم يتم العثور على إشعارات تطابق معايير البحث والتصفية الحالية",
+      resetFilters: "إعادة تعيين الفلاتر",
+      noNotifications: "لا توجد إشعارات جديدة",
+      noNotificationsMessage: "سيظهر هنا كل المحتوى الجديد عند إضافته",
+      checkLater: "تحقق لاحقاً"
+    },
+    en: {
+      searchPlaceholder: "Search notifications...",
+      clearSearch: "Clear",
+      all: "All",
+      episodes: "Episodes",
+      articles: "Articles",
+      playlists: "Playlists",
+      faqs: "FAQs",
+      terms: "Terms",
+      privacy: "Privacy",
+      team: "Team",
+      allNotifications: "All Notifications",
+      noResults: "No search results",
+      noResultsMessage: "No notifications were found matching your current search and filtering criteria",
+      resetFilters: "Reset Filters",
+      noNotifications: "No new notifications",
+      noNotificationsMessage: "All new content will appear here when added",
+      checkLater: "Check later"
+    }
+  };
+  
   const notificationTypes = [
-    { id: 'all', label: 'الكل', icon: '📢' },
-    { id: 'episode', label: 'حلقات', icon: '🎬' },
-    { id: 'article', label: 'مقالات', icon: '📝' },
-    { id: 'playlist', label: 'قوائم تشغيل', icon: '📋' },
-    { id: 'faq', label: 'أسئلة', icon: '❓' },
-    { id: 'terms', label: 'شروط', icon: '📜' },
-    { id: 'privacy', label: 'خصوصية', icon: '🔒' },
-    { id: 'team', label: 'الفريق', icon: '👥' },
+    { id: 'all', label: texts[language].all, icon: '📢' },
+    { id: 'episode', label: texts[language].episodes, icon: '🎬' },
+    { id: 'article', label: texts[language].articles, icon: '📝' },
+    { id: 'playlist', label: texts[language].playlists, icon: '📋' },
+    { id: 'faq', label: texts[language].faqs, icon: '❓' },
+    { id: 'terms', label: texts[language].terms, icon: '📜' },
+    { id: 'privacy', label: texts[language].privacy, icon: '🔒' },
+    { id: 'team', label: texts[language].team, icon: '👥' },
   ];
   
   const filteredNotifications = useMemo(() => {
@@ -318,13 +439,13 @@ function NotificationListComponent({ notifications }: { notifications: Notificat
     return (
       <div className="text-center py-20 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="text-7xl mb-6 animate-pulse">📭</div>
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">لا توجد إشعارات جديدة</h3>
-        <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto text-lg">سيظهر هنا كل المحتوى الجديد عند إضافته</p>
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{texts[language].noNotifications}</h3>
+        <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto text-lg">{texts[language].noNotificationsMessage}</p>
         <div className="mt-8 inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          تحقق لاحقاً
+          {texts[language].checkLater}
         </div>
       </div>
     );
@@ -336,17 +457,23 @@ function NotificationListComponent({ notifications }: { notifications: Notificat
         <div className="mb-5">
           <div className="relative">
             <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <FaSearch className="h-4 w-4 text-gray-400" />
             </div>
             <input
               type="text"
-              className="w-full py-3 pr-10 pl-4 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-              placeholder="ابحث في الإشعارات..."
+              className="w-full py-2 pr-10 pl-3 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+              placeholder={texts[language].searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute inset-y-0 left-0 flex items-center pl-3"
+              >
+                <FaTimes className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
           </div>
         </div>
         
@@ -355,7 +482,7 @@ function NotificationListComponent({ notifications }: { notifications: Notificat
             <button
               key={type.id}
               onClick={() => setActiveFilter(type.id)}
-              className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+              className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 active:scale-95 ${
                 activeFilter === type.id
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
@@ -364,7 +491,7 @@ function NotificationListComponent({ notifications }: { notifications: Notificat
               <span className="mr-2">{type.icon}</span>
               {type.label}
               {type.id !== 'all' && (
-                <span className="mr-2 bg-white/20 dark:bg-black/20 rounded-full px-2 py-0.5 text-xs">
+                <span className="mr-2 bg-white/20 dark:bg-black/20 rounded-full px-1.5 py-0.5 text-xs">
                   {notifications.filter(n => n.type === type.id).length}
                 </span>
               )}
@@ -376,34 +503,35 @@ function NotificationListComponent({ notifications }: { notifications: Notificat
       {filteredNotifications.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="text-6xl mb-5">🔍</div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">لا توجد نتائج للبحث</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{texts[language].noResults}</h3>
           <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-            لم يتم العثور على إشعارات تطابق معايير البحث والتصفية الحالية
+            {texts[language].noResultsMessage}
           </p>
           <button
             onClick={() => {
               setSearchTerm('');
               setActiveFilter('all');
             }}
-            className="mt-6 inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+            className="mt-6 inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors active:scale-95"
           >
-            إعادة تعيين الفلاتر
+            {texts[language].resetFilters}
           </button>
         </div>
       ) : (
         <div className="space-y-5">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {activeFilter === 'all' ? 'جميع الإشعارات' : notificationTypes.find(t => t.id === activeFilter)?.label}
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              {activeFilter === 'all' ? texts[language].allNotifications : notificationTypes.find(t => t.id === activeFilter)?.label}
             </h2>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {filteredNotifications.length} من {notifications.length} إشعار
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {filteredNotifications.length} {language === 'ar' ? 'من' : 'of'} {notifications.length} {language === 'ar' ? 'إشعار' : 'notifications'}
             </span>
           </div>
           {filteredNotifications.map((notification) => (
             <NotificationItemComponent 
               key={`${notification.type}-${notification.id}`} 
               notification={notification} 
+              language={language}
             />
           ))}
         </div>
@@ -417,26 +545,26 @@ function LoadingComponent() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2 animate-pulse"></div>
-        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2 animate-pulse"></div>
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
         <div className="space-y-5">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 animate-pulse">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-xl mr-5"></div>
-                <div className="flex-1">
+              <div className="flex flex-col sm:flex-row items-start">
+                <div className="flex-shrink-0 w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-xl mb-3 sm:mb-0 sm:mr-4"></div>
+                <div className="flex-1 min-w-0">
                   <div className="flex justify-between">
-                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/5"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/5"></div>
                   </div>
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
                 </div>
-                <div className="flex-shrink-0 ml-5">
-                  <div className="h-24 w-24 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+                <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4">
+                  <div className="h-20 w-20 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
                 </div>
               </div>
             </div>
@@ -447,47 +575,100 @@ function LoadingComponent() {
   );
 }
 
+// مكون تلميح تسجيل الدخول
+const SignInPrompt = ({ language }: { language: 'ar' | 'en' }) => {
+  const texts = {
+    ar: {
+      title: "سجل دخولك لعرض الإشعارات",
+      message: "يرجى تسجيل الدخول إلى حسابك لعرض الإشعارات والمستجدات الجديدة",
+      signIn: "تسجيل الدخول"
+    },
+    en: {
+      title: "Sign in to view notifications",
+      message: "Please sign in to your account to view notifications and new updates",
+      signIn: "Sign In"
+    }
+  };
+  
+  return (
+    <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="text-6xl mb-5">🔐</div>
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{texts[language].title}</h3>
+      <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6">
+        {texts[language].message}
+      </p>
+      <SignInButton mode="modal">
+        <button className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-full hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl active:scale-95">
+          {texts[language].signIn}
+        </button>
+      </SignInButton>
+    </div>
+  );
+};
+
 // المكون الرئيسي للصفحة
 function NotificationsContent() {
+  const { isLoaded, isSignedIn } = useUser();
+  const { language } = useLanguage();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const data = await getAllNotifications();
-        setNotifications(data);
-      } catch (error) {
-        console.error('Failed to fetch notifications:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // فقط قم بجلب الإشعارات إذا كان المستخدم مسجلاً للدخول
+    if (isSignedIn) {
+      const fetchNotifications = async () => {
+        try {
+          // تمرير اللغة الحالية إلى دالة getAllNotifications
+          const data = await getAllNotifications(language);
+          setNotifications(data);
+        } catch (error) {
+          console.error('Failed to fetch notifications:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchNotifications();
-  }, []);
+      fetchNotifications();
+    } else {
+      setLoading(false);
+    }
+  }, [isSignedIn, language]); // إضافة language كـ dependency
 
-  if (loading) {
+  if (!isLoaded) {
     return <LoadingComponent />;
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* استخدام الهيرو الجديد */}
-      <NotificationsHeroSection />
-
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
-        <Suspense fallback={<LoadingComponent />}>
-          <NotificationListComponent notifications={notifications} />
-        </Suspense>
+    <>
+      {/* الهيرو العام للإشعارات - يظهر للجميع */}
+      <div className="max-w-4xl mx-auto px-4 mt-12">
+        <NotificationsHeroSection language={language} />
       </div>
-    </div>
+      
+      {/* قسم الترحيب الخاص بالمستخدم - يظهر فقط للمستخدمين المسجلين */}
+      {isSignedIn && <UserWelcomeSection language={language} />}
+      
+      {/* المحتوى الرئيسي */}
+      <div className="max-w-4xl mx-auto px-4 pb-12">
+        {isSignedIn ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
+            <Suspense fallback={<LoadingComponent />}>
+              {loading ? <LoadingComponent /> : <NotificationListComponent notifications={notifications} language={language} />}
+            </Suspense>
+          </div>
+        ) : (
+          <SignInPrompt language={language} />
+        )}
+      </div>
+    </>
   );
 }
 
 export default function NotificationsPage() {
+  const { isRTL } = useLanguage();
+  
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12">
+    <main className={`min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       <NotificationsContent />
     </main>
   );

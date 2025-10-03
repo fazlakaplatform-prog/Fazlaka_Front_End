@@ -6,19 +6,25 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import { fetchFromSanity, urlFor } from "@/lib/sanity";
 import { useSearchParams } from "next/navigation";
+import { useLanguage } from "@/components/LanguageProvider";
 
 // تعريف واجهات البيانات
 interface SearchResult {
   _id: string;
   _type: string;
   title: string;
+  titleEn?: string;
   slug?: {
     current: string;
   };
   excerpt?: string;
+  excerptEn?: string;
   description?: string;
+  descriptionEn?: string;
   answer?: string;
+  answerEn?: string;
   role?: string;
+  roleEn?: string;
   thumbnail?: {
     _type: 'image';
     asset: {
@@ -43,28 +49,35 @@ interface SearchResult {
   season?: {
     _id: string;
     title: string;
+    titleEn?: string;
     slug: {
       current: string;
     };
   };
   episodeCount?: number;
   category?: string;
-  content?: PortableTextBlock[]; // للشروط والأحكام وسياسة الخصوصية
-  sectionType?: string; // للشروط والأحكام وسياسة الخصوصية
-  imageUrl?: string; // لقوائم التشغيل
-  question?: string; // للأسئلة الشائعة
-  name?: string; // لأعضاء الفريق
-  bio?: string; // لأعضاء الفريق
-  episode?: { // إضافة خاصية episode بشكل صريح
+  categoryEn?: string;
+  content?: PortableTextBlock[];
+  contentEn?: PortableTextBlock[];
+  sectionType?: string;
+  imageUrl?: string;
+  question?: string;
+  questionEn?: string;
+  name?: string;
+  nameEn?: string;
+  bio?: string;
+  bioEn?: string;
+  episode?: {
     _id: string;
     title: string;
+    titleEn?: string;
     slug: {
       current: string;
     };
   };
+  language?: 'ar' | 'en';
 }
 
-// واجهة لكتل Portable Text
 interface PortableTextBlock {
   _type: 'block';
   children: PortableTextSpan[];
@@ -74,7 +87,6 @@ interface PortableTextSpan {
   text: string;
 }
 
-// تعريف واجهة لصورة Sanity
 interface SanityImage {
   _type: 'image';
   asset: {
@@ -390,7 +402,6 @@ function IconHelp({ className = "h-8 w-8" }: { className?: string }) {
   );
 }
 
-// أيقونة المواسم الجديدة
 function IconSeasonsBig({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -401,6 +412,7 @@ function IconSeasonsBig({ className = "h-8 w-8" }: { className?: string }) {
 
 export default function SearchResults() {
   const searchParams = useSearchParams();
+  const { language, isRTL } = useLanguage();
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -414,6 +426,78 @@ export default function SearchResults() {
   
   // إضافة مرجع لقسم النتائج للتمرير التلقائي
   const resultsSectionRef = useRef<HTMLDivElement>(null);
+
+  // نصوص التطبيق حسب اللغة
+  const texts = {
+    ar: {
+      searchPlaceholder: "ابحث عن حلقات، مقالات، قوائم تشغيل، أسئلة شائعة، مواسم، أعضاء الفريق، الشروط والأحكام، سياسة الخصوصية...",
+      searchInPlatform: "ابحث هنا في كل ارجاء المنصه",
+      resultsCount: "نتيجة لـ",
+      noResults: "لم نتمكن من العثور على نتائج",
+      tryDifferentKeywords: "جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.",
+      clearSearch: "مسح البحث",
+      startSearching: "ابدأ البحث في فضلكه",
+      searchInstructions: "اكتب كلمات مفتاحية في مربع البحث للعثور على حلقات، مقالات، قوائم تشغيل، أسئلة شائعة، مواسم، أعضاء الفريق، الشروط والأحكام، أو سياسة الخصوصية.",
+      showMore: "اعرض المزيد",
+      episodes: "الحلقات",
+      articles: "المقالات",
+      playlists: "قوائم التشغيل",
+      faqs: "الأسئلة الشائعة",
+      seasons: "المواسم",
+      teamMembers: "أعضاء الفريق",
+      terms: "الشروط والأحكام",
+      privacy: "سياسة الخصوصية",
+      all: "الكل",
+      episode: "حلقة",
+      article: "مقال",
+      playlist: "قائمة تشغيل",
+      faq: "سؤال شائع",
+      season: "موسم",
+      teamMember: "عضو فريق",
+      episodeCount: "حلقة",
+      episodeInArticle: "حلقة:",
+      loadingData: "جاري تحميل البيانات...",
+      errorLoadingData: "حدث خطأ في تحميل البيانات",
+      loadingSearchPage: "جاري تحميل صفحة البحث...",
+      gridView: "عرض شبكي",
+      listView: "عرض قائمة"
+    },
+    en: {
+      searchPlaceholder: "Search for episodes, articles, playlists, FAQs, seasons, team members, terms & conditions, privacy policy...",
+      searchInPlatform: "Search across the entire platform",
+      resultsCount: "results for",
+      noResults: "We couldn't find any results",
+      tryDifferentKeywords: "Try different keywords or remove filters.",
+      clearSearch: "Clear Search",
+      startSearching: "Start searching in Falakha",
+      searchInstructions: "Type keywords in the search box to find episodes, articles, playlists, FAQs, seasons, team members, terms & conditions, or privacy policy.",
+      showMore: "Show More",
+      episodes: "Episodes",
+      articles: "Articles",
+      playlists: "Playlists",
+      faqs: "FAQs",
+      seasons: "Seasons",
+      teamMembers: "Team Members",
+      terms: "Terms & Conditions",
+      privacy: "Privacy Policy",
+      all: "All",
+      episode: "Episode",
+      article: "Article",
+      playlist: "Playlist",
+      faq: "FAQ",
+      season: "Season",
+      teamMember: "Team Member",
+      episodeCount: "episodes",
+      episodeInArticle: "Episode:",
+      loadingData: "Loading data...",
+      errorLoadingData: "Error loading data",
+      loadingSearchPage: "Loading search page...",
+      gridView: "Grid View",
+      listView: "List View"
+    }
+  };
+
+  const t = texts[language];
 
   // استخراج مصطلح البحث من الرابط عند تحميل الصفحة
   useEffect(() => {
@@ -432,68 +516,89 @@ export default function SearchResults() {
         setLoading(true);
         setError(null);
         
-        // جلب جميع البيانات من Sanity
+        // جلب جميع البيانات من Sanity مع دعم اللغة
         const episodesQuery = `*[_type == "episode"]{
           _id,
           _type,
           title,
+          titleEn,
           slug,
           description,
+          descriptionEn,
           thumbnail,
           season->{
             _id,
             title,
+            titleEn,
             slug
-          }
+          },
+          language
         }`;
         
         const articlesQuery = `*[_type == "article"]{
           _id,
           _type,
           title,
+          titleEn,
           slug,
           excerpt,
+          excerptEn,
           featuredImage,
           episode->{
             _id,
             title,
+            titleEn,
             slug
-          }
+          },
+          language
         }`;
         
         const playlistsQuery = `*[_type == "playlist"]{
           _id,
           _type,
           title,
+          titleEn,
           slug,
           description,
-          "imageUrl": image.asset->url
+          descriptionEn,
+          "imageUrl": image.asset->url,
+          language
         }`;
         
         const faqsQuery = `*[_type == "faq"]{
           _id,
           _type,
           question,
+          questionEn,
           answer,
-          category
+          answerEn,
+          category,
+          categoryEn,
+          language
         }`;
         
         const seasonsQuery = `*[_type == "season"]{
           _id,
           _type,
           title,
+          titleEn,
           slug,
-          thumbnail
+          thumbnail,
+          language
         }`;
         
         const teamMembersQuery = `*[_type == "teamMember"]{
           _id,
           _type,
           name,
+          nameEn,
           role,
+          roleEn,
           slug,
           image,
-          bio
+          bio,
+          bioEn,
+          language
         }`;
         
         // استعلامات جديدة للشروط والأحكام وسياسة الخصوصية
@@ -501,16 +606,22 @@ export default function SearchResults() {
           _id,
           _type,
           title,
+          titleEn,
           content,
-          lastUpdated
+          contentEn,
+          lastUpdated,
+          language
         }`;
         
         const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
           _id,
           _type,
           title,
+          titleEn,
           content,
-          lastUpdated
+          contentEn,
+          lastUpdated,
+          language
         }`;
         
         const [
@@ -566,12 +677,18 @@ export default function SearchResults() {
           _id: string;
           _type: string;
           question: string;
+          questionEn?: string;
           answer: string;
+          answerEn?: string;
           category?: string;
+          categoryEn?: string;
+          language?: 'ar' | 'en';
         }>).map(faq => ({
           ...faq,
           title: faq.question,
-          excerpt: faq.answer
+          titleEn: faq.questionEn,
+          excerpt: faq.answer,
+          excerptEn: faq.answerEn
         }));
         
         // تحويل أعضاء الفريق إلى نفس تنسيق النتائج الأخرى
@@ -579,14 +696,20 @@ export default function SearchResults() {
           _id: string;
           _type: string;
           name: string;
+          nameEn?: string;
           role?: string;
+          roleEn?: string;
           slug?: { current: string };
           image?: SanityImage;
           bio?: string;
+          bioEn?: string;
+          language?: 'ar' | 'en';
         }>).map(member => ({
           ...member,
           title: member.name,
-          excerpt: member.bio
+          titleEn: member.nameEn,
+          excerpt: member.bio,
+          excerptEn: member.bioEn
         }));
         
         // إضافة الشروط والأحكام وسياسة الخصوصية إذا كانت موجودة
@@ -607,7 +730,7 @@ export default function SearchResults() {
           });
         }
         
-        // دمج جميع النتائج
+        // دمجج جميع النتائج
         const allResults = [
           ...episodes,
           ...articles,
@@ -620,20 +743,22 @@ export default function SearchResults() {
         
         setSearchResults(allResults);
         
-        // إنشاء قائمة بالعناوين للاقتراحات
-        const allTitles = allResults.map(result => result.title);
+        // إنشاء قائمة بالعناوين للاقتراحات بناءً على اللغة الحالية
+        const allTitles = allResults.map(result => 
+          language === 'ar' ? result.title : (result.titleEn || result.title)
+        );
         setTitles(allTitles);
       } catch (err: unknown) {
         console.error("Error loading data:", err);
-        const errorMessage = err instanceof Error ? err.message : "خطأ غير معروف";
-        setError("حدث خطأ في تحميل البيانات: " + errorMessage);
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        setError(`${t.errorLoadingData}: ${errorMessage}`);
       } finally {
         setLoading(false);
       }
     }
     
     load();
-  }, []);
+  }, [language, t.errorLoadingData]);
 
   // فلترة الاقتراحات
   const suggestions = useMemo(() => {
@@ -709,39 +834,42 @@ export default function SearchResults() {
     
     const q = searchTerm.trim().toLowerCase();
     return searchResults.filter((result) => {
-      const title = (result.title || "").toString().toLowerCase();
+      // البحث في العناوين بناءً على اللغة الحالية
+      const title = language === 'ar' 
+        ? (result.title || "").toString().toLowerCase()
+        : ((result.titleEn || result.title) || "").toString().toLowerCase();
       
-      // البحث في محتوى الشروط والأحكام وسياسة الخصوصية
-      let excerpt = (result.excerpt || result.description || result.answer || result.role || "").toString().toLowerCase();
+      // البحث في المحتوى بناءً على اللغة الحالية
+      let excerpt = language === 'ar'
+        ? (result.excerpt || result.description || result.answer || result.role || "").toString().toLowerCase()
+        : ((result.excerptEn || result.descriptionEn || result.answerEn || result.roleEn || 
+            result.excerpt || result.description || result.answer || result.role) || "").toString().toLowerCase();
       
       // إذا كان النتيجة من نوع الشروط والأحكام أو سياسة الخصوصية، ابحث في المحتوى أيضاً
-      if ((result._type === "terms" || result._type === "privacy") && result.content) {
+      if ((result._type === "terms" || result._type === "privacy")) {
         try {
-          // استخراج النص من محتوى Portable Text
-          const contentText = result.content
-            .filter((block: PortableTextBlock) => block._type === "block")
-            .map((block: PortableTextBlock) => 
-              block.children
-                .map((child: PortableTextSpan) => child.text)
-                .join("")
-            )
-            .join(" ")
-            .toLowerCase();
-          
-          excerpt = contentText;
+          const content = language === 'ar' ? result.content : result.contentEn;
+          if (content) {
+            const contentText = content
+              .filter((block: PortableTextBlock) => block._type === "block")
+              .map((block: PortableTextBlock) => 
+                block.children
+                  .map((child: PortableTextSpan) => child.text)
+                  .join("")
+              )
+              .join(" ")
+              .toLowerCase();
+            
+            excerpt = contentText;
+          }
         } catch (error) {
           console.error("Error extracting content text:", error);
         }
       }
       
-      // فلترة حسب النوع إذا كان هناك تبويب نشط
-      if (activeTab !== "all" && result._type !== activeTab) {
-        return false;
-      }
-      
       return title.includes(q) || excerpt.includes(q);
     });
-  }, [searchResults, searchTerm, activeTab]);
+  }, [searchResults, searchTerm, language]);
 
   const groupedResults = useMemo(() => {
     const groups: Record<string, SearchResult[]> = {
@@ -765,14 +893,14 @@ export default function SearchResults() {
   }, [filteredResults]);
 
   const typeLabels: Record<string, string> = {
-    episode: "الحلقات",
-    article: "المقالات",
-    playlist: "قوائم التشغيل",
-    faq: "الأسئلة الشائعة",
-    season: "المواسم",
-    teamMember: "أعضاء الفريق",
-    terms: "الشروط والأحكام",
-    privacy: "سياسة الخصوصية"
+    episode: t.episodes,
+    article: t.articles,
+    playlist: t.playlists,
+    faq: t.faqs,
+    season: t.seasons,
+    teamMember: t.teamMembers,
+    terms: t.terms,
+    privacy: t.privacy
   };
 
   const typeIcons: Record<string, React.ReactNode> = {
@@ -805,6 +933,7 @@ export default function SearchResults() {
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
         />
+        <p className={`mr-4 text-gray-700 dark:text-gray-300 ${isRTL ? 'ml-4' : 'mr-4'}`}>{t.loadingData}</p>
       </div>
     </div>
   );
@@ -819,7 +948,7 @@ export default function SearchResults() {
         <svg className="mx-auto h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
-        <h3 className="mt-4 text-lg font-medium text-red-800 dark:text-red-200">حدث خطأ في تحميل البيانات</h3>
+        <h3 className="mt-4 text-lg font-medium text-red-800 dark:text-red-200">{t.errorLoadingData}</h3>
         <p className="mt-2 text-red-600 dark:text-red-300">{error}</p>
       </motion.div>
     </div>
@@ -828,7 +957,7 @@ export default function SearchResults() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Hero Section */}
-      <div className="relative overflow-hidden pt-24"> {/* إضافة padding-top هنا لخلق مساحة للناف بار */}
+      <div className="relative overflow-hidden pt-24">
         {/* Background Elements */}
         <div className="absolute inset-0 z-0">
           <div className="absolute top-20 left-10 w-64 h-64 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
@@ -860,7 +989,7 @@ export default function SearchResults() {
                 variants={heroSubtitleVariants}
                 className="mt-4 text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-2xl mx-auto"
               >
-               ابحث هنا في كل ارجاء المنصه
+                {t.searchInPlatform}
               </motion.p>
             </motion.div>
             
@@ -875,9 +1004,9 @@ export default function SearchResults() {
                   <input
                     ref={searchInputRef}
                     type="text"
-                    aria-label="بحث في المنصة"
+                    aria-label="Search in platform"
                     className="bg-transparent outline-none flex-grow text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 py-1 text-xl"
-                    placeholder="ابحث عن حلقات، مقالات، قوائم تشغيل، أسئلة شائعة، مواسم، أعضاء الفريق، الشروط والأحكام، سياسة الخصوصية..."
+                    placeholder={t.searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -893,8 +1022,8 @@ export default function SearchResults() {
                       whileTap={{ scale: 0.9 }}
                       onClick={() => setSearchTerm("")}
                       className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                      aria-label="مسح البحث"
-                      title="مسح"
+                      aria-label="Clear search"
+                      title={t.clearSearch}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -954,7 +1083,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconVideo className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">الحلقات</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.episodes}</span>
               </motion.div>
               
               <motion.div 
@@ -965,7 +1094,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconBook className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">المقالات</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.articles}</span>
               </motion.div>
               
               <motion.div 
@@ -976,7 +1105,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconPlaylist className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">قوائم التشغيل</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.playlists}</span>
               </motion.div>
               
               <motion.div 
@@ -987,10 +1116,9 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconHelp className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">الأسئلة الشائعة</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.faqs}</span>
               </motion.div>
               
-              {/* إضافة أيقونة المواسم */}
               <motion.div 
                 animate={{ y: [0, -15, 0] }}
                 transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 1.7 }}
@@ -999,7 +1127,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconSeasonsBig className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">المواسم</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.seasons}</span>
               </motion.div>
               
               <motion.div 
@@ -1010,7 +1138,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconUsers className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">أعضاء الفريق</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.teamMembers}</span>
               </motion.div>
 
               <motion.div 
@@ -1021,7 +1149,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconTerms className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">الشروط والأحكام</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.terms}</span>
               </motion.div>
 
               <motion.div 
@@ -1032,7 +1160,7 @@ export default function SearchResults() {
                 <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <IconPrivacy className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">سياسة الخصوصية</span>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{t.privacy}</span>
               </motion.div>
             </motion.div>
           </motion.div>
@@ -1050,10 +1178,10 @@ export default function SearchResults() {
           >
             <div className="inline-flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-6 py-3 shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2 2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <span className="text-gray-700 dark:text-gray-300 font-medium">
-                {filteredResults.length} نتيجة لـ &ldquo;<span className="text-blue-600 dark:text-blue-400">{searchTerm}</span>&rdquo;
+                {filteredResults.length} {t.resultsCount} &ldquo;<span className="text-blue-600 dark:text-blue-400">{searchTerm}</span>&rdquo;
               </span>
             </div>
           </motion.div>
@@ -1079,7 +1207,7 @@ export default function SearchResults() {
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
-              الكل ({filteredResults.length})
+              {t.all} ({filteredResults.length})
             </motion.button>
             {Object.entries(groupedResults).map(([type, results]) => (
               results.length > 0 && (
@@ -1106,7 +1234,7 @@ export default function SearchResults() {
         )}
         
         {/* أزرار التحكم */}
-        <div className="flex justify-end mb-6">
+        <div className={`flex ${isRTL ? 'justify-start' : 'justify-end'} mb-6`}>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -1122,7 +1250,7 @@ export default function SearchResults() {
                   : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={viewMode === "grid"}
-              title="عرض شبكي"
+              title={t.gridView}
             >
               <IconGrid className={`h-6 w-6 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
             </motion.button>
@@ -1136,7 +1264,7 @@ export default function SearchResults() {
                   : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={viewMode === "list"}
-              title="عرض قائمة"
+              title={t.listView}
             >
               <IconList className={`h-6 w-6 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
             </motion.button>
@@ -1166,7 +1294,7 @@ export default function SearchResults() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
               >
-                ابدأ البحث في فضلكه
+                {t.startSearching}
               </motion.h2>
               <motion.p 
                 className="mt-4 text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
@@ -1174,7 +1302,7 @@ export default function SearchResults() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
               >
-                اكتب كلمات مفتاحية في مربع البحث للعثور على حلقات، مقالات، قوائم تشغيل، أسئلة شائعة، مواسم، أعضاء الفريق، الشروط والأحكام، أو سياسة الخصوصية.
+                {t.searchInstructions}
               </motion.p>
             </motion.div>
           ) : filteredResults.length === 0 ? (
@@ -1191,15 +1319,15 @@ export default function SearchResults() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L15 12l-5.25-5" />
                 </svg>
               </motion.div>
-              <h2 className="mt-8 text-3xl font-bold text-gray-800 dark:text-gray-100">لم نتمكن من العثور على نتائج</h2>
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.</p>
+              <h2 className="mt-8 text-3xl font-bold text-gray-800 dark:text-gray-100">{t.noResults}</h2>
+              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">{t.tryDifferentKeywords}</p>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setSearchTerm("")}
                 className="mt-8 px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full font-bold text-lg shadow-lg"
               >
-                مسح البحث
+                {t.clearSearch}
               </motion.button>
             </motion.div>
           ) : (
@@ -1229,13 +1357,13 @@ export default function SearchResults() {
                       {viewMode === "grid" ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                           {results.map((result) => (
-                            <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} />
+                            <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} language={language} />
                           ))}
                         </div>
                       ) : (
                         <div className="space-y-6">
                           {results.map((result) => (
-                            <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} />
+                            <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} language={language} />
                           ))}
                         </div>
                       )}
@@ -1248,13 +1376,13 @@ export default function SearchResults() {
                   {viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
                       {groupedResults[activeTab]?.map((result) => (
-                        <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} />
+                        <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} language={language} />
                       ))}
                     </div>
                   ) : (
                     <div className="space-y-6">
                       {groupedResults[activeTab]?.map((result) => (
-                        <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} />
+                        <SearchResultCard key={result._id} result={result} viewMode={viewMode} searchTerm={searchTerm} language={language} />
                       ))}
                     </div>
                   )}
@@ -1300,18 +1428,50 @@ interface SearchResultCardProps {
   result: SearchResult;
   viewMode: "grid" | "list";
   searchTerm: string;
+  language: 'ar' | 'en';
 }
 
-const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProps) => {
-  const typeLabels: Record<string, string> = {
-    episode: "حلقة",
-    article: "مقال",
-    playlist: "قائمة تشغيل",
-    faq: "سؤال شائع",
-    season: "موسم",
-    teamMember: "عضو فريق",
-    terms: "شروط وأحكام",
-    privacy: "سياسة خصوصية"
+const SearchResultCard = ({ result, viewMode, searchTerm, language }: SearchResultCardProps) => {
+  const texts = {
+    ar: {
+      showMore: "اعرض المزيد",
+      episode: "حلقة",
+      article: "مقال",
+      playlist: "قائمة تشغيل",
+      faq: "سؤال شائع",
+      season: "موسم",
+      teamMember: "عضو فريق",
+      terms: "شروط وأحكام",
+      privacy: "سياسة خصوصية",
+      episodeCount: "حلقة",
+      episodeInArticle: "حلقة:"
+    },
+    en: {
+      showMore: "Show More",
+      episode: "Episode",
+      article: "Article",
+      playlist: "Playlist",
+      faq: "FAQ",
+      season: "Season",
+      teamMember: "Team Member",
+      terms: "Terms & Conditions",
+      privacy: "Privacy Policy",
+      episodeCount: "episodes",
+      episodeInArticle: "Episode:"
+    }
+  };
+
+  const t = texts[language];
+
+  const typeLabelsSingle: Record<string, string> = {
+    episode: t.episode,
+    article: t.article,
+    playlist: t.playlist,
+    faq: t.faq,
+    season: t.season,
+    teamMember: t.teamMember,
+    terms: t.terms,
+    privacy: t.privacy
   };
 
   const typeIcons: Record<string, React.ReactNode> = {
@@ -1391,33 +1551,66 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
     return "/placeholder.png";
   };
 
-  // تحديد النص المناسب للعرض
+  // تحديد النص المناسب للعرض بناءً على اللغة
   const getDisplayText = () => {
-    if (result.excerpt) return result.excerpt;
-    if (result.description) return result.description;
-    if (result.answer) return result.answer;
-    if (result.role) return result.role;
+    if (language === 'ar') {
+      if (result.excerpt) return result.excerpt;
+      if (result.description) return result.description;
+      if (result.answer) return result.answer;
+      if (result.role) return result.role;
+    } else {
+      if (result.excerptEn) return result.excerptEn;
+      if (result.descriptionEn) return result.descriptionEn;
+      if (result.answerEn) return result.answerEn;
+      if (result.roleEn) return result.roleEn;
+      // إذا لم توجد ترجمة، استخدم النص العربي كبديل
+      if (result.excerpt) return result.excerpt;
+      if (result.description) return result.description;
+      if (result.answer) return result.answer;
+      if (result.role) return result.role;
+    }
     
     // استخراج نص من محتوى الشروط والأحكام وسياسة الخصوصية
-    if ((result._type === "terms" || result._type === "privacy") && result.content) {
+    if ((result._type === "terms" || result._type === "privacy")) {
       try {
-        return result.content
-          .filter((block: PortableTextBlock) => block._type === "block")
-          .slice(0, 2) // أخذ أول فقرتين فقط
-          .map((block: PortableTextBlock) => 
-            block.children
-              .map((child: PortableTextSpan) => child.text)
-              .join("")
-          )
-          .join(" ")
-          .substring(0, 200) + "..."; // اقتطاع النص
+        const content = language === 'ar' ? result.content : result.contentEn;
+        if (content) {
+          return content
+            .filter((block: PortableTextBlock) => block._type === "block")
+            .slice(0, 2) // أخذ أول فقرتين فقط
+            .map((block: PortableTextBlock) => 
+              block.children
+                .map((child: PortableTextSpan) => child.text)
+                .join("")
+            )
+            .join(" ")
+            .substring(0, 200) + "..."; // اقتطاع النص
+        }
       } catch (error) {
         console.error("Error extracting content text:", error);
-        return "";
       }
     }
     
     return "";
+  };
+
+  // تحديد العنوان المناسب للعرض بناءً على اللغة
+  const getDisplayTitle = () => {
+    if (language === 'ar') {
+      return result.title;
+    } else {
+      return result.titleEn || result.title;
+    }
+  };
+
+  // تحديد عنوان الحلقة المرتبطة بالمقالات بناءً على اللغة
+  const getEpisodeTitle = () => {
+    if (!result.episode) return "";
+    if (language === 'ar') {
+      return result.episode.title;
+    } else {
+      return result.episode.titleEn || result.episode.title;
+    }
   };
 
   if (viewMode === "grid") {
@@ -1454,11 +1647,11 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
               </motion.div>
               <div className="flex items-center gap-1 mb-4">
                 <span className={`text-sm px-4 py-2 rounded-full ${typeColors[result._type]} font-bold`}>
-                  {typeLabels[result._type]}
+                  {typeLabelsSingle[result._type]}
                 </span>
               </div>
               <h3 className="font-bold text-xl text-gray-800 dark:text-gray-100 line-clamp-2 text-center mb-4">
-                {renderHighlighted(result.title, searchTerm)}
+                {renderHighlighted(getDisplayTitle(), searchTerm)}
               </h3>
               <p className="text-base text-gray-600 dark:text-gray-400 line-clamp-3 text-center">
                 {renderHighlighted(getDisplayText(), searchTerm)}
@@ -1474,7 +1667,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
                        '--tw-gradient-to': typeGradients[result._type].split(' ')[1].replace('to-', '') } as React.CSSProperties }
             >
               {typeIcons[result._type]}
-              اعرض المزيد
+              {t.showMore}
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -1484,7 +1677,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
       );
     }
 
-    // تصميم باقي أنواع البطاقات
+    // تصميم باقي أنواعد البطاقات
     return (
       <motion.article
         variants={cardVariants}
@@ -1496,7 +1689,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
             <div className="relative aspect-video bg-gray-100 dark:bg-gray-700">
               <ImageWithFallback 
                 src={getImageUrl()} 
-                alt={result.title} 
+                alt={getDisplayTitle()} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 fill 
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
@@ -1518,7 +1711,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
             <div className="relative aspect-square bg-gray-100 dark:bg-gray-700">
               <ImageWithFallback 
                 src={getImageUrl()} 
-                alt={result.title} 
+                alt={getDisplayTitle()} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 fill 
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
@@ -1528,16 +1721,16 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
           <div className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className={`text-sm px-4 py-2 rounded-full ${typeColors[result._type]} font-bold`}>
-                {typeLabels[result._type]}
+                {typeLabelsSingle[result._type]}
               </span>
               {result._type === "season" && result.episodeCount && (
                 <span className="text-sm px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold">
-                  {result.episodeCount} حلقة
+                  {result.episodeCount} {language === 'ar' ? 'حلقة' : 'episodes'}
                 </span>
               )}
             </div>
             <h3 className="font-bold text-xl text-gray-800 dark:text-gray-100 line-clamp-2 mb-3">
-              {renderHighlighted(result.title, searchTerm)}
+              {renderHighlighted(getDisplayTitle(), searchTerm)}
             </h3>
             <p className="text-base text-gray-600 dark:text-gray-400 line-clamp-3">
               {renderHighlighted(getDisplayText(), searchTerm)}
@@ -1547,7 +1740,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
             {result._type === "article" && result.episode && (
               <div className="mt-4 flex items-center gap-2">
                 <span className="text-sm px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full font-bold">
-                  حلقة: {result.episode.title}
+                  {t.episodeInArticle} {getEpisodeTitle()}
                 </span>
               </div>
             )}
@@ -1564,7 +1757,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
                      '--tw-gradient-from': typeGradients[result._type].split(' ')[0].replace('from-', ''),
                      '--tw-gradient-to': typeGradients[result._type].split(' ')[1].replace('to-', '') } as React.CSSProperties }
           >
-            اعرض المزيد
+            {t.showMore}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -1605,11 +1798,11 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-3">
               <span className={`text-sm px-4 py-2 rounded-full ${typeColors[result._type]} font-bold`}>
-                {typeLabels[result._type]}
+                {typeLabelsSingle[result._type]}
               </span>
             </div>
             <h3 className="font-bold text-xl text-gray-800 dark:text-gray-100 line-clamp-2 mb-3">
-              {renderHighlighted(result.title, searchTerm)}
+              {renderHighlighted(getDisplayTitle(), searchTerm)}
             </h3>
             <p className="text-base text-gray-600 dark:text-gray-400 line-clamp-2">
               {renderHighlighted(getDisplayText(), searchTerm)}
@@ -1622,7 +1815,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
                      '--tw-gradient-from': typeGradients[result._type].split(' ')[0].replace('from-', ''),
                      '--tw-gradient-to': typeGradients[result._type].split(' ')[1].replace('to-', '') } as React.CSSProperties }
           >
-            اعرض المزيد
+            {t.showMore}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -1632,7 +1825,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
     );
   }
 
-  // عرض باقي الأنواع في وضع القائمة
+  // عرض باقي الأنواعد في وضع القائمة
   return (
     <motion.div
       variants={cardVariants}
@@ -1643,7 +1836,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
         <div className={`relative ${result._type === "teamMember" ? "w-24 h-24" : "w-40 h-24"} flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded-2xl overflow-hidden`}>
           <ImageWithFallback 
             src={getImageUrl()} 
-            alt={result.title} 
+            alt={getDisplayTitle()} 
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
             fill 
             sizes="240px" 
@@ -1652,16 +1845,16 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-3">
             <span className={`text-sm px-4 py-2 rounded-full ${typeColors[result._type]} font-bold`}>
-              {typeLabels[result._type]}
+              {typeLabelsSingle[result._type]}
             </span>
             {result._type === "season" && result.episodeCount && (
               <span className="text-sm px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold">
-                {result.episodeCount} حلقة
+                {result.episodeCount} {language === 'ar' ? 'حلقة' : 'episodes'}
               </span>
             )}
           </div>
           <h3 className="font-bold text-xl text-gray-800 dark:text-gray-100 line-clamp-2 mb-3">
-            {renderHighlighted(result.title, searchTerm)}
+            {renderHighlighted(getDisplayTitle(), searchTerm)}
           </h3>
           <p className="text-base text-gray-600 dark:text-gray-400 line-clamp-2">
             {renderHighlighted(getDisplayText(), searchTerm)}
@@ -1671,7 +1864,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
           {result._type === "article" && result.episode && (
             <div className="mt-3 flex items-center gap-2">
               <span className="text-sm px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full font-bold">
-                حلقة: {result.episode.title}
+                {t.episodeInArticle} {getEpisodeTitle()}
               </span>
             </div>
           )}
@@ -1683,7 +1876,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm }: SearchResultCardProp
                    '--tw-gradient-from': typeGradients[result._type].split(' ')[0].replace('from-', ''),
                    '--tw-gradient-to': typeGradients[result._type].split(' ')[1].replace('to-', '') } as React.CSSProperties }
         >
-          اعرض المزيد
+          {t.showMore}
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>

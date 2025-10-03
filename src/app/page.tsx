@@ -1,16 +1,15 @@
-// app/page.tsx
 "use client";
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination, Autoplay, Navigation } from "swiper/modules";
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination, Autoplay, Navigation } from 'swiper/modules';
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaYoutube,
   FaInstagram,
@@ -30,71 +29,92 @@ import {
   FaListUl,
   FaCalendarAlt,
   FaNewspaper,
-  FaHeart,
-  FaStar,
+  FaBookmark,
+  FaFire,
   FaCompass,
   FaTimes,
   FaSearch,
-  FaBookmark
-} from "react-icons/fa";
-import { fetchArrayFromSanity, SanityImage, fetchFromSanity, HeroSlider, getImageUrl, getVideoUrl } from "@/lib/sanity";
+} from 'react-icons/fa';
+import { fetchArrayFromSanity, SanityImage, fetchFromSanity, HeroSlider, getImageUrl, getVideoUrl } from '@/lib/sanity';
+import { useLanguage } from '@/components/LanguageProvider';
 import imageUrlBuilder from '@sanity/image-url';
-import { client } from "@/lib/sanity";
+import { client } from '@/lib/sanity';
 
-// تعريف واجهات البيانات
+// تعريفات واجهات البيانات
 interface EpisodeData {
   _id: string;
-  title: string;
+  title?: string;
+  titleEn?: string;
   slug: { current: string };
   description?: string;
+  descriptionEn?: string;
   publishedAt?: string;
   thumbnail?: SanityImage;
   season?: {
     _id: string;
-    title: string;
+    title?: string;
+    titleEn?: string;
     slug: { current: string };
   };
+  language?: string;
 }
 
 interface ArticleData {
   _id: string;
-  title: string;
+  title?: string;
+  titleEn?: string;
   slug: { current: string };
   excerpt?: string;
+  excerptEn?: string;
   publishedAt?: string;
   featuredImage?: SanityImage;
   category?: string;
+  language?: string;
 }
 
 interface FAQItem {
   _id: string;
-  question: string;
-  answer: string;
+  question?: string;
+  questionEn?: string;
+  answer?: string;
+  answerEn?: string;
   category?: string;
+  categoryEn?: string;
+  language?: string;
 }
 
 interface SearchResult {
   _id: string;
   _type: "episode" | "article" | "faq" | "playlist" | "season" | "teamMember" | "terms" | "privacy";
-  title: string;
+  title?: string;
+  titleEn?: string;
   slug?: { current: string };
   excerpt?: string;
+  excerptEn?: string;
   description?: string;
+  descriptionEn?: string;
   answer?: string;
+  answerEn?: string;
   role?: string;
+  roleEn?: string;
   thumbnail?: SanityImage;
   featuredImage?: SanityImage;
   image?: SanityImage;
-  season?: { _id: string; title: string; slug: { current: string } };
+  season?: { _id: string; title?: string; titleEn?: string; slug: { current: string } };
   episodeCount?: number;
   category?: string;
   content?: PortableTextBlock[];
+  contentEn?: PortableTextBlock[];
   sectionType?: string;
   imageUrl?: string;
   question?: string;
+  questionEn?: string;
   name?: string;
+  nameEn?: string;
   bio?: string;
-  episode?: { _id: string; title: string; slug: { current: string } };
+  bioEn?: string;
+  episode?: { _id: string; title?: string; titleEn?: string; slug: { current: string } };
+  language?: string;
 }
 
 interface PortableTextBlock {
@@ -108,19 +128,272 @@ interface PortableTextSpan {
 
 interface FaqResult extends SearchResult {
   _type: "faq";
-  question: string;
-  answer: string;
+  question?: string;
+  questionEn?: string;
+  answer?: string;
+  answerEn?: string;
   category?: string;
+  categoryEn?: string;
 }
 
 interface TeamMemberResult extends SearchResult {
   _type: "teamMember";
-  name: string;
+  name?: string;
+  nameEn?: string;
   role?: string;
+  roleEn?: string;
   slug?: { current: string };
   image?: SanityImage;
   bio?: string;
+  bioEn?: string;
 }
+
+// واجهات للبيانات المستخدمة في البحث
+interface EpisodeSearchData {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  language: string;
+}
+
+interface ArticleSearchData {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  language: string;
+}
+
+interface PlaylistSearchData {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  language: string;
+}
+
+interface FaqSearchData {
+  _id: string;
+  question?: string;
+  questionEn?: string;
+  language: string;
+}
+
+interface SeasonSearchData {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  language: string;
+}
+
+interface TeamMemberSearchData {
+  _id: string;
+  name?: string;
+  nameEn?: string;
+  language: string;
+}
+
+// كائن الترجمات
+const translations = {
+  ar: {
+    home: "الرئيسية",
+    content: "محتوانا",
+    episodes: "الحلقات",
+    playlists: "قوائم التشغيل",
+    seasons: "المواسم",
+    articles: "المقالات",
+    about: "تعرف علينا",
+    whoWeAre: "من نحن",
+    team: "الفريق",
+    contact: "التواصل",
+    contactUs: "تواصل معنا",
+    faq: "الأسئلة الشائعة",
+    search: "ابحث عن حلقات، مقالات، مواسم والمزيد...",
+    searchResults: "نتائج البحث",
+    noResults: "لا توجد نتائج مطابقة",
+    searching: "جاري البحث...",
+    viewAllResults: "عرض جميع نتائج البحث",
+    signIn: "تسجيل دخول",
+    signUp: "إنشاء حساب",
+    manageAccount: "إدارة الحساب",
+    favorites: "مفضلاتي",
+    signOut: "تسجيل الخروج",
+    notifications: "الإشعارات",
+    viewAll: "مشاهدة الكل",
+    noNotifications: "لا توجد إشعارات جديدة",
+    loading: "جاري التحميل...",
+    terms: "شروط وأحكام",
+    privacy: "سياسة الخصوصية",
+    episode: "حلقة",
+    article: "مقال",
+    playlist: "قائمة تشغيل",
+    faqItem: "سؤال شائع",
+    season: "موسم",
+    teamMember: "عضو الفريق",
+    termsItem: "شروط وأحكام",
+    privacyItem: "سياسة الخصوصية",
+    darkMode: "تبديل الوضع الليلي",
+    language: "تبديل اللغة",
+    copyright: "© {year} فذلكة",
+    platformName: "فذلَكة",
+    platformSubtitle: "منصة المعرفة التفاعلية",
+    discover: "استكشف أحدث محتوانا",
+    welcome: "مرحباً بك،",
+    noUser: "صديقنا",
+    welcomeMessage: "شكراً لانضمامك إلينا! استمتع بتجربة تعليمية فريدة واستكشف محتوانا التعليمي المتنوع.",
+    joinCommunity: "انضم إلى مجتمعنا",
+    joinMessage: "سجل الآن للحصول على تجربة تعليمية مخصصة والوصول إلى محتوى حصري",
+    latestEpisodes: "أحدث الحلقات",
+    latestArticles: "أحدث المقالات",
+    allEpisodes: "جميع الحلقات",
+    allPlaylists: "جميع القوائم",
+    allSeasons: "المواسم",
+    allArticles: "جميع المقالات",
+    noEpisodes: "لا توجد حلقات حالياً",
+    noArticles: "لا توجد مقالات حالياً",
+    startWatching: "ابدأ المشاهدة",
+    learnMore: "اعرف المزيد",
+    send: "ارسل رسالة",
+    followUs: "تابعنا على:",
+    youtube: "يوتيوب",
+    instagram: "انستجرام",
+    facebook: "فيسبوك",
+    tiktok: "تيك توك",
+    twitter: "اكس",
+    contactUsTitle: "تواصل معنا",
+    contactUsMessage: "هل لديك أسئلة أو استفسارات؟ نحن هنا لمساعدتك. تصفح الأسئلة الشائعة أو تواصل معنا مباشرة.",
+    commonQuestions: "الأسئلة الشائعة",
+    allQuestions: "جميع الأسئلة",
+    whySubscribe: "لماذا تشترك في فذلَكة؟",
+    whySubscribePoints: [
+      'تلخيص الفرضيات والأفكار الأساسية بسرعة.',
+      'قصص وسيناريوهات تساعدك تطبّق الفكرة عمليًا.',
+      'مصادر وروابط لو حبيت تغوص أعمق.'
+    ],
+    features: [
+      { icon: <FaVideo className="text-xl" />, title: 'حلقات عميقة', desc: 'شرح مبسط ومعمق' },
+      { icon: <FaUsers className="text-xl" />, title: 'أسلوب قصصي', desc: 'سرد يشد الانتباه' },
+      { icon: <FaGlobe className="text-xl" />, title: 'تنوع الموضوعات', desc: 'تاريخ، سياسة، علم نفس' }
+    ],
+    aboutUs: "من نحن",
+    aboutUsMessage: "نحن منصة تعليمية تقدم محتوى ترفيهي وتعليمي مميز. نعمل باستمرار على تحسين التجربة وتوفير أحدث الحلقات والقوائم.",
+    knowMore: "اعرف أكثر عن المنصة",
+    viewProfile: "عرض الملف الشخصي",
+    myFavorites: "المفضلة",
+    publishedAt: "تاريخ النشر",
+    subscribers: "مشتركين يوتيوب",
+    episodesCount: "حلقات",
+    playlistsCount: "قوائم تشغيل",
+    seasonsCount: "مواسم",
+    articlesCount: "مقالات",
+    newContent: "ما الجديد",
+    heroDescription: "اطلع على أحدث المحتوى والفعاليات التي نقدمها لك",
+    noFaqs: "لا توجد أسئلة شائعة حالياً",
+    noFaqsMessage: "سيتم إضافتها قريباً",
+    noQuestion: "لا يوجد سؤال",
+    noAnswer: "لا يوجد إجابة",
+    featuredContent: "المحتوى المميز",
+    featuredDescription: "استكشف أحدث وأهم المحتويات التي نقدمها لك"
+  },
+  en: {
+    home: "Home",
+    content: "Content",
+    episodes: "Episodes",
+    playlists: "Playlists",
+    seasons: "Seasons",
+    articles: "Articles",
+    about: "About",
+    whoWeAre: "Who We Are",
+    team: "Team",
+    contact: "Contact",
+    contactUs: "Contact Us",
+    faq: "FAQ",
+    search: "Search for episodes, articles, seasons and more...",
+    searchResults: "Search Results",
+    noResults: "No matching results",
+    searching: "Searching...",
+    viewAllResults: "View All Results",
+    signIn: "Sign In",
+    signUp: "Sign Up",
+    manageAccount: "Manage Account",
+    favorites: "My Favorites",
+    signOut: "Sign Out",
+    notifications: "Notifications",
+    viewAll: "View All",
+    noNotifications: "No new notifications",
+    loading: "Loading...",
+    terms: "Terms & Conditions",
+    privacy: "Privacy Policy",
+    episode: "Episode",
+    article: "Article",
+    playlist: "Playlist",
+    faqItem: "FAQ",
+    season: "Season",
+    teamMember: "Team Member",
+    termsItem: "Terms & Conditions",
+    privacyItem: "Privacy Policy",
+    darkMode: "Toggle Dark Mode",
+    language: "Toggle Language",
+    copyright: "© {year} fazlaka",
+    platformName: "fazlaka",
+    platformSubtitle: "Interactive Knowledge Platform",
+    discover: "Discover Our Latest Content",
+    welcome: "Welcome,",
+    noUser: "Friend",
+    welcomeMessage: "Thank you for joining us! Enjoy a unique educational experience and explore our diverse educational content.",
+    joinCommunity: "Join Our Community",
+    joinMessage: "Sign up now for a personalized educational experience and access to exclusive content",
+    latestEpisodes: "Latest Episodes",
+    latestArticles: "Latest Articles",
+    allEpisodes: "All Episodes",
+    allPlaylists: "All Playlists",
+    allSeasons: "Seasons",
+    allArticles: "All Articles",
+    noEpisodes: "No episodes available",
+    noArticles: "No articles available",
+    startWatching: "Start Watching",
+    learnMore: "Learn More",
+    send: "Send Message",
+    followUs: "Follow Us:",
+    youtube: "YouTube",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "Tiktok",
+    twitter: "X",
+    contactUsTitle: "Contact Us",
+    contactUsMessage: "Do you have questions or inquiries? We are here to help you. Browse the frequently asked questions or contact us directly.",
+    commonQuestions: "Frequently Asked Questions",
+    allQuestions: "All Questions",
+    whySubscribe: "Why Subscribe to fazlaka?",
+    whySubscribePoints: [
+      'Quick summaries of basic hypotheses and ideas.',
+      'Stories and scenarios to help you apply the idea practically.',
+      'Sources and links if you want to dive deeper.'
+    ],
+    features: [
+      { icon: <FaVideo className="text-xl" />, title: 'In-depth Episodes', desc: 'Simplified and detailed explanation' },
+      { icon: <FaUsers className="text-xl" />, title: 'Storytelling Style', desc: 'Engaging narrative' },
+      { icon: <FaGlobe className="text-xl" />, title: 'Diverse Topics', desc: 'History, politics, psychology' }
+    ],
+    aboutUs: "About Us",
+    aboutUsMessage: "We are an educational platform that offers distinctive entertainment and educational content. We continuously work on improving the experience and providing the latest episodes and playlists.",
+    knowMore: "Know More About The Platform",
+    viewProfile: "View Profile",
+    myFavorites: "My Favorites",
+    publishedAt: "Published Date",
+    subscribers: "YouTube Subscribers",
+    episodesCount: "Episodes",
+    playlistsCount: "Playlists",
+    seasonsCount: "Seasons",
+    articlesCount: "Articles",
+    newContent: "What's New",
+    heroDescription: "Check out the latest content and events we offer you",
+    noFaqs: "No FAQs available at the moment",
+    noFaqsMessage: "They will be added soon",
+    noQuestion: "No question available",
+    noAnswer: "No answer available",
+    featuredContent: "Featured Content",
+    featuredDescription: "Explore the latest and most important content we offer you"
+  }
+};
 
 // متغيرات الحركة للعناصر
 const containerVariants = {
@@ -206,9 +479,44 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
-// مكون السؤال المتحرك
-const AnimatedQuestion = ({ question, answer, index }: { question: string; answer: string; index: number }) => {
+// دالة للتحقق إذا كان النص يحتوي على HTML
+const hasHtml = (text: string): boolean => {
+  if (!text) return false;
+  return /<[^>]*>/g.test(text);
+};
+
+// دالة محسنة للحصول على النص المترجم
+function getLocalizedTextEnhanced(arText?: string, enText?: string, language?: string): string {
+  if (language === 'en') {
+    return enText || arText || '';
+  }
+  return arText || enText || '';
+}
+
+// مكون السؤال المتحرك - محسن بالكامل
+const AnimatedQuestion = ({ question, questionEn, answer, answerEn, index }: { 
+  question?: string; 
+  questionEn?: string; 
+  answer?: string; 
+  answerEn?: string; 
+  index: number 
+}) => {
+  const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const t = translations[language];
+  
+  // استخدام الدالة المحسنة للحصول على النصوص
+  const localizedQuestion = getLocalizedTextEnhanced(question, questionEn, language);
+  const localizedAnswer = getLocalizedTextEnhanced(answer, answerEn, language);
+  
+  // التحقق من وجود محتوى
+  const hasValidContent = localizedQuestion && localizedQuestion.trim() !== '';
+  const hasValidAnswer = localizedAnswer && localizedAnswer.trim() !== '';
+  
+  // إذا لم يوجد محتوى، لا تعرض الكرت
+  if (!hasValidContent) {
+    return null;
+  }
   
   return (
     <motion.div 
@@ -234,7 +542,9 @@ const AnimatedQuestion = ({ question, answer, index }: { question: string; answe
             index % 2 === 0 ? 'text-blue-500' : 'text-purple-500'
           }`} />
         </div>
-        <span className="text-right flex-grow text-lg">{question}</span>
+        <span className="text-right flex-grow text-lg">
+          {localizedQuestion || t.noQuestion}
+        </span>
         <motion.div 
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.3 }}
@@ -251,10 +561,17 @@ const AnimatedQuestion = ({ question, answer, index }: { question: string; answe
         animate={isOpen ? "open" : "closed"}
         className="overflow-hidden"
       >
-        <div 
-          className="mt-6 text-gray-700 dark:text-gray-300 overflow-hidden pr-14 text-base leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: answer }}
-        />
+        <div className="mt-6 text-gray-700 dark:text-gray-300 overflow-hidden pr-14 text-base leading-relaxed">
+          {hasValidAnswer ? (
+            hasHtml(localizedAnswer) ? (
+              <div dangerouslySetInnerHTML={{ __html: localizedAnswer }} />
+            ) : (
+              <p>{localizedAnswer}</p>
+            )
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 italic">{t.noAnswer}</p>
+          )}
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -262,9 +579,15 @@ const AnimatedQuestion = ({ question, answer, index }: { question: string; answe
 
 // مكون بطاقة المقال
 const ArticleCard = ({ article }: { article: ArticleData }) => {
+  const { language } = useLanguage();
+  const t = translations[language];
+  
   const imageUrl = article.featuredImage 
     ? imageUrlBuilder(client).image(article.featuredImage).width(500).height(300).url()
     : "/placeholder.png";
+    
+  const title = getLocalizedTextEnhanced(article.title, article.titleEn, language);
+  const excerpt = getLocalizedTextEnhanced(article.excerpt, article.excerptEn, language);
     
   return (
     <motion.div
@@ -278,7 +601,7 @@ const ArticleCard = ({ article }: { article: ArticleData }) => {
         <div className="relative h-48 md:h-56 overflow-hidden flex-shrink-0">
           <Image
             src={imageUrl}
-            alt={article.title}
+            alt={title}
             fill
             className="object-cover transition-transform duration-500 hover:scale-110"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -300,10 +623,10 @@ const ArticleCard = ({ article }: { article: ArticleData }) => {
               overflow: "hidden",
             }}
           >
-            {article.title}
+            {title}
           </h3>
           
-          {article.excerpt && (
+          {excerpt && (
             <p 
               className="text-gray-600 dark:text-gray-400 mb-4 text-sm"
               style={{
@@ -313,18 +636,18 @@ const ArticleCard = ({ article }: { article: ArticleData }) => {
                 overflow: "hidden",
               }}
             >
-              {article.excerpt}
+              {excerpt}
             </p>
           )}
           
           <div className="mt-auto pt-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                مقال
+                {t.article}
               </span>
               {article.publishedAt && (
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {new Date(article.publishedAt).toLocaleDateString('ar-EG')}
+                  {new Date(article.publishedAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
                 </span>
               )}
             </div>
@@ -335,20 +658,73 @@ const ArticleCard = ({ article }: { article: ArticleData }) => {
   );
 };
 
-// مكون شريط البحث المخصص للهيرو
+// مكون شريط البحث المخصص للهيرو - مع تعديلات للغة الإنجليزية ودعم الاقتراحات
 const HeroSearchBar = () => {
+  const { language, isRTL } = useLanguage();
+  
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
+  const [titles, setTitles] = useState<string[]>([]);
+  
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // نصوص التطبيق حسب اللغة
+  const searchTexts = {
+    ar: {
+      searchPlaceholder: "ابحث عن حلقات، مقالات، قوائم تشغيل...",
+      searchInPlatform: "ابحث هنا في كل ارجاء المنصه",
+      resultsCount: "نتيجة لـ",
+      noResults: "لم نتمكن من العثور على نتائج",
+      tryDifferentKeywords: "جرب كلمات مفتاحية أخرى",
+      clearSearch: "مسح البحث",
+      searching: "جاري البحث...",
+      viewAllResults: "عرض جميع النتائج",
+      loading: "جاري التحميل...",
+      episode: "حلقة",
+      article: "مقال",
+      playlist: "قائمة تشغيل",
+      faq: "سؤال شائع",
+      season: "موسم",
+      teamMember: "عضو فريق",
+      terms: "شروط وأحكام",
+      privacy: "سياسة الخصوصية"
+    },
+    en: {
+      searchPlaceholder: "Search for episodes, articles, playlists...",
+      searchInPlatform: "Search across the entire platform",
+      resultsCount: "results for",
+      noResults: "We couldn't find any results",
+      tryDifferentKeywords: "Try different keywords",
+      clearSearch: "Clear Search",
+      searching: "Searching...",
+      viewAllResults: "View All Results",
+      loading: "Loading...",
+      episode: "Episode",
+      article: "Article",
+      playlist: "Playlist",
+      faq: "FAQ",
+      season: "Season",
+      teamMember: "Team Member",
+      terms: "Terms & Conditions",
+      privacy: "Privacy Policy"
+    }
+  };
+  
+  const searchT = searchTexts[language];
   
   // إغلاق النتائج عند النقر خارجها
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowResults(false);
+        setShowSuggestions(false);
       }
     };
     
@@ -357,6 +733,358 @@ const HeroSearchBar = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  
+  // جلب العناوين للاقتراحات مع فلترة حسب اللغة
+  useEffect(() => {
+    async function loadTitles() {
+      try {
+        // جلب جميع البيانات من Sanity مع دعم اللغة
+        const episodesQuery = `*[_type == "episode"]{
+          _id,
+          title,
+          titleEn,
+          language
+        }`;
+        
+        const articlesQuery = `*[_type == "article"]{
+          _id,
+          title,
+          titleEn,
+          language
+        }`;
+        
+        const playlistsQuery = `*[_type == "playlist"]{
+          _id,
+          title,
+          titleEn,
+          language
+        }`;
+        
+        const faqsQuery = `*[_type == "faq"]{
+          _id,
+          question,
+          questionEn,
+          language
+        }`;
+        
+        const seasonsQuery = `*[_type == "season"]{
+          _id,
+          title,
+          titleEn,
+          language
+        }`;
+        
+        const teamMembersQuery = `*[_type == "teamMember"]{
+          _id,
+          name,
+          nameEn,
+          language
+        }`;
+        
+        const [
+          episodesData, 
+          articlesData, 
+          playlistsData, 
+          faqsData, 
+          seasonsData, 
+          teamMembersData
+        ] = await Promise.all([
+          fetchFromSanity<EpisodeSearchData[]>(episodesQuery),
+          fetchFromSanity<ArticleSearchData[]>(articlesQuery),
+          fetchFromSanity<PlaylistSearchData[]>(playlistsQuery),
+          fetchFromSanity<FaqSearchData[]>(faqsQuery),
+          fetchFromSanity<SeasonSearchData[]>(seasonsQuery),
+          fetchFromSanity<TeamMemberSearchData[]>(teamMembersQuery)
+        ]);
+        
+        // فلترة البيانات حسب اللغة الحالية فقط
+        const currentLanguage = language;
+        
+        // إنشاء قائمة بالعناوين للاقتراحات مع فلترة حسب اللغة
+        const allTitles: string[] = [];
+        
+        // فلترة الحلقات حسب اللغة
+        if (Array.isArray(episodesData)) {
+          episodesData
+            .filter((item: EpisodeSearchData) => item.language === currentLanguage)
+            .forEach((item: EpisodeSearchData) => {
+              const title = language === 'ar' ? item.title : (item.titleEn || item.title);
+              if (title) allTitles.push(title);
+            });
+        }
+        
+        // فلترة المقالات حسب اللغة
+        if (Array.isArray(articlesData)) {
+          articlesData
+            .filter((item: ArticleSearchData) => item.language === currentLanguage)
+            .forEach((item: ArticleSearchData) => {
+              const title = language === 'ar' ? item.title : (item.titleEn || item.title);
+              if (title) allTitles.push(title);
+            });
+        }
+        
+        // فلترة قوائم التشغيل حسب اللغة
+        if (Array.isArray(playlistsData)) {
+          playlistsData
+            .filter((item: PlaylistSearchData) => item.language === currentLanguage)
+            .forEach((item: PlaylistSearchData) => {
+              const title = language === 'ar' ? item.title : (item.titleEn || item.title);
+              if (title) allTitles.push(title);
+            });
+        }
+        
+        // فلترة الأسئلة الشائعة حسب اللغة
+        if (Array.isArray(faqsData)) {
+          faqsData
+            .filter((item: FaqSearchData) => item.language === currentLanguage)
+            .forEach((item: FaqSearchData) => {
+              const question = language === 'ar' ? item.question : (item.questionEn || item.question);
+              if (question) allTitles.push(question);
+            });
+        }
+        
+        // فلترة المواسم حسب اللغة
+        if (Array.isArray(seasonsData)) {
+          seasonsData
+            .filter((item: SeasonSearchData) => item.language === currentLanguage)
+            .forEach((item: SeasonSearchData) => {
+              const title = language === 'ar' ? item.title : (item.titleEn || item.title);
+              if (title) allTitles.push(title);
+            });
+        }
+        
+        // فلترة أعضاء الفريق حسب اللغة
+        if (Array.isArray(teamMembersData)) {
+          teamMembersData
+            .filter((item: TeamMemberSearchData) => item.language === currentLanguage)
+            .forEach((item: TeamMemberSearchData) => {
+              const name = language === 'ar' ? item.name : (item.nameEn || item.name);
+              if (name) allTitles.push(name);
+            });
+        }
+        
+        setTitles(allTitles);
+      } catch (error) {
+        console.error("Error loading titles:", error);
+      }
+    }
+    
+    loadTitles();
+  }, [language]); // إعادة التحميل عند تغيير اللغة
+  
+  // فلترة الاقتراحات
+  useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    
+    const term = query.toLowerCase();
+    const filteredSuggestions = titles
+      .filter(title => title.toLowerCase().includes(term))
+      .slice(0, 8); // عرض 8 اقتراحات كحد أقصى
+    
+    setSuggestions(filteredSuggestions);
+  }, [query, titles]);
+  
+  // دالة البحث
+  const performSearch = useCallback(async (searchQuery: string) => {
+    setIsLoading(true);
+    try {
+      // استعلامات Sanity لجلب البيانات مع دعم اللغة
+      const episodesQuery = `*[_type == "episode"]{
+        _id, _type, title, titleEn, slug, description, descriptionEn, thumbnail,
+        season->{_id, title, titleEn, slug},
+        language
+      }`;
+      
+      const articlesQuery = `*[_type == "article"]{
+        _id, _type, title, titleEn, slug, excerpt, excerptEn, featuredImage,
+        episode->{_id, title, titleEn, slug},
+        language
+      }`;
+      
+      const playlistsQuery = `*[_type == "playlist"]{
+        _id, _type, title, titleEn, slug, description, descriptionEn,
+        "imageUrl": image.asset->url,
+        language
+      }`;
+      
+      const faqsQuery = `*[_type == "faq"]{
+        _id, _type, question, questionEn, answer, answerEn, category, categoryEn,
+        language
+      }`;
+      
+      const seasonsQuery = `*[_type == "season"]{
+        _id, _type, title, titleEn, slug, thumbnail,
+        language
+      }`;
+      
+      const teamMembersQuery = `*[_type == "teamMember"]{
+        _id, _type, name, nameEn, role, roleEn, slug, image, bio, bioEn,
+        language
+      }`;
+      
+      const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
+        _id, _type, title, titleEn, content, contentEn, lastUpdated,
+        language
+      }`;
+      
+      const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
+        _id, _type, title, titleEn, content, contentEn, lastUpdated,
+        language
+      }`;
+      
+      // جلب البيانات بشكل متوازٍ
+      const [
+        episodesData, 
+        articlesData, 
+        playlistsData, 
+        faqsData, 
+        seasonsData, 
+        teamMembersData, 
+        termsData, 
+        privacyData
+      ] = await Promise.all([
+        fetchFromSanity<SearchResult[]>(episodesQuery),
+        fetchFromSanity<SearchResult[]>(articlesQuery),
+        fetchFromSanity<SearchResult[]>(playlistsQuery),
+        fetchFromSanity<FaqResult[]>(faqsQuery),
+        fetchFromSanity<SearchResult[]>(seasonsQuery),
+        fetchFromSanity<TeamMemberResult[]>(teamMembersQuery),
+        fetchFromSanity<SearchResult>(termsQuery),
+        fetchFromSanity<SearchResult>(privacyQuery)
+      ]);
+      
+      // تحويل البيانات إلى الأنواع المناسبة
+      const episodes = episodesData || [];
+      const articles = articlesData || [];
+      const playlists = playlistsData || [];
+      const seasons = seasonsData || [];
+      const terms = termsData;
+      const privacy = privacyData;
+      
+      // فلترة البيانات حسب اللغة الحالية فقط
+      const currentLanguage = language;
+      
+      const filteredEpisodes = episodes.filter(item => item.language === currentLanguage);
+      const filteredArticles = articles.filter(item => item.language === currentLanguage);
+      const filteredPlaylists = playlists.filter(item => item.language === currentLanguage);
+      const filteredFaqs = (faqsData || []).filter(item => item.language === currentLanguage);
+      const filteredSeasons = seasons.filter(item => item.language === currentLanguage);
+      const filteredTeamMembers = (teamMembersData || []).filter(item => item.language === currentLanguage);
+      
+      // حساب عدد الحلقات لكل موسم
+      const episodesCountQuery = `*[_type == "episode"]{ season->{_id} }`;
+      const episodesCountData = await fetchFromSanity<{ season?: { _id: string } }[]>(episodesCountQuery);
+      
+      const episodeCounts: Record<string, number> = {};
+      episodesCountData?.forEach((ep) => {
+        if (ep.season?._id) {
+          episodeCounts[ep.season._id] = (episodeCounts[ep.season._id] || 0) + 1;
+        }
+      });
+      
+      // إضافة عدد الحلقات لكل موسم
+      const seasonsWithCount = filteredSeasons.map(season => ({
+        ...season,
+        episodeCount: episodeCounts[season._id] || 0
+      }));
+      
+      // تحويل الأسئلة الشائعة إلى نفس تنسيق النتائج الأخرى
+      const faqs = filteredFaqs.map(faq => ({
+        ...faq,
+        title: faq.question,
+        titleEn: faq.questionEn,
+        excerpt: faq.answer,
+        excerptEn: faq.answerEn
+      }));
+      
+      // تحويل أعضاء الفريق إلى نفس تنسيق النتائج الأخرى
+      const teamMembers = filteredTeamMembers.map(member => ({
+        ...member,
+        title: member.name,
+        titleEn: member.nameEn,
+        excerpt: member.bio,
+        excerptEn: member.bioEn
+      }));
+      
+      // إضافة الشروط والأحكام وسياسة الخصوصية إذا كانت موجودة وتطابق اللغة
+      const termsAndPrivacy: SearchResult[] = [];
+      if (terms && terms.language === currentLanguage) {
+        termsAndPrivacy.push({
+          ...terms,
+          _type: "terms",
+          slug: { current: "terms-conditions" }
+        });
+      }
+      
+      if (privacy && privacy.language === currentLanguage) {
+        termsAndPrivacy.push({
+          ...privacy,
+          _type: "privacy",
+          slug: { current: "privacy-policy" }
+        });
+      }
+      
+      // دمج جميع النتائج المفلترة حسب اللغة
+      const allResults = [
+        ...filteredEpisodes,
+        ...filteredArticles,
+        ...filteredPlaylists,
+        ...faqs,
+        ...seasonsWithCount,
+        ...teamMembers,
+        ...termsAndPrivacy
+      ];
+      
+      // فلترة النتائج حسب البحث
+      const q = searchQuery.trim().toLowerCase();
+      const searchResults = allResults.filter((result) => {
+        // البحث في العناوين بناءً على اللغة الحالية
+        const title = language === 'ar' 
+          ? (result.title || "").toString().toLowerCase()
+          : ((result.titleEn || result.title) || "").toString().toLowerCase();
+        
+        // البحث في المحتوى بناءً على اللغة الحالية
+        let excerpt = language === 'ar'
+          ? (result.excerpt || result.description || result.answer || result.role || "").toString().toLowerCase()
+          : ((result.excerptEn || result.descriptionEn || result.answerEn || result.roleEn || 
+              result.excerpt || result.description || result.answer || result.role) || "").toString().toLowerCase();
+        
+        // إذا كان النتيجة من نوع الشروط والأحكام أو سياسة الخصوصية، ابحث في المحتوى أيضاً
+        if ((result._type === "terms" || result._type === "privacy")) {
+          try {
+            const content = language === 'ar' ? result.content : result.contentEn;
+            if (content) {
+              const contentText = content
+                .filter((block: PortableTextBlock) => block._type === "block")
+                .map((block: PortableTextBlock) => 
+                  block.children
+                    .map((child: PortableTextSpan) => child.text)
+                    .join("")
+                )
+                .join(" ")
+                .toLowerCase();
+              
+              excerpt = contentText;
+            }
+          } catch (error) {
+            console.error("Error extracting content text:", error);
+          }
+        }
+        
+        return title.includes(q) || excerpt.includes(q);
+      });
+      
+      setResults(searchResults);
+      setShowResults(true);
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [language]);
   
   // البحث عند تغيير النص
   useEffect(() => {
@@ -371,179 +1099,40 @@ const HeroSearchBar = () => {
     }, 300);
     
     return () => clearTimeout(delayDebounce);
-  }, [query]);
+  }, [query, language, performSearch]);
   
-  const performSearch = async (searchQuery: string) => {
-    setIsLoading(true);
-    try {
-      // استعلامات Sanity لجلب البيانات
-      const episodesQuery = `*[_type == "episode"]{
-        _id, _type, title, slug, description, thumbnail,
-        season->{_id, title, slug}
-      }`;
-      
-      const articlesQuery = `*[_type == "article"]{
-        _id, _type, title, slug, excerpt, featuredImage,
-        episode->{_id, title, slug}
-      }`;
-      
-      const playlistsQuery = `*[_type == "playlist"]{
-        _id, _type, title, slug, description,
-        "imageUrl": image.asset->url
-      }`;
-      
-      const faqsQuery = `*[_type == "faq"]{
-        _id, _type, question, answer, category
-      }`;
-      
-      const seasonsQuery = `*[_type == "season"]{
-        _id, _type, title, slug, thumbnail
-      }`;
-      
-      const teamMembersQuery = `*[_type == "teamMember"]{
-        _id, _type, name, role, slug, image, bio
-      }`;
-      
-      const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
-        _id, _type, title, content, lastUpdated
-      }`;
-      
-      const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
-        _id, _type, title, content, lastUpdated
-      }`;
-      
-      // جلب البيانات بشكل متوازٍ
-      const [
-        episodesData, 
-        articlesData, 
-        playlistsData, 
-        faqsData, 
-        seasonsData, 
-        teamMembersData, 
-        termsData, 
-        privacyData
-      ] = await Promise.all([
-        fetchFromSanity(episodesQuery),
-        fetchFromSanity(articlesQuery),
-        fetchFromSanity(playlistsQuery),
-        fetchFromSanity(faqsQuery),
-        fetchFromSanity(seasonsQuery),
-        fetchFromSanity(teamMembersQuery),
-        fetchFromSanity(termsQuery),
-        fetchFromSanity(privacyQuery)
-      ]);
-      
-      // تحويل البيانات إلى الأنواع المناسبة
-      const episodes = episodesData as SearchResult[];
-      const articles = articlesData as SearchResult[];
-      const playlists = playlistsData as SearchResult[];
-      const seasons = seasonsData as SearchResult[];
-      const terms = termsData as SearchResult | null;
-      const privacy = privacyData as SearchResult | null;
-      
-      // حساب عدد الحلقات لكل موسم
-      const episodesCountQuery = `*[_type == "episode"]{ season->{_id} }`;
-      const episodesCountData = await fetchFromSanity(episodesCountQuery);
-      const episodesDataCount = episodesCountData as { season?: { _id: string } }[];
-      
-      const episodeCounts: Record<string, number> = {};
-      episodesDataCount.forEach((ep) => {
-        if (ep.season?._id) {
-          episodeCounts[ep.season._id] = (episodeCounts[ep.season._id] || 0) + 1;
+  // التعامل مع اختيار الاقتراح
+  const handleSuggestionSelect = (suggestion: string) => {
+    setQuery(suggestion);
+    setShowSuggestions(false);
+    setSelectedSuggestion(-1);
+  };
+  
+  // التعامل مع مفاتيح لوحة المفاتيح للاقتراحات
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestion(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestion(prev => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestion >= 0 && selectedSuggestion < suggestions.length) {
+          handleSuggestionSelect(suggestions[selectedSuggestion]);
+        } else {
+          handleSubmit(e as React.FormEvent);
         }
-      });
-      
-      // إضافة عدد الحلقات لكل موسم
-      const seasonsWithCount = seasons.map(season => ({
-        ...season,
-        episodeCount: episodeCounts[season._id] || 0
-      }));
-      
-      // تحويل الأسئلة الشائعة إلى نفس تنسيق النتائج الأخرى
-      const faqs = (faqsData as FaqResult[]).map(faq => ({
-        ...faq,
-        title: faq.question,
-        excerpt: faq.answer
-      }));
-      
-      // تحويل أعضاء الفريق إلى نفس تنسيق النتائج الأخرى
-      const teamMembers = (teamMembersData as TeamMemberResult[]).map(member => ({
-        ...member,
-        title: member.name,
-        excerpt: member.bio
-      }));
-      
-      // إضافة الشروط والأحكام وسياسة الخصوصية إذا كانت موجودة
-      const termsAndPrivacy: SearchResult[] = [];
-      if (terms) {
-        termsAndPrivacy.push({
-          ...terms,
-          _type: "terms",
-          slug: { current: "terms-conditions" }
-        });
-      }
-      
-      if (privacy) {
-        termsAndPrivacy.push({
-          ...privacy,
-          _type: "privacy",
-          slug: { current: "privacy-policy" }
-        });
-      }
-      
-      // دمج جميع النتائج
-      const allResults = [
-        ...episodes,
-        ...articles,
-        ...playlists,
-        ...faqs,
-        ...seasonsWithCount,
-        ...teamMembers,
-        ...termsAndPrivacy
-      ];
-      
-      // فلترة النتائج حسب البحث
-      const q = searchQuery.trim().toLowerCase();
-      const filteredResults = allResults.filter((result) => {
-        const title = (result.title || "").toString().toLowerCase();
-        let excerpt = (result.excerpt || "").toString().toLowerCase();
-        
-        // البحث في محتوى الشروط والأحكام وسياسة الخصوصية
-        if (result._type === "faq" && (result as FaqResult).answer) {
-          excerpt = ((result as FaqResult).answer || "").toString().toLowerCase();
-        }
-        
-        if (result._type === "teamMember" && (result as TeamMemberResult).role) {
-          excerpt = ((result as TeamMemberResult).role || "").toString().toLowerCase();
-        }
-        
-        if ((result._type === "terms" || result._type === "privacy") && result.content) {
-          try {
-            const contentText = result.content
-              .filter((block: PortableTextBlock) => block._type === "block")
-              .map((block: PortableTextBlock) => 
-                block.children
-                  .map((child: PortableTextSpan) => child.text)
-                  .join("")
-              )
-              .join(" ")
-              .toLowerCase();
-            
-            excerpt = contentText;
-          } catch (error) {
-            console.error("Error extracting content text:", error);
-          }
-        }
-        
-        return title.includes(q) || excerpt.includes(q);
-      });
-      
-      setResults(filteredResults);
-      setShowResults(true);
-    } catch (error) {
-      console.error("Search error:", error);
-    } finally {
-      setIsLoading(false);
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestion(-1);
+        break;
     }
   };
   
@@ -553,16 +1142,19 @@ const HeroSearchBar = () => {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       setQuery("");
       setShowResults(false);
+      setShowSuggestions(false);
     }
   };
   
   const handleClearSearch = () => {
     setQuery("");
     setShowResults(false);
+    setShowSuggestions(false);
   };
   
   const handleResultClick = (result: SearchResult) => {
     setShowResults(false);
+    setShowSuggestions(false);
     setQuery("");
     
     // تحديد الرابط المناسب حسب نوع النتيجة
@@ -695,31 +1287,68 @@ const HeroSearchBar = () => {
     }
   };
   
-  const getDisplayText = (result: SearchResult) => {
-    if (result.excerpt) return result.excerpt;
-    if (result.description) return result.description;
-    if (result._type === "faq" && (result as FaqResult).answer) return (result as FaqResult).answer || "";
-    if (result._type === "teamMember" && (result as TeamMemberResult).role) return (result as TeamMemberResult).role || "";
+  const getDisplayText = (result: SearchResult): string => {
+    if (language === 'ar') {
+      if (result.excerpt) return result.excerpt;
+      if (result.description) return result.description;
+      if (result.answer) return result.answer;
+      if (result.role) return result.role;
+    } else {
+      if (result.excerptEn) return result.excerptEn;
+      if (result.descriptionEn) return result.descriptionEn;
+      if (result.answerEn) return result.answerEn;
+      if (result.roleEn) return result.roleEn;
+      // إذا لم توجد ترجمة، استخدم النص العربي كبديل
+      if (result.excerpt) return result.excerpt;
+      if (result.description) return result.description;
+      if (result.answer) return result.answer;
+      if (result.role) return result.role;
+    }
     
     if ((result._type === "terms" || result._type === "privacy") && result.content) {
       try {
-        return result.content
-          .filter((block: PortableTextBlock) => block._type === "block")
-          .slice(0, 2)
-          .map((block: PortableTextBlock) => 
-            block.children
-              .map((child: PortableTextSpan) => child.text)
-              .join("")
-          )
-          .join(" ")
-          .substring(0, 200) + "...";
+        const content = language === 'ar' ? result.content : result.contentEn;
+        if (content) {
+          return content
+            .filter((block: PortableTextBlock) => block._type === "block")
+            .slice(0, 2)
+            .map((block: PortableTextBlock) => 
+              block.children
+                .map((child: PortableTextSpan) => child.text)
+                .join("")
+            )
+            .join(" ")
+            .substring(0, 200) + "...";
+        }
       } catch (error) {
         console.error("Error extracting content text:", error);
-        return "";
       }
     }
     
     return "";
+  };
+  
+  // Fixed function to always return a string
+  const getDisplayTitle = (result: SearchResult): string => {
+    if (language === 'ar') {
+      return result.title || "";
+    } else {
+      return result.titleEn || result.title || "";
+    }
+  };
+  
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "episode": return searchT.episode;
+      case "article": return searchT.article;
+      case "playlist": return searchT.playlist;
+      case "faq": return searchT.faq;
+      case "season": return searchT.season;
+      case "teamMember": return searchT.teamMember;
+      case "terms": return searchT.terms;
+      case "privacy": return searchT.privacy;
+      default: return type;
+    }
   };
   
   return (
@@ -730,33 +1359,80 @@ const HeroSearchBar = () => {
       >
         <div className="relative">
           <input
+            ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث عن حلقات، مقالات، مواسم والمزيد..."
-            className="w-full py-5 px-6 pr-16 rounded-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-2 border-white/40 dark:border-gray-700 shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-400/50 focus:border-transparent transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg"
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowSuggestions(true);
+              setSelectedSuggestion(-1);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={searchT.searchPlaceholder}
+            className={`w-full py-5 px-6 rounded-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-2 border-white/40 dark:border-gray-700 shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-400/50 focus:border-transparent transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg ${
+              language === 'en' ? 'pl-16 pr-6' : 'pr-16 pl-6'
+            }`}
+            dir={isRTL ? "rtl" : "ltr"}
           />
           
-          {/* زر البحث */}
+          {/* زر البحث - يتغير مكانه حسب اللغة */}
           <button
             type="submit"
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg transition-all duration-300 hover:scale-105"
+            className={`absolute top-1/2 transform -translate-y-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg transition-all duration-300 hover:scale-105 ${
+              language === 'en' ? 'left-3' : 'right-3'
+            }`}
           >
             <FaSearch className="h-5 w-5" />
           </button>
           
-          {/* زر المسح (X) - يظهر فقط عند وجود نص */}
+          {/* زر المسح (X) - يتغير مكانه حسب اللغة */}
           {query && (
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 shadow-md transition-all duration-300 hover:scale-105"
+              className={`absolute top-1/2 transform -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 shadow-md transition-all duration-300 hover:scale-105 ${
+                language === 'en' ? 'right-3' : 'left-3'
+              }`}
             >
               <FaTimes className="h-4 w-4" />
             </button>
           )}
         </div>
       </form>
+      
+      {/* قائمة الاقتراحات */}
+      <AnimatePresence>
+        {showSuggestions && suggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`absolute z-50 mt-3 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto ${
+              language === 'en' ? 'left-0' : 'right-0'
+            }`}
+            dir={isRTL ? "rtl" : "ltr"}
+          >
+            <div className="p-2">
+              {suggestions.map((suggestion, index) => (
+                <div
+                  key={suggestion}
+                  className={`px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150 flex items-center gap-3 ${
+                    index === selectedSuggestion ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                  }`}
+                  onClick={() => handleSuggestionSelect(suggestion)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       <AnimatePresence>
         {showResults && (query.trim().length >= 2 || results.length > 0) && (
@@ -765,17 +1441,20 @@ const HeroSearchBar = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute z-50 right-0 mt-3 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto"
+            className={`absolute z-50 mt-3 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto ${
+              language === 'en' ? 'left-0' : 'right-0'
+            }`}
+            dir={isRTL ? "rtl" : "ltr"}
           >
             {isLoading ? (
               <div className="p-6 text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                <p className="mt-3 text-gray-500 dark:text-gray-400">جاري البحث...</p>
+                <p className="mt-3 text-gray-500 dark:text-gray-400">{searchT.searching}</p>
               </div>
             ) : results.length > 0 ? (
               <div className="py-2">
                 <div className="px-5 py-3 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  نتائج البحث
+                  {results.length} {searchT.resultsCount} &quot;{query}&quot;
                 </div>
                 {results.slice(0, 5).map((result) => (
                   <div
@@ -788,17 +1467,10 @@ const HeroSearchBar = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {renderHighlighted(result.title || "", query)}
+                        {renderHighlighted(getDisplayTitle(result), query)}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                        {result._type === "episode" && "حلقة"}
-                        {result._type === "article" && "مقال"}
-                        {result._type === "playlist" && "قائمة تشغيل"}
-                        {result._type === "faq" && "سؤال شائع"}
-                        {result._type === "season" && "موسم"}
-                        {result._type === "teamMember" && "عضو الفريق"}
-                        {result._type === "terms" && "شروط وأحكام"}
-                        {result._type === "privacy" && "سياسة الخصوصية"}
+                        {getTypeLabel(result._type)}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
                         {renderHighlighted(getDisplayText(result), query)}
@@ -808,12 +1480,11 @@ const HeroSearchBar = () => {
                       <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden">
                         <Image
                           src={getImageUrl(result)}
-                          alt={result.title || ""}
+                          alt={getDisplayTitle(result)}
                           width={48}
                           height={48}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            // فقط أخفي الصورة المعطوبة ولا تطبع رسالة خطأ
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
                           }}
@@ -827,7 +1498,7 @@ const HeroSearchBar = () => {
                     onClick={handleSubmit}
                     className="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl text-base font-semibold transition-colors duration-200 flex items-center justify-center"
                   >
-                    عرض جميع نتائج البحث
+                    {searchT.viewAllResults}
                     <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
@@ -837,9 +1508,10 @@ const HeroSearchBar = () => {
             ) : query.trim().length >= 2 ? (
               <div className="p-8 text-center">
                 <svg className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 005.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="mt-4 text-gray-500 dark:text-gray-400">لا توجد نتائج مطابقة</p>
+                <p className="mt-4 text-gray-500 dark:text-gray-400">{searchT.noResults}</p>
+                <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">{searchT.tryDifferentKeywords}</p>
               </div>
             ) : null}
           </motion.div>
@@ -849,25 +1521,31 @@ const HeroSearchBar = () => {
   );
 };
 
-// مكون سلايدر الهيرو المدمج
-const HeroSliderComponent = () => {
+// مكون سلايدر المحتوى المميز - محسن
+const FeaturedContentSlider = () => {
+  const { language, isRTL } = useLanguage();
+  const t = translations[language];
+  
   const [sliders, setSliders] = useState<HeroSlider[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
     const loadSliders = async () => {
       try {
-        const data = await fetchFromSanity<HeroSlider[]>(`*[_type == "heroSlider"] | order(orderRank)`);
+        console.log('Loading featured sliders for language:', language);
+        const data = await fetchFromSanity<HeroSlider[]>(`*[_type == "heroSlider" && language == $language] | order(orderRank)`, { language });
+        console.log('Featured sliders loaded:', data);
         setSliders(data);
       } catch (error) {
-        console.error('Error loading hero sliders:', error);
+        console.error('Error loading featured hero sliders:', error);
       } finally {
         setLoading(false);
       }
     };
 
     loadSliders();
-  }, []);
+  }, [language]);
 
   if (loading) {
     return (
@@ -878,158 +1556,262 @@ const HeroSliderComponent = () => {
   }
 
   if (sliders.length === 0) {
+    console.log('No featured sliders found for language:', language);
     return null;
   }
 
   return (
-    <section className="py-6 md:py-8 px-4 md:px-8 overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <Swiper
-          modules={[Autoplay, Pagination, Navigation]}
-          spaceBetween={20}
-          slidesPerView={1}
-          autoplay={{
-            delay: 5000,
-            disableOnInteraction: false,
-          }}
-          pagination={{
-            clickable: true,
-            dynamicBullets: true,
-          }}
-          navigation={{
-            nextEl: '.swiper-button-next',
-            prevEl: '.swiper-button-prev',
-          }}
-          className="hero-swiper rounded-2xl overflow-hidden shadow-2xl"
-          style={{
-            height: '60vh',
-            maxHeight: '500px',
-          }}
-        >
-          {sliders.map((slider) => (
-            <SwiperSlide key={slider._id}>
-              <div className="relative w-full h-full">
-                {slider.mediaType === 'image' && slider.image && (
-                  <Image
-                    src={getImageUrl(slider) || '/placeholder.png'}
-                    alt={slider.title}
-                    fill
-                    className="object-cover"
-                    priority
-                  />
-                )}
-                
-                {slider.mediaType === 'video' && (
-                  <div className="relative w-full h-full">
-                    {slider.videoUrl ? (
-                      <>
-                        {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
-                          <iframe
-                            src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0`}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : slider.videoUrl.includes('vimeo.com') ? (
-                          <iframe
-                            src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0`}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <video
-                            src={slider.videoUrl}
-                            className="w-full h-full object-cover"
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                          />
-                        )}
-                      </>
-                    ) : slider.video && (
-                      <video
-                        src={getVideoUrl(slider) || ''}
-                        className="w-full h-full object-cover"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                      />
-                    )}
-                  </div>
-                )}
-                
-                {/* طبقة التعتيم */}
-                <div className="absolute inset-0 bg-black/40"></div>
-                
-                {/* المحتوى */}
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className="text-center max-w-3xl px-4">
-                    <motion.h2
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5 }}
-                      className="text-2xl md:text-4xl font-bold text-white mb-3"
-                    >
-                      {slider.title}
-                    </motion.h2>
-                    <motion.p
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                      className="text-base md:text-lg text-white/90 mb-6"
-                    >
-                      {slider.description}
-                    </motion.p>
-                    
-                    {slider.link?.url && slider.link?.text && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+    <section className="py-6 md:py-12 px-4 md:px-8 overflow-hidden relative" dir={isRTL ? "rtl" : "ltr"}>
+      {/* خلفية متدرجة جذابة */}
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-indigo-900/20 dark:to-purple-900/20 z-0"></div>
+      
+      {/* عناصر زخرفية */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-purple-200/10 dark:bg-purple-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 right-0 w-72 h-72 bg-blue-200/10 dark:bg-blue-500/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+      
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* عنوان القسم */}
+        <div className="text-center mb-8 md:mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-full mb-4"
+          >
+            <FaFire className="text-yellow-300" />
+            <span className="font-bold">{t.featuredContent}</span>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2"
+          >
+            {t.discover}
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
+          >
+            {t.featuredDescription}
+          </motion.p>
+        </div>
+        
+        {/* السلايدر */}
+        <div className="relative">
+          <Swiper
+            modules={[Autoplay, Pagination, Navigation]}
+            spaceBetween={30}
+            slidesPerView={1}
+            autoplay={{
+              delay: 5000,
+              disableOnInteraction: false,
+            }}
+            pagination={{
+              clickable: true,
+              dynamicBullets: true,
+            }}
+            navigation={{
+              nextEl: '.featured-slider-button-next',
+              prevEl: '.featured-slider-button-prev',
+            }}
+            onSlideChange={(swiper) => setActiveSlide(swiper.activeIndex)}
+            className="featured-slider rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800"
+            style={{
+              height: '0',
+              paddingBottom: '56.25%', // نسبة 16:9 (فيديو يوتيوب)
+              maxHeight: '600px',
+            }}
+          >
+            {sliders.map((slider, index) => (
+              <SwiperSlide key={slider._id} className="relative pb-[56.25%]">
+                <div className="absolute inset-0 w-full h-full">
+                  {/* الخلفية - تظهر دائماً */}
+                  {slider.mediaType === 'image' && slider.image && (
+                    <Image
+                      src={getImageUrl(slider) || '/placeholder.png'}
+                      alt={getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
+                      fill
+                      className="object-cover rounded-3xl"
+                      priority
+                    />
+                  )}
+                  
+                  {slider.mediaType === 'video' && (
+                    <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden">
+                      {slider.videoUrl ? (
+                        <>
+                          {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&fs=0&playsinline=1`}
+                              className="absolute inset-0 w-full h-full rounded-3xl"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                borderRadius: '1.5rem'
+                              }}
+                            />
+                          ) : slider.videoUrl.includes('vimeo.com') ? (
+                            <iframe
+                              src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0&background=1`}
+                              className="absolute inset-0 w-full h-full rounded-3xl"
+                              frameBorder="0"
+                              allow="autoplay; fullscreen; picture-in-picture"
+                              allowFullScreen
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                borderRadius: '1.5rem'
+                              }}
+                            />
+                          ) : (
+                            <video
+                              src={slider.videoUrl}
+                              className="absolute inset-0 w-full h-full object-cover rounded-3xl"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                objectFit: 'cover',
+                                borderRadius: '1.5rem'
+                              }}
+                            />
+                          )}
+                        </>
+                      ) : slider.video && (
+                        <video
+                          src={getVideoUrl(slider) || ''}
+                          className="absolute inset-0 w-full h-full object-cover rounded-3xl"
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            objectFit: 'cover',
+                            borderRadius: '1.5rem'
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* طبقة التعتيم */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-3xl"></div>
+                  
+                  {/* المحتوى - يظهر فقط للشريحة النشطة */}
+                  <AnimatePresence>
+                    {activeSlide === index && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        exit={{ opacity: 0, y: 30 }}
+                        transition={{ duration: 0.7 }}
+                        className="absolute inset-0 flex items-center justify-center p-6 md:p-10"
                       >
-                        <Link
-                          href={slider.link.url}
-                          className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-2 md:px-8 md:py-3 rounded-full font-bold shadow-lg hover:bg-blue-50 transition-all duration-300"
-                        >
-                          {slider.link.text}
-                          <FaArrowLeft className="transform rotate-180" />
-                        </Link>
+                        <div className="w-full max-w-3xl text-center">
+                          <h2 className="text-2xl md:text-4xl font-bold text-white mb-3">
+                            {getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
+                          </h2>
+                          
+                          <p className="text-base md:text-lg text-white/90 mb-6 max-w-2xl mx-auto">
+                            {getLocalizedTextEnhanced(slider.description, slider.descriptionEn, language)}
+                          </p>
+                          
+                          <div className="flex flex-wrap gap-4 justify-center">
+                            {slider.link?.url && slider.link?.text && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.4 }}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Link
+                                  href={slider.link.url}
+                                  className="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-indigo-50 transition-all duration-300"
+                                >
+                                  {getLocalizedTextEnhanced(slider.link.text, slider.link.textEn, language)}
+                                  <FaArrowLeft className="transform rotate-180" />
+                                </Link>
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
                       </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
+                  
+                  {/* مؤشر الشرائح - يظهر فقط للشريحة النشطة */}
+                  {activeSlide === index && (
+                    <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm text-white text-sm px-3 py-1 rounded-full">
+                      {index + 1} / {sliders.length}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
-        
-        <div className="swiper-button-next text-white hidden md:block"></div>
-        <div className="swiper-button-prev text-white hidden md:block"></div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        </div>
       </div>
       
       <style jsx global>{`
-        .hero-swiper .swiper-pagination-bullet {
+        .featured-slider .swiper-pagination-bullet {
           background-color: rgba(255, 255, 255, 0.5);
+          width: 12px;
+          height: 12px;
+          opacity: 0.7;
         }
-        .hero-swiper .swiper-pagination-bullet-active {
+        .featured-slider .swiper-pagination-bullet-active {
           background-color: white;
+          width: 30px;
+          border-radius: 6px;
+          opacity: 1;
         }
-        .swiper-button-next,
-        .swiper-button-prev {
+        .featured-slider-button-next,
+        .featured-slider-button-prev {
           color: white;
         }
         @media (max-width: 768px) {
-          .hero-swiper {
-            height: 50vh !important;
-            max-height: 400px !important;
+          .featured-slider {
+            height: 0 !important;
+            padding-bottom: 56.25% !important; /* نسبة 16:9 */
           }
+        }
+        /* إضافة أنماط للفيديو لملء الشاشة بدون حواف سوداء */
+        .featured-slider iframe,
+        .featured-slider video {
+          width: 100% !important;
+          height: 100% !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          object-fit: cover !important;
+          border-radius: 1.5rem !important;
         }
       `}</style>
     </section>
@@ -1037,6 +1819,9 @@ const HeroSliderComponent = () => {
 };
 
 export default function Home() {
+  const { language, isRTL } = useLanguage();
+  const t = translations[language];
+  
   // حالات المكون
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
   const [articles, setArticles] = useState<ArticleData[]>([]);
@@ -1056,25 +1841,17 @@ export default function Home() {
   
   // روابط وسائل التواصل الاجتماعي
   const socialLinks = useMemo(() => [
-    { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: "يوتيوب" },
-    { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انستجرام" },
-    { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيسبوك" },
-    { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: "تيك توك" },
-    { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: "اكس" },
-  ], []);
+    { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: t.youtube },
+    { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: t.instagram },
+    { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: t.facebook },
+    { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: t.tiktok },
+    { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: t.twitter },
+  ], [t.youtube, t.instagram, t.facebook, t.tiktok, t.twitter]);
   
   // بيانات قسم "لماذا تشترك في فذلَكة؟"
-  const points = useMemo(() => [
-    'تلخيص الفرضيات والأفكار الأساسية بسرعة.',
-    'قصص وسيناريوهات تساعدك تطبّق الفكرة عمليًا.',
-    'مصادر وروابط لو حبيت تغوص أعمق.'
-  ], []);
+  const points = useMemo(() => t.whySubscribePoints, [t.whySubscribePoints]);
   
-  const features = useMemo(() => [
-    { icon: <FaVideo className="text-xl" />, title: 'حلقات عميقة', desc: 'شرح مبسط ومعمق' },
-    { icon: <FaUsers className="text-xl" />, title: 'أسلوب قصصي', desc: 'سرد يشد الانتباه' },
-    { icon: <FaGlobe className="text-xl" />, title: 'تنوع الموضوعات', desc: 'تاريخ، سياسة، علم نفس' }
-  ], []);
+  const features = useMemo(() => t.features, [t.features]);
 
   // التأكد من أننا في بيئة العميل
   useEffect(() => {
@@ -1089,22 +1866,25 @@ export default function Home() {
         setLoading(true);
         
         // استعلام لجلب الحلقات من Sanity
-        const query = `*[_type == "episode"]{
+        const query = `*[_type == "episode" && language == $language]{
           _id,
           title,
+          titleEn,
           slug,
           description,
+          descriptionEn,
           thumbnail,
           season->{
             _id,
             title,
+            titleEn,
             slug
           },
           publishedAt
         } | order(publishedAt desc)[0...9]`;
         
         // استخدم الدالة الجديدة
-        const data = await fetchArrayFromSanity<EpisodeData>(query);
+        const data = await fetchArrayFromSanity<EpisodeData>(query, { language });
         
         if (mounted) {
           setEpisodes(data);
@@ -1122,7 +1902,7 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [language]);
   
   // تحميل المقالات من Sanity
   useEffect(() => {
@@ -1130,18 +1910,20 @@ export default function Home() {
     async function loadArticles() {
       try {
         // استعلام لجلب المقالات من Sanity
-        const query = `*[_type == "article"]{
+        const query = `*[_type == "article" && language == $language]{
           _id,
           title,
+          titleEn,
           slug,
           excerpt,
+          excerptEn,
           featuredImage,
           category,
           publishedAt
         } | order(publishedAt desc)[0...6]`;
         
         // استخدم الدالة الجديدة
-        const data = await fetchArrayFromSanity<ArticleData>(query);
+        const data = await fetchArrayFromSanity<ArticleData>(query, { language });
         
         if (mounted) {
           setArticles(data);
@@ -1157,7 +1939,7 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [language]);
   
   // تحميل الإحصائيات
   useEffect(() => {
@@ -1180,10 +1962,10 @@ export default function Home() {
         
         // تحميل باقي الإحصائيات
         const [episodesCount, playlistsCount, seasonsCount, articlesCount] = await Promise.all([
-          fetchFromSanity<number>(`count(*[_type == "episode"])`),
-          fetchFromSanity<number>(`count(*[_type == "playlist"])`),
-          fetchFromSanity<number>(`count(*[_type == "season"])`),
-          fetchFromSanity<number>(`count(*[_type == "article"])`)
+          fetchFromSanity<number>(`count(*[_type == "episode" && language == $language])`, { language }),
+          fetchFromSanity<number>(`count(*[_type == "playlist" && language == $language])`, { language }),
+          fetchFromSanity<number>(`count(*[_type == "season" && language == $language])`, { language }),
+          fetchFromSanity<number>(`count(*[_type == "article" && language == $language])`, { language })
         ]);
         
         if (mounted) {
@@ -1201,28 +1983,39 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [language]);
   
-  // تحميل الأسئلة الشائعة من Sanity
+  // تحميل الأسئلة الشائعة من Sanity - محسن بالكامل
   useEffect(() => {
     let mounted = true;
     async function loadFaqs() {
       try {
         setFaqLoading(true);
         
-        // استعلام لجلب الأسئلة الشائعة من Sanity
-        const query = `*[_type == "faq"] | order(_createdAt desc)[0...4] {
+        // استعلام محسن لجلب الأسئلة الشائعة من Sanity
+        const query = `*[_type == "faq" && language == $language] | order(_createdAt desc)[0...4] {
           _id,
           question,
+          questionEn,
           answer,
+          answerEn,
           category
         }`;
         
-        // استخدم الدالة الجديدة
-        const data = await fetchArrayFromSanity<FAQItem>(query);
+        console.log('Loading FAQs for language:', language);
+        const data = await fetchArrayFromSanity<FAQItem>(query, { language });
+        console.log('FAQs loaded:', data);
         
         if (mounted) {
-          setFaqs(data);
+          // فلترة الأسئلة الفارغة
+          const validFaqs = data.filter(faq => {
+            const question = getLocalizedTextEnhanced(faq.question, faq.questionEn, language);
+            const answer = getLocalizedTextEnhanced(faq.answer, faq.answerEn, language);
+            return question && question.trim() !== '' && answer && answer.trim() !== '';
+          });
+          
+          console.log('Valid FAQs after filtering:', validFaqs);
+          setFaqs(validFaqs);
           setFaqLoading(false);
         }
       } catch (err) {
@@ -1237,7 +2030,7 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [language]);
   
   // دالة للتمرير إلى قسم الحلقات
   const scrollToEpisodes = useCallback((e?: React.MouseEvent) => {
@@ -1248,7 +2041,7 @@ export default function Home() {
   }, []);
   
   return (
-    <div className="antialiased bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+    <div className="antialiased bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col" dir={isRTL ? "rtl" : "ltr"}>
       {/* ====== HERO مع قسم الإحصائيات المدمج ====== */}
       <motion.header
         initial="hidden"
@@ -1359,8 +2152,8 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="/logo.png"
-                    alt="شعار المنصة"
+                    src={language === 'ar' ? "/logo.png" : "/logoE.png"}
+                    alt={t.platformName}
                     width={120}
                     height={120}
                     className="w-full h-auto"
@@ -1417,16 +2210,21 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.8 }}
             >
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4">
-                فذلَكة
-              </h1>
+              <motion.h1
+                className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 bg-gradient-to-r from-white via-indigo-100 to-white bg-clip-text text-transparent"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.8 }}
+              >
+                {t.platformName}
+              </motion.h1>
               <motion.p
                 className="text-xl md:text-2xl lg:text-3xl text-indigo-100 max-w-3xl mx-auto font-medium"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
               >
-                منصة المعرفة التفاعلية
+                {t.platformSubtitle}
               </motion.p>
             </motion.div>
             
@@ -1454,7 +2252,7 @@ export default function Home() {
                 className="px-10 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-full text-lg shadow-lg flex items-center gap-3"
               >
                 <FaPlay className="text-xl" />
-                ابدأ المشاهدة
+                {t.startWatching}
               </motion.button>
               <Link href="/about">
                 <motion.button
@@ -1463,7 +2261,7 @@ export default function Home() {
                   className="px-10 py-4 bg-transparent border-2 border-indigo-300 text-indigo-100 font-bold rounded-full text-lg shadow-lg flex items-center gap-3"
                 >
                   <FaCompass className="text-xl" />
-                  اعرف المزيد
+                  {t.learnMore}
                 </motion.button>
               </Link>
             </motion.div>
@@ -1476,12 +2274,38 @@ export default function Home() {
               className="w-full max-w-5xl mx-auto"
             >
               <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-xl">
+                {/* كرت مشتركي يوتيوب - في سطر منفصل على الموبايل */}
+                {subscribers !== null && (
+                  <motion.div 
+                    variants={itemVariant}
+                    className="md:hidden mb-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                    whileHover={{ scale: 1.02 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center">
+                      <div className="text-3xl md:text-4xl mb-3 text-white">
+                        <FaYoutube />
+                      </div>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">{t.subscribers}</p>
+                      <motion.p 
+                        className="text-2xl md:text-3xl font-bold text-white"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                      >
+                        {subscribers.toLocaleString('en-US')}
+                      </motion.p>
+                    </div>
+                  </motion.div>
+                )}
+                
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
-                  {/* بطاقة المشتركين - بحجم عادي */}
+                  {/* كرت مشتركي يوتيوب - مخفي على الموبايل */}
                   {subscribers !== null && (
                     <motion.div 
                       variants={itemVariant}
-                      className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
+                      className="hidden md:block bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
                       whileHover={{ scale: 1.05 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
@@ -1490,7 +2314,7 @@ export default function Home() {
                         <div className="text-3xl md:text-4xl mb-3 text-white">
                           <FaYoutube />
                         </div>
-                        <p className="text-base md:text-lg font-medium text-white/80 mb-1">مشتركين يوتيوب</p>
+                        <p className="text-base md:text-lg font-medium text-white/80 mb-1">{t.subscribers}</p>
                         <motion.p 
                           className="text-2xl md:text-3xl font-bold text-white"
                           initial={{ opacity: 0, scale: 0.5 }}
@@ -1503,7 +2327,7 @@ export default function Home() {
                     </motion.div>
                   )}
                   
-                  {/* باقي البطاقات - بدون ألوان زائدة */}
+                  {/* باقي البطاقات */}
                   <motion.div 
                     variants={itemVariant}
                     className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 border border-white/20 relative overflow-hidden group"
@@ -1515,7 +2339,7 @@ export default function Home() {
                       <div className="text-3xl md:text-4xl mb-3 text-white">
                         <FaVideo />
                       </div>
-                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">حلقات</p>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">{t.episodesCount}</p>
                       <motion.p 
                         className="text-2xl md:text-3xl font-bold text-white"
                         initial={{ opacity: 0, scale: 0.5 }}
@@ -1538,7 +2362,7 @@ export default function Home() {
                       <div className="text-3xl md:text-4xl mb-3 text-white">
                         <FaListUl />
                       </div>
-                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">قوائم تشغيل</p>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">{t.playlistsCount}</p>
                       <motion.p 
                         className="text-2xl md:text-3xl font-bold text-white"
                         initial={{ opacity: 0, scale: 0.5 }}
@@ -1561,7 +2385,7 @@ export default function Home() {
                       <div className="text-3xl md:text-4xl mb-3 text-white">
                         <FaCalendarAlt />
                       </div>
-                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">مواسم</p>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">{t.seasonsCount}</p>
                       <motion.p 
                         className="text-2xl md:text-3xl font-bold text-white"
                         initial={{ opacity: 0, scale: 0.5 }}
@@ -1584,7 +2408,7 @@ export default function Home() {
                       <div className="text-3xl md:text-4xl mb-3 text-white">
                         <FaNewspaper />
                       </div>
-                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">مقالات</p>
+                      <p className="text-base md:text-lg font-medium text-white/80 mb-1">{t.articlesCount}</p>
                       <motion.p 
                         className="text-2xl md:text-3xl font-bold text-white"
                         initial={{ opacity: 0, scale: 0.5 }}
@@ -1642,8 +2466,8 @@ export default function Home() {
         />
       </motion.header>
       
-      {/* ====== سلايدر الهيرو الجديد ====== */}
-      <HeroSliderComponent />
+      {/* ====== سلايدر المحتوى المميز (Featured Content) ====== */}
+      <FeaturedContentSlider />
       
       {/* ====== الحلقات مع تحسينات ====== */}
       <section id="episodes-section" className="container mx-auto py-6 relative overflow-x-hidden">
@@ -1654,20 +2478,26 @@ export default function Home() {
             viewport={{ once: true, amount: 0.2 }}
             className="text-2xl font-bold text-gray-900 dark:text-white"
           >
-            أحدث الحلقات
+            {t.latestEpisodes}
           </motion.h2>
           <motion.div initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }} className="flex gap-2">
             <Link
               href="/episodes"
               className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:opacity-95 transition-all duration-300"
             >
-              جميع الحلقات
+              {t.allEpisodes}
             </Link>
             <Link
               href="/playlists"
               className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
             >
-              جميع القوائم
+              {t.allPlaylists}
+            </Link>
+            <Link
+              href="/seasons"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+            >
+              {t.allSeasons}
             </Link>
           </motion.div>
         </div>
@@ -1680,7 +2510,7 @@ export default function Home() {
             />
           </div>
         ) : episodes.length === 0 ? (
-          <p className="text-center py-12 text-gray-600 dark:text-gray-400">لا توجد حلقات حالياً</p>
+          <p className="text-center py-12 text-gray-600 dark:text-gray-400">{t.noEpisodes}</p>
         ) : (
           <>
             <Swiper
@@ -1704,10 +2534,11 @@ export default function Home() {
                 1024: { slidesPerView: 3 },
               }}
               className="py-1 relative"
+              dir={isRTL ? "rtl" : "ltr"}
             >
               {episodes.map((ep: EpisodeData) => {
                 const slug = ep.slug.current;
-                const title = ep.title;
+                const title = getLocalizedTextEnhanced(ep.title, ep.titleEn, language);
                 const thumbnailUrl = ep.thumbnail 
                   ? imageBuilder.image(ep.thumbnail).width(500).height(300).url()
                   : "/placeholder.png";
@@ -1753,11 +2584,11 @@ export default function Home() {
                           <div className="mt-auto pt-4">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                حلقة
+                                {t.episode}
                               </span>
                               {ep.publishedAt && (
                                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {new Date(ep.publishedAt).toLocaleDateString('ar-EG')}
+                                  {new Date(ep.publishedAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
                                 </span>
                               )}
                             </div>
@@ -1786,20 +2617,32 @@ export default function Home() {
             viewport={{ once: true, amount: 0.2 }}
             className="text-2xl font-bold text-gray-900 dark:text-white"
           >
-            أحدث المقالات
+            {t.latestArticles}
           </motion.h2>
-          <motion.div initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }}>
+          <motion.div initial={{ opacity: 0, x: 8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.2 }} className="flex gap-2">
             <Link
               href="/articles"
               className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-95 transition-all duration-300"
             >
-              جميع المقالات
+              {t.allArticles}
+            </Link>
+            <Link
+              href="/seasons"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+            >
+              {t.allSeasons}
+            </Link>
+            <Link
+              href="/playlists"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border text-sm border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+            >
+              {t.allPlaylists}
             </Link>
           </motion.div>
         </div>
         
         {articles.length === 0 ? (
-          <p className="text-center py-12 text-gray-600 dark:text-gray-400">لا توجد مقالات حالياً</p>
+          <p className="text-center py-12 text-gray-600 dark:text-gray-400">{t.noArticles}</p>
         ) : (
           <>
             <Swiper
@@ -1823,14 +2666,9 @@ export default function Home() {
                 1024: { slidesPerView: 3 },
               }}
               className="py-1 relative"
+              dir={isRTL ? "rtl" : "ltr"}
             >
               {articles.map((article: ArticleData) => {
-                const slug = article.slug.current;
-                const title = article.title;
-                const imageUrl = article.featuredImage 
-                  ? imageBuilder.image(article.featuredImage).width(500).height(300).url()
-                  : "/placeholder.png";
-                
                 return (
                   <SwiperSlide key={article._id} className="flex justify-center items-start">
                     <ArticleCard article={article} />
@@ -1854,12 +2692,12 @@ export default function Home() {
           <h2 
             className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
           >
-            تواصل معنا
+            {t.contactUsTitle}
           </h2>
           <p 
             className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl mx-auto"
           >
-            هل لديك أسئلة أو استفسارات؟ نحن هنا لمساعدتك. تصفح الأسئلة الشائعة أو تواصل معنا مباشرة.
+            {t.contactUsMessage}
           </p>
         </div>
         
@@ -1906,11 +2744,11 @@ export default function Home() {
                 >
                   <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
                     <FaComments className="text-yellow-300" />
-                    تواصل معنا
+                    {t.contactUs}
                   </h3>
                   
                   <div className="text-center">
-                    <p className="mb-4 text-blue-100 text-lg">نحن متواجدون دائماً للرد على استفساراتكم</p>
+                    <p className="mb-4 text-blue-100 text-lg">{t.contactUsMessage}</p>
                     <div 
                     >
                       <Link
@@ -1918,7 +2756,7 @@ export default function Home() {
                         className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-full font-semibold shadow-lg hover:bg-blue-50 transition-all duration-300"
                       >
                         <FaPaperPlane />
-                        ارسل رسالة
+                        {t.send}
                       </Link>
                     </div>
                   </div>
@@ -1929,7 +2767,7 @@ export default function Home() {
                 >
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <FaUsers className="text-yellow-300" />
-                    تابعنا على:
+                    {t.followUs}
                   </h3>
                   <div className="flex flex-col gap-3">
                     {socialLinks.map((s, i) => (
@@ -1968,16 +2806,16 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
                   <h3 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                     <FaQuestionCircle className="text-blue-500 text-2xl" />
-                    الأسئلة الشائعة
+                    {t.commonQuestions}
                   </h3>
                   
                   <div 
                   >
                     <Link
                       href="/faq"
-                      className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium whitespace-nowrap"
+                      className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-2.5 rounded-full font-medium shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105"
                     >
-                      جميع الأسئلة
+                      {t.allQuestions}
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
@@ -1992,7 +2830,13 @@ export default function Home() {
                     />
                   </div>
                 ) : faqs.length === 0 ? (
-                  <p className="text-gray-600 dark:text-gray-400 text-center py-8">لا توجد أسئلة حالياً.</p>
+                  <div className="text-center py-8">
+                    <div className="inline-block bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
+                      <FaQuestionCircle className="text-gray-400 dark:text-gray-500 text-2xl" />
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 mb-2">{t.noFaqs}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t.noFaqsMessage}</p>
+                  </div>
                 ) : (
                   <motion.div 
                     variants={containerVariants}
@@ -2005,7 +2849,9 @@ export default function Home() {
                       <AnimatedQuestion 
                         key={f._id} 
                         question={f.question} 
+                        questionEn={f.questionEn}
                         answer={f.answer} 
+                        answerEn={f.answerEn}
                         index={index} 
                       />
                     ))}
@@ -2074,11 +2920,11 @@ export default function Home() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                       </svg>
                     </div>
-                    <h3 className="text-2xl font-bold">من نحن</h3>
+                    <h3 className="text-2xl font-bold">{t.aboutUs}</h3>
                   </div>
                   
                   <p className="mb-8 text-indigo-100 leading-relaxed">
-                    نحن منصة تعليمية تقدم محتوى ترفيهي وتعليمي مميز. نعمل باستمرار على تحسين التجربة وتوفير أحدث الحلقات والقوائم.
+                    {t.aboutUsMessage}
                   </p>
                   
                   <motion.div 
@@ -2090,7 +2936,7 @@ export default function Home() {
                       href="/about"
                       className="group inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-full font-semibold shadow-lg hover:bg-indigo-50 transition-all duration-300"
                     >
-                      <span>اعرف أكثر عن المنصة</span>
+                      <span>{t.knowMore}</span>
                       <FaArrowLeft className="transform rotate-180 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </motion.div>
@@ -2106,7 +2952,7 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white">
                     <FaLightbulb className="text-xl" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">لماذا تشترك؟</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.whySubscribe}</h3>
                 </div>
                 
                 <ul className="space-y-4 mb-6">
@@ -2159,9 +3005,9 @@ export default function Home() {
                         </div>
                       </div>
                       
-                      <h3 className="text-2xl font-bold mb-4">انضم إلى مجتمعنا</h3>
+                      <h3 className="text-2xl font-bold mb-4">{t.joinCommunity}</h3>
                       <p className="mb-8 text-indigo-100">
-                        سجل الآن للحصول على تجربة تعليمية مخصصة والوصول إلى محتوى حصري
+                        {t.joinMessage}
                       </p>
                       <div className="space-y-4">
                         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -2169,7 +3015,7 @@ export default function Home() {
                             href="/sign-in"
                             className="block w-full py-3 px-6 rounded-full bg-white text-indigo-600 font-semibold shadow-lg hover:bg-indigo-50 transition"
                           >
-                            تسجيل الدخول
+                            {t.signIn}
                           </Link>
                         </motion.div>
                         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -2177,7 +3023,7 @@ export default function Home() {
                             href="/sign-up"
                             className="block w-full py-3 px-6 rounded-full bg-transparent border-2 border-white text-white font-semibold hover:bg-white/10 transition"
                           >
-                            إنشاء حساب جديد
+                            {t.signUp}
                           </Link>
                         </motion.div>
                       </div>
@@ -2210,10 +3056,10 @@ export default function Home() {
                       </div>
                       
                       <h3 className="text-2xl font-bold mb-2">
-                        مرحباً بك، {user?.firstName || user?.username || "صديقنا"}!
+                        {t.welcome} {user?.firstName || user?.username || t.noUser}!
                       </h3>
                       <p className="mb-6 text-indigo-100">
-                        شكراً لانضمامك إلينا! استمتع بتجربة تعليمية فريدة واستكشف محتوانا التعليمي المتنوع.
+                        {t.welcomeMessage}
                       </p>
                       
                       <div className="space-y-3">
@@ -2222,7 +3068,7 @@ export default function Home() {
                             href="/profile"
                             className="block w-full py-3 px-6 rounded-full bg-white text-indigo-600 font-semibold shadow-lg hover:bg-indigo-50 transition"
                           >
-                            عرض الملف الشخصي
+                            {t.viewProfile}
                           </Link>
                         </motion.div>
                         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -2231,7 +3077,7 @@ export default function Home() {
                             className="block w-full py-3 px-6 rounded-full bg-white/10 backdrop-blur-sm text-white font-semibold shadow-lg hover:bg-white/20 transition flex items-center justify-center gap-2"
                           >
                             <FaBookmark />
-                            المفضلة
+                            {t.myFavorites}
                           </Link>
                         </motion.div>
                       </div>

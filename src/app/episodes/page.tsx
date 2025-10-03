@@ -1,10 +1,12 @@
+// app/episodes/page.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import { urlFor, fetchFromSanity } from "@/lib/sanity";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { fetchEpisodes, fetchSeasons, urlFor, getLocalizedText } from "@/lib/sanity";
 import FavoriteButton from "@/components/FavoriteButton";
+import { useLanguage } from "@/components/LanguageProvider";
 import { 
   FaVideo, 
   FaCalendarAlt, FaHeart,
@@ -15,7 +17,55 @@ import {
   FaChevronDown, FaChevronUp, FaRegBookmark
 } from "react-icons/fa";
 
-// تعريف أنواع البيانات محلياً بدلاً من استيرادها من ملف @/types غير الموجود
+// تعريف واجهات البيانات مع دعم اللغة
+interface Episode {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  description?: string;
+  descriptionEn?: string;
+  slug?: {
+    current: string;
+  };
+  thumbnail?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  season?: {
+    _id: string;
+    title: string;
+    titleEn?: string;
+    slug: {
+      current: string;
+    };
+  };
+  publishedAt?: string;
+  language?: 'ar' | 'en';
+}
+
+interface Season {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  description?: string;
+  descriptionEn?: string;
+  slug?: {
+    current: string;
+  };
+  thumbnail?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  language?: 'ar' | 'en';
+}
+
+// تعريف واجهة لصورة Sanity
 interface SanityImage {
   _type: 'image';
   asset: {
@@ -24,33 +74,77 @@ interface SanityImage {
   };
 }
 
-interface Season {
-  _id: string;
-  title: string;
-  slug: {
-    current: string;
-  };
-  thumbnail?: SanityImage;
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جارٍ التحميل...",
+    error: "حدث خطأ في تحميل البيانات",
+    retry: "إعادة المحاولة",
+    episodes: "مكتبة الحلقات التعليمية",
+    discover: "اكتشف",
+    knowledge: "المعرفة",
+    description: "مجموعة شاملة من الحلقات التعليمية عالية الجودة في مختلف المجالات، مصممة لتطوير معرفتك ومهاراتك.",
+    search: "ابحث عن عنوان أو وصف...",
+    clearSearch: "مسح",
+    grid: "عرض شبكي",
+    list: "عرض قائمة",
+    favorites: "مفضلاتي",
+    articles: "المقالات",
+    seasons: "المواسم",
+    results: "حلقة",
+    searchResults: "نتائج البحث",
+    noResults: "لا توجد نتائج مطابقة",
+    tryDifferent: "جرب كلمات مفتاحية أخرى",
+    open: "فتح",
+    close: "طي",
+    season: "موسم",
+    publishedAt: "تاريخ النشر",
+    noEpisodes: "لم نتمكن من العثور على حلقات تطابق بحثك.",
+    clearFilters: "جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.",
+    allEpisodes: "جميع الحلقات",
+    episodesWithoutSeason: "حلقات بدون موسم"
+  },
+  en: {
+    loading: "Loading...",
+    error: "An error occurred while loading data",
+    retry: "Retry",
+    episodes: "Educational Episodes Library",
+    discover: "Discover",
+    knowledge: "Knowledge",
+    description: "A comprehensive collection of high-quality educational episodes in various fields, designed to develop your knowledge and skills.",
+    search: "Search for title or description...",
+    clearSearch: "Clear",
+    grid: "Grid View",
+    list: "List View",
+    favorites: "My Favorites",
+    articles: "Articles",
+    seasons: "Seasons",
+    results: "episode",
+    searchResults: "Search Results",
+    noResults: "No matching results",
+    tryDifferent: "Try different keywords",
+    open: "Open",
+    close: "Close",
+    season: "Season",
+    publishedAt: "Published Date",
+    noEpisodes: "We couldn't find any episodes matching your search.",
+    clearFilters: "Try different keywords or clear filters.",
+    allEpisodes: "All Episodes",
+    episodesWithoutSeason: "Episodes without season"
+  }
+};
+
+function buildMediaUrl(image?: SanityImage) {
+  if (!image) return "/placeholder.png";
+  return urlFor(image) || "/placeholder.png";
 }
 
-interface Episode {
-  _id: string;
-  title: string;
-  slug: {
-    current: string;
-  };
-  description?: string;
-  thumbnail?: SanityImage;
-  season?: Season;
-  publishedAt?: string;
-}
-
-function escapeRegExp(str = ""): string {
+function escapeRegExp(str = "") {
   if (!str) return "";
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function renderHighlighted(text: string, q: string): React.ReactNode {
+function renderHighlighted(text: string, q: string) {
   if (!q) return <>{text}</>;
   try {
     const re = new RegExp(`(${escapeRegExp(q)})`, "ig");
@@ -78,20 +172,13 @@ const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.06 } },
 };
+
 const cardVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
 };
 
 // Small inline icons
-function IconChevron({ className = "h-5 w-5", open = false }: { className?: string; open?: boolean }) {
-  return open ? (
-    <FaChevronUp className={className} />
-  ) : (
-    <FaChevronDown className={className} />
-  );
-}
-
 function IconEpisodes({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -109,105 +196,18 @@ function IconPlay({ className = "h-8 w-8" }: { className?: string }) {
   );
 }
 
-function IconGrid({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
+function IconChevron({ className = "h-5 w-5", open = false }: { className?: string; open?: boolean }) {
+  return open ? (
+    <FaChevronUp className={className} />
+  ) : (
+    <FaChevronDown className={className} />
   );
-}
-
-function IconList({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="8" y1="6" x2="21" y2="6" />
-      <line x1="8" y1="12" x2="21" y2="12" />
-      <line x1="8" y1="18" x2="21" y2="18" />
-      <line x1="3" y1="6" x2="3.01" y2="6" />
-      <line x1="3" y1="12" x2="3.01" y2="12" />
-      <line x1="3" y1="18" x2="3.01" y2="18" />
-    </svg>
-  );
-}
-
-// Helper function to get image URL with proper dimensions
-function getImageUrl(image?: SanityImage, width?: number, height?: number): string {
-  if (!image) return "/placeholder.png";
-  
-  try {
-    // Get the URL from urlFor
-    const imageUrl = urlFor(image);
-    
-    // If it's a string, return it directly
-    if (typeof imageUrl === 'string') {
-      return imageUrl;
-    }
-    
-    // If it's an object with a url method, try to use it
-    if (imageUrl && typeof imageUrl === 'object') {
-      // Check if it has the required methods
-      const obj = imageUrl as Record<string, unknown>;
-      
-      if (typeof obj.url === 'function') {
-        // Create a simple builder interface
-        const builder = {
-          url: () => {
-            try {
-              return (obj.url as () => string)();
-            } catch {
-              return "/placeholder.png";
-            }
-          },
-          width: (w: number) => {
-            if (typeof obj.width === 'function') {
-              try {
-                (obj.width as (w: number) => unknown)(w);
-              } catch {
-                // Ignore errors
-              }
-            }
-            return builder;
-          },
-          height: (h: number) => {
-            if (typeof obj.height === 'function') {
-              try {
-                (obj.height as (h: number) => unknown)(h);
-              } catch {
-                // Ignore errors
-              }
-            }
-            return builder;
-          }
-        };
-        
-        // Apply dimensions if provided
-        if (width !== undefined) {
-          builder.width(width);
-        }
-        if (height !== undefined) {
-          builder.height(height);
-        }
-        
-        return builder.url();
-      }
-    }
-    
-    // Fallback: try to convert to string
-    try {
-      return String(imageUrl);
-    } catch {
-      return "/placeholder.png";
-    }
-  } catch (error) {
-    console.error("Error generating image URL:", error);
-    return "/placeholder.png";
-  }
 }
 
 export default function EpisodesPageClient() {
+  const { isRTL, language } = useLanguage();
+  const t = translations[language];
+  
   const [episodesBySeason, setEpisodesBySeason] = useState<Record<string, Episode[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -221,73 +221,48 @@ export default function EpisodesPageClient() {
         setLoading(true);
         setError(null);
         
-        console.log("Environment variables check:");
-        console.log("Project ID:", process.env.NEXT_PUBLIC_SANITY_PROJECT_ID);
-        console.log("Dataset:", process.env.NEXT_PUBLIC_SANITY_DATASET);
-        console.log("API Token:", process.env.SANITY_API_TOKEN ? "Set" : "Not set");
+        // جلب الحلقات والمواسم حسب اللغة
+        const [episodesData, seasonsData] = await Promise.all([
+          fetchEpisodes(language),
+          fetchSeasons(language)
+        ]);
         
-        // التحقق من وجود متغيرات البيئة
-        if (!process.env.NEXT_PUBLIC_SANITY_PROJECT_ID) {
-          throw new Error("NEXT_PUBLIC_SANITY_PROJECT_ID is not defined");
-        }
-        
-        if (!process.env.NEXT_PUBLIC_SANITY_DATASET) {
-          throw new Error("NEXT_PUBLIC_SANITY_DATASET is not defined");
-        }
-        
-        // Fetch seasons
-        const seasonsQuery = `*[_type == "season"]{
-          _id,
-          title,
-          slug,
-          thumbnail
-        }`;
-        console.log("Fetching seasons with query:", seasonsQuery);
-        
-        const seasons = await fetchFromSanity<Season[]>(seasonsQuery);
-        console.log("Seasons loaded:", seasons);
-        
-        // Fetch episodes with season references
-        const episodesQuery = `*[_type == "episode"]{
-          _id,
-          title,
-          slug,
-          description,
-          thumbnail,
-          season->{
-            _id,
-            title,
-            slug,
-            thumbnail
-          },
-          publishedAt
-        } | order(publishedAt desc)`;
-        console.log("Fetching episodes with query:", episodesQuery);
-        
-        const episodes = await fetchFromSanity<Episode[]>(episodesQuery);
-        console.log("Episodes loaded:", episodes);
-        
+        // تنظيم الحلقات حسب الموسم
         const grouped: Record<string, Episode[]> = {};
-        episodes.forEach((ep: Episode) => {
-          const seasonTitle = ep.season?.title || "بدون موسم";
+        
+        // إضافة قسم "جميع الحلقات"
+        grouped[t.allEpisodes] = episodesData;
+        
+        // تنظيم الحلقات حسب الموسم
+        seasonsData.forEach((season: Season) => {
+          const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
           if (!grouped[seasonTitle]) grouped[seasonTitle] = [];
-          grouped[seasonTitle].push(ep);
+          const seasonEpisodes = episodesData.filter(episode => 
+            episode.season?._id === season._id
+          );
+          grouped[seasonTitle] = seasonEpisodes;
         });
         
+        // إضافة قسم "حلقات بدون موسم"
+        const episodesWithoutSeason = episodesData.filter(episode => !episode.season);
+        if (episodesWithoutSeason.length > 0) {
+          grouped[t.episodesWithoutSeason] = episodesWithoutSeason;
+        }
+        
         setEpisodesBySeason(grouped);
+        // فتح أول موسم بشكل افتراضي
         const first = Object.keys(grouped)[0];
         if (first) setOpenSeasons({ [first]: true });
       } catch (err: unknown) {
-        console.error("Error loading data:", err);
-        const errorMessage = err instanceof Error ? err.message : "خطأ غير معروف";
-        setError("حدث خطأ في تحميل البيانات: " + errorMessage);
+        console.error(err);
+        setError(t.error);
       } finally {
         setLoading(false);
       }
     }
     
     load();
-  }, []);
+  }, [language, t.error, t.allEpisodes, t.episodesWithoutSeason]);
 
   function toggleSeason(title: string) {
     setOpenSeasons((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -298,25 +273,29 @@ export default function EpisodesPageClient() {
     const q = searchTerm.trim().toLowerCase();
     const out: Record<string, Episode[]> = {};
     Object.entries(episodesBySeason).forEach(([season, episodes]) => {
-      const matches = episodes.filter((ep: Episode) => {
-        const title = (ep.title || "").toString().toLowerCase();
-        return title.includes(q);
+      const matches = episodes.filter((episode: Episode) => {
+        const title = getLocalizedText(episode.title, episode.titleEn, language).toLowerCase();
+        const description = getLocalizedText(episode.description, episode.descriptionEn, language).toLowerCase();
+        return title.includes(q) || description.includes(q);
       });
       if (matches.length > 0) out[season] = matches;
     });
     return out;
-  }, [episodesBySeason, searchTerm]);
+  }, [episodesBySeason, searchTerm, language]);
 
   const totalResults = useMemo(
     () => Object.values(filteredBySeason).reduce((s, arr) => s + arr.length, 0),
     [filteredBySeason]
   );
 
-  // Function to format date in Arabic
+  const seasonEntries = Object.entries(filteredBySeason);
+  const searchResults = Object.values(filteredBySeason).flat();
+
+  // Function to format date based on language
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG', { 
+    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
@@ -329,7 +308,7 @@ export default function EpisodesPageClient() {
         <div className="inline-block animate-bounce bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-full mb-4">
           <FaRegBookmark className="text-white text-3xl" />
         </div>
-        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">جارٍ التحميل...</p>
+        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">{t.loading}</p>
       </div>
     </div>
   );
@@ -345,17 +324,14 @@ export default function EpisodesPageClient() {
           onClick={() => window.location.reload()} 
           className="mt-4 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity"
         >
-          إعادة المحاولة
+          {t.retry}
         </button>
       </div>
     </div>
   );
 
-  const seasons = Object.entries(filteredBySeason);
-  const searchResults = Object.values(filteredBySeason).flat();
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Hero Section */}
         <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
@@ -389,14 +365,14 @@ export default function EpisodesPageClient() {
               <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
                 <span className="text-white font-medium flex items-center text-sm sm:text-base">
                   <FaStar className="text-yellow-300 mr-2 animate-pulse" />
-                  مكتبة الحلقات التعليمية
+                  {t.episodes}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-                اكتشف <span className="text-yellow-300">المعرفة</span> في حلقاتنا
+                {t.discover} <span className="text-yellow-300">{t.knowledge}</span> {language === 'ar' ? 'في حلقاتنا' : 'in our episodes'}
               </h1>
               <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-                مجموعة شاملة من الحلقات التعليمية عالية الجودة في مختلف المجالات، مصممة لتطوير معرفتك ومهاراتك.
+                {t.description}
               </p>
               
               {/* أيقونات المواد الدراسية في الأسفل */}
@@ -424,9 +400,9 @@ export default function EpisodesPageClient() {
             <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full shadow-sm px-3 py-2 border border-gray-100 dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-200 flex-grow">
               <FaSearch className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <input
-                aria-label="بحث في الحلقات"
+                aria-label={t.search}
                 className="bg-transparent outline-none flex-grow text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 py-1"
-                placeholder="ابحث عن عنوان..."
+                placeholder={t.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -434,8 +410,8 @@ export default function EpisodesPageClient() {
                 <button
                   onClick={() => setSearchTerm("")}
                   className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                  aria-label="مسح البحث"
-                  title="مسح"
+                  aria-label={t.clearSearch}
+                  title={t.clearSearch}
                 >
                   <FaTimes className="h-4 w-4 text-gray-500 dark:text-gray-300" />
                 </button>
@@ -454,7 +430,7 @@ export default function EpisodesPageClient() {
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                   aria-pressed={viewMode === "grid"}
-                  title="عرض شبكي"
+                  title={t.grid}
                 >
                   <FaTh className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
                 </button>
@@ -466,20 +442,24 @@ export default function EpisodesPageClient() {
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                   aria-pressed={viewMode === "list"}
-                  title="عرض قائمة"
+                  title={t.list}
                 >
                   <FaList className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
                 </button>
               </div>
               
-              {/* روابط المفضلة والمواسم */}
+              {/* رابط المفضلة والمقالات والمواسم */}
               <Link href="/favorites" className="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
                 <FaHeart className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">مفضلاتي</span>
+                <span className="text-xs sm:text-sm">{t.favorites}</span>
               </Link>
-              <Link href="/seasons" className="px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
+              <Link href="/articles" className="px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
                 <FaCalendarAlt className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">المواسم</span>
+                <span className="text-xs sm:text-sm">{t.articles}</span>
+              </Link>
+              <Link href="/seasons" className="px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
+                <FaCalendarAlt className="h-4 w-4 ml-1" />
+                <span className="text-xs sm:text-sm">{t.seasons}</span>
               </Link>
             </div>
           </div>
@@ -488,11 +468,11 @@ export default function EpisodesPageClient() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
               <FaVideo className="ml-2" />
-              {totalResults} حلقة
+              {totalResults} {t.results}
             </div>
             {searchTerm && (
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                نتائج البحث: &quot;{searchTerm}&quot;
+                {t.searchResults}: &quot;{searchTerm}&quot;
               </div>
             )}
           </div>
@@ -504,13 +484,13 @@ export default function EpisodesPageClient() {
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 dark:from-blue-800 dark:to-purple-900 rounded-xl p-4 mb-6 shadow-lg">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
-                  <div className="text-sm text-blue-100 dark:text-blue-200">نتائج البحث عن</div>
+                  <div className="text-sm text-blue-100 dark:text-blue-200">{t.searchResults}</div>
                   <div className="text-lg font-semibold text-white">
                     «{searchTerm}» <span className="text-sm text-blue-200 dark:text-blue-300">({totalResults})</span>
                   </div>
                 </div>
                 <button onClick={() => setSearchTerm("")} className="px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-md text-sm hover:bg-white/30 text-white transition-colors self-start sm:self-auto">
-                  مسح البحث
+                  {t.clearSearch}
                 </button>
               </div>
             </div>
@@ -520,8 +500,8 @@ export default function EpisodesPageClient() {
                 <div className="inline-block bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
                   <FaSearch className="text-gray-400 dark:text-gray-500 text-2xl" />
                 </div>
-                <div className="text-gray-500 dark:text-gray-400 mb-2">لا توجد نتائج.</div>
-                <div className="text-sm text-gray-400 dark:text-gray-500">جرب كلمات مفتاحية أخرى</div>
+                <div className="text-gray-500 dark:text-gray-400 mb-2">{t.noResults}.</div>
+                <div className="text-sm text-gray-400 dark:text-gray-500">{t.tryDifferent}</div>
               </div>
             ) : (
               <div>
@@ -532,29 +512,27 @@ export default function EpisodesPageClient() {
                     animate="visible"
                     className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
                   >
-                    {searchResults.map((ep: Episode) => {
-                      const slug = ep.slug.current;
-                      const title = ep.title || "حلقة";
-                      const thumbnailUrl = getImageUrl(ep.thumbnail, 500, 300);
+                    {searchResults.map((episode: Episode) => {
+                      const slug = episode.slug?.current || episode._id;
+                      const title = getLocalizedText(episode.title, episode.titleEn, language);
+                      const description = getLocalizedText(episode.description, episode.descriptionEn, language);
+                      let thumbnailUrl = "/placeholder.png";
+                      if (episode.thumbnail) {
+                        thumbnailUrl = buildMediaUrl(episode.thumbnail);
+                      }
                       
                       return (
                         <motion.article
-                          key={ep._id}
+                          key={episode._id}
                           variants={cardVariants}
                           whileHover={{ scale: 1.02 }}
                           transition={{ type: "spring", stiffness: 300, damping: 20 }}
                           layout
                           className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col bg-white dark:bg-gray-800 shadow-md"
                         >
-                          <Link href={`/episodes/${slug}`} className="block group">
+                          <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="block group">
                             <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-                              <Image 
-                                src={thumbnailUrl} 
-                                alt={title} 
-                                fill
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
-                              />
+                              <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
                               <motion.div
                                 initial={{ opacity: 0 }}
                                 whileHover={{ opacity: 1, scale: 1.02 }}
@@ -568,12 +546,22 @@ export default function EpisodesPageClient() {
                             </div>
                             <div className="p-4">
                               <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2 mb-2">{renderHighlighted(title, searchTerm)}</h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{description}</p>
+                              
+                              {/* عرض الموسم المرتبط */}
+                              {episode.season && (
+                                <div className="mb-2">
+                                  <span className="text-xs px-2 py-1 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50 text-blue-800 dark:text-blue-200 rounded-full">
+                                    {t.season}: {getLocalizedText(episode.season.title, episode.season.titleEn, language)}
+                                  </span>
+                                </div>
+                              )}
                               
                               {/* عرض تاريخ النشر */}
-                              {ep.publishedAt && (
+                              {episode.publishedAt && (
                                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                   <FaCalendarAlt className="h-3 w-3" />
-                                  {formatDate(ep.publishedAt)}
+                                  {formatDate(episode.publishedAt)}
                                 </div>
                               )}
                             </div>
@@ -582,7 +570,7 @@ export default function EpisodesPageClient() {
                             <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                               <IconEpisodes className="h-4 w-4" />
                             </div>
-                            <FavoriteButton contentId={ep._id} contentType="episode" />
+                            <FavoriteButton contentId={episode._id} contentType="episode" />
                           </div>
                         </motion.article>
                       );
@@ -590,44 +578,52 @@ export default function EpisodesPageClient() {
                   </motion.div>
                 ) : (
                   <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
-                    {searchResults.map((ep: Episode) => {
-                      const slug = ep.slug.current;
-                      const title = ep.title || "حلقة";
-                      const thumbnailUrl = getImageUrl(ep.thumbnail, 240, 160);
+                    {searchResults.map((episode: Episode) => {
+                      const slug = episode.slug?.current || episode._id;
+                      const title = getLocalizedText(episode.title, episode.titleEn, language);
+                      const description = getLocalizedText(episode.description, episode.descriptionEn, language);
+                      let thumbnailUrl = "/placeholder.png";
+                      if (episode.thumbnail) {
+                        thumbnailUrl = buildMediaUrl(episode.thumbnail);
+                      }
                       
                       return (
                         <motion.div
-                          key={ep._id}
+                          key={episode._id}
                           variants={cardVariants}
                           whileHover={{ scale: 1.01 }}
                           transition={{ type: "spring", stiffness: 300, damping: 25 }}
                           layout
                           className="flex gap-4 items-center border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden p-4 hover:shadow-lg transition bg-white dark:bg-gray-800 shadow-md"
                         >
-                          <Link href={`/episodes/${slug}`} className="flex items-center gap-4 flex-1 group">
+                          <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="flex items-center gap-4 flex-1 group">
                             <div className="relative w-24 h-16 sm:w-32 sm:h-20 flex-shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg overflow-hidden">
-                              <Image 
-                                src={thumbnailUrl} 
-                                alt={title} 
-                                fill
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                                sizes="240px" 
-                              />
+                              <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="240px" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2 mb-1">{renderHighlighted(title, searchTerm)}</h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">{description}</p>
+                              
+                              {/* عرض الموسم المرتبط */}
+                              {episode.season && (
+                                <div className="flex flex-wrap gap-2 mb-1">
+                                  <span className="text-xs px-2 py-1 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50 text-blue-800 dark:text-blue-200 rounded-full">
+                                    {t.season}: {getLocalizedText(episode.season.title, episode.season.titleEn, language)}
+                                  </span>
+                                </div>
+                              )}
                               
                               {/* عرض تاريخ النشر */}
-                              {ep.publishedAt && (
+                              {episode.publishedAt && (
                                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                   <FaCalendarAlt className="h-3 w-3" />
-                                  {formatDate(ep.publishedAt)}
+                                  {formatDate(episode.publishedAt)}
                                 </div>
                               )}
                             </div>
                           </Link>
                           <div className="flex-shrink-0">
-                            <FavoriteButton contentId={ep._id} contentType="episode" />
+                            <FavoriteButton contentId={episode._id} contentType="episode" />
                           </div>
                         </motion.div>
                       );
@@ -641,16 +637,16 @@ export default function EpisodesPageClient() {
         
         {/* قائمة المواسم */}
         <div className="space-y-6">
-          {seasons.length === 0 ? (
+          {seasonEntries.length === 0 ? (
             <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-lg">
               <div className="inline-block bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
                 <FaVideo className="text-gray-400 dark:text-gray-500 text-2xl" />
               </div>
-              <div className="text-gray-600 dark:text-gray-300 mb-2">لم نتمكن من العثور على حلقات تطابق بحثك.</div>
-              <div className="text-sm text-gray-400 dark:text-gray-500">جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.</div>
+              <div className="text-gray-600 dark:text-gray-300 mb-2">{t.noEpisodes}</div>
+              <div className="text-sm text-gray-400 dark:text-gray-500">{t.clearFilters}</div>
             </div>
           ) : (
-            seasons.map(([seasonTitle, episodes]) => {
+            seasonEntries.map(([seasonTitle, episodes]) => {
               const isOpen = !!openSeasons[seasonTitle];
               return (
                 <div key={seasonTitle} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -659,7 +655,7 @@ export default function EpisodesPageClient() {
                       <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{seasonTitle}</h2>
                       <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                         <IconEpisodes className="h-3 w-3" />
-                        <span>{episodes.length} حلقة</span>
+                        <span>{episodes.length} {t.results}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -681,7 +677,7 @@ export default function EpisodesPageClient() {
                             </motion.div>
                           </motion.span>
                           <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18 }}>
-                            {isOpen ? "طي" : "فتح"}
+                            {isOpen ? t.close : t.open}
                           </motion.span>
                         </motion.span>
                       </motion.button>
@@ -700,14 +696,18 @@ export default function EpisodesPageClient() {
                         className="px-4"
                       >
                         <motion.div layout className={`py-4 ${viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-4"}`}>
-                          {episodes.map((ep: Episode) => {
-                            const slug = ep.slug.current;
-                            const title = ep.title || "حلقة";
-                            const thumbnailUrl = getImageUrl(ep.thumbnail, 500, 300);
+                          {episodes.map((episode: Episode) => {
+                            const slug = episode.slug?.current || episode._id;
+                            const title = getLocalizedText(episode.title, episode.titleEn, language);
+                            const description = getLocalizedText(episode.description, episode.descriptionEn, language);
+                            let thumbnailUrl = "/placeholder.png";
+                            if (episode.thumbnail) {
+                              thumbnailUrl = buildMediaUrl(episode.thumbnail);
+                            }
                             
                             return viewMode === "grid" ? (
                               <motion.article
-                                key={ep._id}
+                                key={episode._id}
                                 variants={cardVariants}
                                 initial="hidden"
                                 animate="visible"
@@ -716,15 +716,9 @@ export default function EpisodesPageClient() {
                                 layout
                                 className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col bg-white dark:bg-gray-800 shadow-md"
                               >
-                                <Link href={`/episodes/${slug}`} className="block group">
+                                <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="block group">
                                   <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-                                    <Image 
-                                      src={thumbnailUrl} 
-                                      alt={title} 
-                                      fill
-                                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
-                                    />
+                                    <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
                                     <motion.div
                                       initial={{ opacity: 0 }}
                                       whileHover={{ opacity: 1, scale: 1.02 }}
@@ -738,12 +732,13 @@ export default function EpisodesPageClient() {
                                   </div>
                                   <div className="p-4">
                                     <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2 mb-2">{renderHighlighted(title, searchTerm)}</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{description}</p>
                                     
                                     {/* عرض تاريخ النشر */}
-                                    {ep.publishedAt && (
+                                    {episode.publishedAt && (
                                       <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                         <FaCalendarAlt className="h-3 w-3" />
-                                        {formatDate(ep.publishedAt)}
+                                        {formatDate(episode.publishedAt)}
                                       </div>
                                     )}
                                   </div>
@@ -752,12 +747,12 @@ export default function EpisodesPageClient() {
                                   <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                                     <IconEpisodes className="h-4 w-4" />
                                   </div>
-                                  <FavoriteButton contentId={ep._id} contentType="episode" />
+                                  <FavoriteButton contentId={episode._id} contentType="episode" />
                                 </div>
                               </motion.article>
                             ) : (
                               <motion.div
-                                key={ep._id}
+                                key={episode._id}
                                 variants={cardVariants}
                                 initial="hidden"
                                 animate="visible"
@@ -766,30 +761,25 @@ export default function EpisodesPageClient() {
                                 layout
                                 className="flex gap-4 items-center border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden p-4 hover:shadow-lg transition bg-white dark:bg-gray-800 shadow-md"
                               >
-                                <Link href={`/episodes/${slug}`} className="flex items-center gap-4 flex-1 group">
+                                <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="flex items-center gap-4 flex-1 group">
                                   <div className="relative w-24 h-16 sm:w-32 sm:h-20 flex-shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg overflow-hidden">
-                                    <Image 
-                                      src={thumbnailUrl} 
-                                      alt={title} 
-                                      fill
-                                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                                      sizes="240px" 
-                                    />
+                                    <ImageWithFallback src={thumbnailUrl} alt={title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" fill sizes="240px" />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 line-clamp-2 mb-1">{renderHighlighted(title, searchTerm)}</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">{description}</p>
                                     
                                     {/* عرض تاريخ النشر */}
-                                    {ep.publishedAt && (
+                                    {episode.publishedAt && (
                                       <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                         <FaCalendarAlt className="h-3 w-3" />
-                                        {formatDate(ep.publishedAt)}
+                                        {formatDate(episode.publishedAt)}
                                       </div>
                                     )}
                                   </div>
                                 </Link>
                                 <div className="flex-shrink-0">
-                                  <FavoriteButton contentId={ep._id} contentType="episode" />
+                                  <FavoriteButton contentId={episode._id} contentType="episode" />
                                 </div>
                               </motion.div>
                             );

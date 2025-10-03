@@ -1,25 +1,29 @@
+// app/articles/page.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { fetchFromSanity, urlFor } from "@/lib/sanity";
+import { fetchArticles, fetchSeasons, urlFor, getLocalizedText } from "@/lib/sanity";
 import FavoriteButton from "@/components/FavoriteButton";
+import { useLanguage } from "@/components/LanguageProvider";
 import { 
   FaVideo, 
   FaCalendarAlt, FaNewspaper, FaHeart,
   FaStar, 
-  FaPlay, FaBook, 
+  FaBook, 
   FaGraduationCap, 
   FaFileAlt, FaSearch, FaTimes, FaTh, FaList,
   FaChevronDown, FaChevronUp, FaRegBookmark
 } from "react-icons/fa";
 
-// تعريف واجهات البيانات
+// تعريف واجهات البيانات مع دعم اللغة
 interface Article {
   _id: string;
   title?: string;
+  titleEn?: string;
   excerpt?: string;
+  excerptEn?: string;
   slug?: {
     current: string;
   };
@@ -33,6 +37,7 @@ interface Article {
   episode?: {
     _id: string;
     title: string;
+    titleEn?: string;
     slug: {
       current: string;
     };
@@ -40,11 +45,32 @@ interface Article {
   season?: {
     _id: string;
     title: string;
+    titleEn?: string;
     slug: {
       current: string;
     };
   };
   publishedAt?: string;
+  language?: 'ar' | 'en';
+}
+
+interface Season {
+  _id: string;
+  title?: string;
+  titleEn?: string;
+  description?: string;
+  descriptionEn?: string;
+  slug?: {
+    current: string;
+  };
+  thumbnail?: {
+    _type: 'image';
+    asset: {
+      _ref: string;
+      _type: 'reference';
+    };
+  };
+  language?: 'ar' | 'en';
 }
 
 // تعريف واجهة لصورة Sanity
@@ -55,6 +81,68 @@ interface SanityImage {
     _type: 'reference';
   };
 }
+
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جارٍ التحميل...",
+    error: "حدث خطأ في تحميل البيانات",
+    retry: "إعادة المحاولة",
+    articles: "المقالات التعليمية",
+    discover: "اكشف",
+    knowledge: "المعرفة",
+    description: "مجموعة شاملة من المقالات التعليمية عالية الجودة في مختلف المجالات، مصممة لتطوير معرفتك ومهاراتك.",
+    search: "ابحث عن عنوان أو ملخص...",
+    clearSearch: "مسح",
+    grid: "عرض شبكي",
+    list: "عرض قائمة",
+    favorites: "مفضلاتي",
+    episodes: "الحلقات",
+    seasons: "المواسم",
+    results: "مقال",
+    searchResults: "نتائج البحث",
+    noResults: "لا توجد نتائج مطابقة",
+    tryDifferent: "جرب كلمات مفتاحية أخرى",
+    open: "فتح",
+    close: "طي",
+    season: "موسم",
+    episode: "حلقة",
+    publishedAt: "تاريخ النشر",
+    noArticles: "لم نتمكن من العثور على مقالات تطابق بحثك.",
+    clearFilters: "جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.",
+    allArticles: "جميع المقالات",
+    articlesWithoutSeason: "مقالات بدون موسم"
+  },
+  en: {
+    loading: "Loading...",
+    error: "An error occurred while loading data",
+    retry: "Retry",
+    articles: "Educational Articles",
+    discover: "Discover",
+    knowledge: "Knowledge",
+    description: "A comprehensive collection of high-quality educational articles in various fields, designed to develop your knowledge and skills.",
+    search: "Search for title or excerpt...",
+    clearSearch: "Clear",
+    grid: "Grid View",
+    list: "List View",
+    favorites: "My Favorites",
+    episodes: "Episodes",
+    seasons: "Seasons",
+    results: "article",
+    searchResults: "Search Results",
+    noResults: "No matching results",
+    tryDifferent: "Try different keywords",
+    open: "Open",
+    close: "Close",
+    season: "Season",
+    episode: "Episode",
+    publishedAt: "Published Date",
+    noArticles: "We couldn't find any articles matching your search.",
+    clearFilters: "Try different keywords or clear filters.",
+    allArticles: "All Articles",
+    articlesWithoutSeason: "Articles without season"
+  }
+};
 
 function buildMediaUrl(image?: SanityImage) {
   if (!image) return "/placeholder.png";
@@ -126,6 +214,9 @@ function IconChevron({ className = "h-5 w-5", open = false }: { className?: stri
 }
 
 export default function ArticlesPageClient() {
+  const { isRTL, language } = useLanguage();
+  const t = translations[language];
+  
   const [articlesBySeason, setArticlesBySeason] = useState<Record<string, Article[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,38 +230,33 @@ export default function ArticlesPageClient() {
         setLoading(true);
         setError(null);
         
-        // استعلام Sanity لجلب المقالات مع المواسم المرتبطة
-        const query = `*[_type == "article"]{
-          _id,
-          title,
-          excerpt,
-          slug,
-          featuredImage {
-            _type,
-            asset
-          },
-          episode-> {
-            _id,
-            title,
-            slug
-          },
-          season-> {
-            _id,
-            title,
-            slug
-          },
-          publishedAt
-        } | order(publishedAt desc)`;
-        
-        const articles = await fetchFromSanity(query) as Article[];
+        // جلب المقالات والمواسم حسب اللغة
+        const [articlesData, seasonsData] = await Promise.all([
+          fetchArticles(language),
+          fetchSeasons(language)
+        ]);
         
         // تنظيم المقالات حسب الموسم
         const grouped: Record<string, Article[]> = {};
-        articles.forEach((article: Article) => {
-          const seasonTitle = article.season?.title || "مقالات بدون موسم";
+        
+        // إضافة قسم "جميع المقالات"
+        grouped[t.allArticles] = articlesData;
+        
+        // تنظيم المقالات حسب الموسم
+        seasonsData.forEach((season: Season) => {
+          const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
           if (!grouped[seasonTitle]) grouped[seasonTitle] = [];
-          grouped[seasonTitle].push(article);
+          const seasonArticles = articlesData.filter(article => 
+            article.season?._id === season._id
+          );
+          grouped[seasonTitle] = seasonArticles;
         });
+        
+        // إضافة قسم "مقالات بدون موسم"
+        const articlesWithoutSeason = articlesData.filter(article => !article.season);
+        if (articlesWithoutSeason.length > 0) {
+          grouped[t.articlesWithoutSeason] = articlesWithoutSeason;
+        }
         
         setArticlesBySeason(grouped);
         // فتح أول موسم بشكل افتراضي
@@ -178,14 +264,14 @@ export default function ArticlesPageClient() {
         if (first) setOpenSeasons({ [first]: true });
       } catch (err: unknown) {
         console.error(err);
-        setError("حدث خطأ في تحميل البيانات");
+        setError(t.error);
       } finally {
         setLoading(false);
       }
     }
     
     load();
-  }, []);
+  }, [language, t.error, t.allArticles, t.articlesWithoutSeason]);
 
   function toggleSeason(title: string) {
     setOpenSeasons((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -197,28 +283,28 @@ export default function ArticlesPageClient() {
     const out: Record<string, Article[]> = {};
     Object.entries(articlesBySeason).forEach(([season, articles]) => {
       const matches = articles.filter((article: Article) => {
-        const title = (article.title || "").toString().toLowerCase();
-        const excerpt = (article.excerpt || "").toString().toLowerCase();
+        const title = getLocalizedText(article.title, article.titleEn, language).toLowerCase();
+        const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language).toLowerCase();
         return title.includes(q) || excerpt.includes(q);
       });
       if (matches.length > 0) out[season] = matches;
     });
     return out;
-  }, [articlesBySeason, searchTerm]);
+  }, [articlesBySeason, searchTerm, language]);
 
   const totalResults = useMemo(
     () => Object.values(filteredBySeason).reduce((s, arr) => s + arr.length, 0),
     [filteredBySeason]
   );
 
-  const seasons = Object.entries(filteredBySeason);
+  const seasonEntries = Object.entries(filteredBySeason);
   const searchResults = Object.values(filteredBySeason).flat();
 
-  // Function to format date in Arabic
+  // Function to format date based on language
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG', { 
+    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
@@ -231,7 +317,7 @@ export default function ArticlesPageClient() {
         <div className="inline-block animate-bounce bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-full mb-4">
           <FaRegBookmark className="text-white text-3xl" />
         </div>
-        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">جارٍ التحميل...</p>
+        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">{t.loading}</p>
       </div>
     </div>
   );
@@ -247,14 +333,14 @@ export default function ArticlesPageClient() {
           onClick={() => window.location.reload()} 
           className="mt-4 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity"
         >
-          إعادة المحاولة
+          {t.retry}
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Hero Section */}
         <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
@@ -288,14 +374,14 @@ export default function ArticlesPageClient() {
               <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
                 <span className="text-white font-medium flex items-center text-sm sm:text-base">
                   <FaStar className="text-yellow-300 mr-2 animate-pulse" />
-                  المقالات التعليمية
+                  {t.articles}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
-                اكتشف <span className="text-yellow-300">المعرفة</span> في مقالاتنا
+                {t.discover} <span className="text-yellow-300">{t.knowledge}</span> {language === 'ar' ? 'في مقالاتنا' : 'in our articles'}
               </h1>
               <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
-                مجموعة شاملة من المقالات التعليمية عالية الجودة في مختلف المجالات، مصممة لتطوير معرفتك ومهاراتك.
+                {t.description}
               </p>
               
               {/* أيقونات المواد الدراسية في الأسفل */}
@@ -326,9 +412,9 @@ export default function ArticlesPageClient() {
             <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full shadow-sm px-3 py-2 border border-gray-100 dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-200 flex-grow">
               <FaSearch className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <input
-                aria-label="بحث في المقالات"
+                aria-label={t.search}
                 className="bg-transparent outline-none flex-grow text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 py-1"
-                placeholder="ابحث عن عنوان أو ملخص..."
+                placeholder={t.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -336,8 +422,8 @@ export default function ArticlesPageClient() {
                 <button
                   onClick={() => setSearchTerm("")}
                   className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                  aria-label="مسح البحث"
-                  title="مسح"
+                  aria-label={t.clearSearch}
+                  title={t.clearSearch}
                 >
                   <FaTimes className="h-4 w-4 text-gray-500 dark:text-gray-300" />
                 </button>
@@ -356,7 +442,7 @@ export default function ArticlesPageClient() {
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                   aria-pressed={viewMode === "grid"}
-                  title="عرض شبكي"
+                  title={t.grid}
                 >
                   <FaTh className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
                 </button>
@@ -368,7 +454,7 @@ export default function ArticlesPageClient() {
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                   aria-pressed={viewMode === "list"}
-                  title="عرض قائمة"
+                  title={t.list}
                 >
                   <FaList className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
                 </button>
@@ -377,15 +463,15 @@ export default function ArticlesPageClient() {
               {/* رابط المفضلة والحلقات والمواسم */}
               <Link href="/favorites" className="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
                 <FaHeart className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">مفضلاتي</span>
+                <span className="text-xs sm:text-sm">{t.favorites}</span>
               </Link>
               <Link href="/episodes" className="px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
                 <FaVideo className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">الحلقات</span>
+                <span className="text-xs sm:text-sm">{t.episodes}</span>
               </Link>
               <Link href="/seasons" className="px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
                 <FaCalendarAlt className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">المواسم</span>
+                <span className="text-xs sm:text-sm">{t.seasons}</span>
               </Link>
             </div>
           </div>
@@ -394,11 +480,11 @@ export default function ArticlesPageClient() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
               <FaNewspaper className="ml-2" />
-              {totalResults} مقال
+              {totalResults} {t.results}
             </div>
             {searchTerm && (
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                نتائج البحث: &quot;{searchTerm}&quot;
+                {t.searchResults}: &quot;{searchTerm}&quot;
               </div>
             )}
           </div>
@@ -410,13 +496,13 @@ export default function ArticlesPageClient() {
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 dark:from-blue-800 dark:to-purple-900 rounded-xl p-4 mb-6 shadow-lg">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
-                  <div className="text-sm text-blue-100 dark:text-blue-200">نتائج البحث عن</div>
+                  <div className="text-sm text-blue-100 dark:text-blue-200">{t.searchResults}</div>
                   <div className="text-lg font-semibold text-white">
                     «{searchTerm}» <span className="text-sm text-blue-200 dark:text-blue-300">({totalResults})</span>
                   </div>
                 </div>
                 <button onClick={() => setSearchTerm("")} className="px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-md text-sm hover:bg-white/30 text-white transition-colors self-start sm:self-auto">
-                  مسح البحث
+                  {t.clearSearch}
                 </button>
               </div>
             </div>
@@ -426,8 +512,8 @@ export default function ArticlesPageClient() {
                 <div className="inline-block bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
                   <FaSearch className="text-gray-400 dark:text-gray-500 text-2xl" />
                 </div>
-                <div className="text-gray-500 dark:text-gray-400 mb-2">لا توجد نتائج.</div>
-                <div className="text-sm text-gray-400 dark:text-gray-500">جرب كلمات مفتاحية أخرى</div>
+                <div className="text-gray-500 dark:text-gray-400 mb-2">{t.noResults}.</div>
+                <div className="text-sm text-gray-400 dark:text-gray-500">{t.tryDifferent}</div>
               </div>
             ) : (
               <div>
@@ -440,10 +526,10 @@ export default function ArticlesPageClient() {
                   >
                     {searchResults.map((article: Article) => {
                       const slug = article.slug?.current || article._id;
-                      const title = article.title || "مقال";
-                      const excerpt = article.excerpt || "";
+                      const title = getLocalizedText(article.title, article.titleEn, language);
+                      const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                       const episode = article.episode;
-                      const season = article.season;
+                      const articleSeason = article.season;
                       let thumbnailUrl = "/placeholder.png";
                       if (article.featuredImage) {
                         thumbnailUrl = buildMediaUrl(article.featuredImage);
@@ -477,10 +563,10 @@ export default function ArticlesPageClient() {
                               <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{excerpt}</p>
                               
                               {/* عرض الموسم المرتبط */}
-                              {season && (
+                              {articleSeason && (
                                 <div className="mb-2">
                                   <span className="text-xs px-2 py-1 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50 text-blue-800 dark:text-blue-200 rounded-full">
-                                    موسم: {season.title}
+                                    {t.season}: {getLocalizedText(articleSeason.title, articleSeason.titleEn, language)}
                                   </span>
                                 </div>
                               )}
@@ -489,7 +575,7 @@ export default function ArticlesPageClient() {
                               {episode && (
                                 <div className="mb-2">
                                   <span className="text-xs px-2 py-1 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50 text-green-800 dark:text-green-200 rounded-full">
-                                    حلقة: {episode.title}
+                                    {t.episode}: {getLocalizedText(episode.title, episode.titleEn, language)}
                                   </span>
                                 </div>
                               )}
@@ -517,10 +603,10 @@ export default function ArticlesPageClient() {
                   <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
                     {searchResults.map((article: Article) => {
                       const slug = article.slug?.current || article._id;
-                      const title = article.title || "مقال";
-                      const excerpt = article.excerpt || "";
+                      const title = getLocalizedText(article.title, article.titleEn, language);
+                      const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                       const episode = article.episode;
-                      const season = article.season;
+                      const articleSeason = article.season;
                       let thumbnailUrl = "/placeholder.png";
                       if (article.featuredImage) {
                         thumbnailUrl = buildMediaUrl(article.featuredImage);
@@ -545,14 +631,14 @@ export default function ArticlesPageClient() {
                               
                               {/* عرض الموسم والحلقة المرتبطين */}
                               <div className="flex flex-wrap gap-2 mb-1">
-                                {season && (
+                                {articleSeason && (
                                   <span className="text-xs px-2 py-1 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50 text-blue-800 dark:text-blue-200 rounded-full">
-                                    موسم: {season.title}
+                                    {t.season}: {getLocalizedText(articleSeason.title, articleSeason.titleEn, language)}
                                   </span>
                                 )}
                                 {episode && (
                                   <span className="text-xs px-2 py-1 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50 text-green-800 dark:text-green-200 rounded-full">
-                                    حلقة: {episode.title}
+                                    {t.episode}: {getLocalizedText(episode.title, episode.titleEn, language)}
                                   </span>
                                 )}
                               </div>
@@ -581,16 +667,16 @@ export default function ArticlesPageClient() {
         
         {/* قائمة المواسم */}
         <div className="space-y-6">
-          {seasons.length === 0 ? (
+          {seasonEntries.length === 0 ? (
             <div className="text-center p-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-lg">
               <div className="inline-block bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
                 <FaNewspaper className="text-gray-400 dark:text-gray-500 text-2xl" />
               </div>
-              <div className="text-gray-600 dark:text-gray-300 mb-2">لم نتمكن من العثور على مقالات تطابق بحثك.</div>
-              <div className="text-sm text-gray-400 dark:text-gray-500">جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.</div>
+              <div className="text-gray-600 dark:text-gray-300 mb-2">{t.noArticles}</div>
+              <div className="text-sm text-gray-400 dark:text-gray-500">{t.clearFilters}</div>
             </div>
           ) : (
-            seasons.map(([seasonTitle, articles]) => {
+            seasonEntries.map(([seasonTitle, articles]) => {
               const isOpen = !!openSeasons[seasonTitle];
               return (
                 <div key={seasonTitle} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -599,7 +685,7 @@ export default function ArticlesPageClient() {
                       <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{seasonTitle}</h2>
                       <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                         <IconArticles className="h-3 w-3" />
-                        <span>{articles.length} مقال</span>
+                        <span>{articles.length} {t.results}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -621,7 +707,7 @@ export default function ArticlesPageClient() {
                             </motion.div>
                           </motion.span>
                           <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18 }}>
-                            {isOpen ? "طي" : "فتح"}
+                            {isOpen ? t.close : t.open}
                           </motion.span>
                         </motion.span>
                       </motion.button>
@@ -642,10 +728,9 @@ export default function ArticlesPageClient() {
                         <motion.div layout className={`py-4 ${viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-4"}`}>
                           {articles.map((article: Article) => {
                             const slug = article.slug?.current || article._id;
-                            const title = article.title || "مقال";
-                            const excerpt = article.excerpt || "";
+                            const title = getLocalizedText(article.title, article.titleEn, language);
+                            const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                             const episode = article.episode;
-                            const season = article.season;
                             let thumbnailUrl = "/placeholder.png";
                             if (article.featuredImage) {
                               thumbnailUrl = buildMediaUrl(article.featuredImage);
@@ -684,7 +769,7 @@ export default function ArticlesPageClient() {
                                     {episode && (
                                       <div className="mb-2">
                                         <span className="text-xs px-2 py-1 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50 text-green-800 dark:text-green-200 rounded-full">
-                                          حلقة: {episode.title}
+                                          {t.episode}: {getLocalizedText(episode.title, episode.titleEn, language)}
                                         </span>
                                       </div>
                                     )}
@@ -728,7 +813,7 @@ export default function ArticlesPageClient() {
                                     {episode && (
                                       <div className="flex flex-wrap gap-2 mb-1">
                                         <span className="text-xs px-2 py-1 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50 text-green-800 dark:text-green-200 rounded-full">
-                                          حلقة: {episode.title}
+                                          {t.episode}: {getLocalizedText(episode.title, episode.titleEn, language)}
                                         </span>
                                       </div>
                                     )}

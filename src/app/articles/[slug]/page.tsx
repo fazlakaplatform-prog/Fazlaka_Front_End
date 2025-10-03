@@ -9,20 +9,25 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
+import { useLanguage } from "@/components/LanguageProvider";
+import { getLocalizedText } from "@/lib/sanity";
 // Icons
-import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaHeart, FaCalendarAlt, FaFolder, FaVideo } from "react-icons/fa";
+import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo } from "react-icons/fa";
 // Sanity
 import { client, urlForImage } from "@/lib/sanity";
 // Components
 import FavoriteButton from "@/components/FavoriteButton";
 
-// تعريف واجهات البيانات
+// تعريف واجهات البيانات مع دعم اللغة
 interface Article {
   _id: string;
   _type: string;
   title: string;
+  titleEn?: string;
   excerpt: string;
+  excerptEn?: string;
   content: PortableTextBlock[];
+  contentEn?: PortableTextBlock[];
   publishedAt: string;
   slug: {
     current: string;
@@ -37,6 +42,7 @@ interface Article {
   episode?: {
     _id: string;
     title: string;
+    titleEn?: string;
     slug: {
       current: string;
     };
@@ -51,6 +57,7 @@ interface Article {
   season?: {
     _id: string;
     title: string;
+    titleEn?: string;
     slug: {
       current: string;
     };
@@ -62,11 +69,13 @@ interface Article {
       };
     };
   };
+  language?: 'ar' | 'en';
 }
 
 interface EpisodeItem {
   _id: string;
   title: string;
+  titleEn?: string;
   slug: {
     current: string;
   };
@@ -77,11 +86,13 @@ interface EpisodeItem {
       url?: string;
     };
   };
+  language?: 'ar' | 'en';
 }
 
 interface SeasonItem {
   _id: string;
   title: string;
+  titleEn?: string;
   slug: {
     current: string;
   };
@@ -92,6 +103,7 @@ interface SeasonItem {
       url?: string;
     };
   };
+  language?: 'ar' | 'en';
 }
 
 interface Comment {
@@ -151,6 +163,82 @@ interface SanityImage {
     right: number;
   };
 }
+
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جارٍ التحميل...",
+    error: "حدث خطأ في تحميل المقال",
+    notFound: "المقال غير موجود",
+    notFoundMessage: "عذراً، المقال الذي تبحث عنه غير موجود أو قد تم حذفه.",
+    viewAllArticles: "عرض جميع المقالات",
+    backToHome: "العودة إلى الرئيسية",
+    noArticleFound: "لم تُعثر على المقال.",
+    articleExcerpt: "نبذة عن المقال",
+    content: "المحتوى",
+    relatedSeason: "الموسم المرتبط",
+    relatedEpisode: "الحلقة المرتبطة",
+    comments: "التعليقات",
+    newArticle: "مقال جديد",
+    featured: "مميز",
+    favorites: "المفضلة",
+    season: "موسم",
+    episode: "حلقة",
+    viewSeason: "عرض الموسم",
+    watchEpisode: "مشاهدة الحلقة",
+    commentPlaceholder: "اكتب تعليقك هنا...",
+    sendComment: "أرسل التعليق",
+    sending: "جاري الإرسال...",
+    signInToComment: "يجب تسجيل الدخول لكي تتمكن من إرسال تعليق.",
+    signIn: "تسجيل الدخول",
+    writeCommentFirst: "اكتب تعليقاً قبل الإرسال.",
+    signInRequired: "يجب تسجيل الدخول لإرسال تعليق.",
+    noCommentsYet: "لا توجد تعليقات بعد.",
+    viewDocument: "عرض المستند",
+    openInGoogleDrive: "فتح في Google Drive",
+    image: "صورة",
+    openImage: "فتح الصورة",
+    document: "مستند",
+    video: "فيديو",
+    publishedAt: "تاريخ النشر"
+  },
+  en: {
+    loading: "Loading...",
+    error: "Error loading article",
+    notFound: "Article not found",
+    notFoundMessage: "Sorry, the article you're looking for doesn't exist or may have been deleted.",
+    viewAllArticles: "View all articles",
+    backToHome: "Back to home",
+    noArticleFound: "Article not found.",
+    articleExcerpt: "Article excerpt",
+    content: "Content",
+    relatedSeason: "Related season",
+    relatedEpisode: "Related episode",
+    comments: "Comments",
+    newArticle: "New article",
+    featured: "Featured",
+    favorites: "Favorites",
+    season: "Season",
+    episode: "Episode",
+    viewSeason: "View season",
+    watchEpisode: "Watch episode",
+    commentPlaceholder: "Write your comment here...",
+    sendComment: "Send comment",
+    sending: "Sending...",
+    signInToComment: "You must be signed in to post a comment.",
+    signIn: "Sign in",
+    writeCommentFirst: "Write a comment before sending.",
+    signInRequired: "You must be signed in to send a comment.",
+    noCommentsYet: "No comments yet.",
+    viewDocument: "View document",
+    openInGoogleDrive: "Open in Google Drive",
+    image: "Image",
+    openImage: "Open image",
+    document: "Document",
+    video: "Video",
+    publishedAt: "Published at"
+  }
+};
 
 // دالة محسّنة لتحويل محتوى الكتل من Sanity إلى نص مع الحفاظ على جميع التنسيقات
 function blocksToText(blocks: PortableTextBlock[]): string {
@@ -246,6 +334,8 @@ function CommentsClient({
   contentId: string; 
   type?: "article" | "episode" 
 }) {
+  const { language } = useLanguage();
+  const t = translations[language];
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -277,11 +367,11 @@ function CommentsClient({
     setErrorMsg(null);
     setSuccessMsg(null);
     if (!content.trim()) {
-      setErrorMsg("اكتب تعليقاً قبل الإرسال.");
+      setErrorMsg(t.writeCommentFirst);
       return;
     }
     if (!user) {
-      setErrorMsg("يجب تسجيل الدخول لإرسال تعليق.");
+      setErrorMsg(t.signInRequired);
       return;
     }
     setLoading(true);
@@ -304,7 +394,7 @@ function CommentsClient({
       if (apiResponse.ok) {
         const data = await apiResponse.json();
         console.log("Comment created via API:", data);
-        setSuccessMsg("تم إرسال تعليقك بنجاح!");
+        setSuccessMsg(language === 'ar' ? "تم إرسال تعليقك بنجاح!" : "Your comment has been sent successfully!");
         setContent("");
         fetchComments();
         setLoading(false);
@@ -330,19 +420,19 @@ function CommentsClient({
       const result = await client.create(newComment);
       console.log("Comment created directly:", result);
       
-      setSuccessMsg("تم إرسال تعليقك بنجاح!");
+      setSuccessMsg(language === 'ar' ? "تم إرسال تعليقك بنجاح!" : "Your comment has been sent successfully!");
       setContent("");
       fetchComments();
     } catch (err: unknown) {
       console.error("خطأ غير متوقع في الإرسال:", err);
       if (err instanceof Error) {
         if (err.message.includes("Insufficient permissions")) {
-          setErrorMsg("ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة.");
+          setErrorMsg(language === 'ar' ? "ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة." : "You don't have permission to send comments. Please contact the administration.");
         } else {
-          setErrorMsg(`حدث خطأ غير متوقع أثناء الإرسال: ${err.message}`);
+          setErrorMsg(language === 'ar' ? `حدث خطأ غير متوقع أثناء الإرسال: ${err.message}` : `An unexpected error occurred while sending: ${err.message}`);
         }
       } else {
-        setErrorMsg("حدث خطأ غير متوقع أثناء الإرسال.");
+        setErrorMsg(language === 'ar' ? "حدث خطأ غير متوقع أثناء الإرسال." : "An unexpected error occurred while sending.");
       }
     } finally {
       setLoading(false);
@@ -353,12 +443,12 @@ function CommentsClient({
     <div className="mt-6 border rounded p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
       <SignedOut>
         <div className="mb-4">
-          <p className="mb-2">يجب تسجيل الدخول لكي تتمكن من إرسال تعليق.</p>
+          <p className="mb-2">{t.signInToComment}</p>
           <Link
             href="/sign-in"
             className="px-3 py-2 bg-blue-600 dark:bg-blue-500 hover:opacity-95 text-white rounded inline-block"
           >
-            تسجيل الدخول
+            {t.signIn}
           </Link>
         </div>
       </SignedOut>
@@ -369,7 +459,7 @@ function CommentsClient({
             onChange={(e) => setContent(e.target.value)}
             rows={4}
             className="w-full border p-2 rounded mb-2 bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-            placeholder="اكتب تعليقك هنا..."
+            placeholder={t.commentPlaceholder}
             required
             disabled={loading}
             aria-label="تعليق"
@@ -385,7 +475,7 @@ function CommentsClient({
               }`}
               aria-busy={loading}
             >
-              {loading ? "جاري الإرسال..." : "أرسل التعليق"}
+              {loading ? t.sending : t.sendComment}
             </button>
             {errorMsg && (
               <p className="text-sm text-red-600 dark:text-red-400 break-words max-w-xl">{errorMsg}</p>
@@ -397,7 +487,7 @@ function CommentsClient({
         </form>
       </SignedIn>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">لا توجد تعليقات بعد.</p>}
+        {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">{t.noCommentsYet}</p>}
         {comments.map((c: Comment) => {
           const createdAt = c.createdAt ? new Date(c.createdAt) : new Date();
           return (
@@ -417,6 +507,8 @@ function CommentsClient({
 }
 
 export default function ArticleDetailPageClient() {
+  const { language, isRTL } = useLanguage();
+  const t = translations[language];
   const params = useParams() as Record<string, string | string[]>;
   const rawSlug = params?.slug;
   const slugOrId = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
@@ -440,18 +532,21 @@ export default function ArticleDetailPageClient() {
       setSeasons([]);
       try {
         if (!slugOrId) {
-          setError("لم يتم تحديد المقال");
+          setError(t.error);
           setLoading(false);
           return;
         }
         
-        // جلب المقال من Sanity مع الحلقة والموسم المرتبطين
-        const query = `*[_type == "article" && slug.current == $slug][0] {
+        // جلب المقال من Sanity مع الحلقة والموسم المرتبطين مع دعم اللغة
+        const query = `*[_type == "article" && slug.current == $slug && language == $language][0] {
           _id,
           _type,
           title,
+          titleEn,
           excerpt,
+          excerptEn,
           content,
+          contentEn,
           publishedAt,
           slug,
           featuredImage {
@@ -464,6 +559,7 @@ export default function ArticleDetailPageClient() {
           episode-> {
             _id,
             title,
+            titleEn,
             slug,
             thumbnail {
               asset-> {
@@ -476,6 +572,7 @@ export default function ArticleDetailPageClient() {
           season-> {
             _id,
             title,
+            titleEn,
             slug,
             thumbnail {
               asset-> {
@@ -484,14 +581,15 @@ export default function ArticleDetailPageClient() {
                 url
               }
             }
-          }
+          },
+          language
         }`;
         
-        const art = await client.fetch(query, { slug: slugOrId });
+        const art = await client.fetch(query, { slug: slugOrId, language });
         
         if (!art) {
           console.error("Article not found for slug/ID:", slugOrId);
-          throw new Error("المقال غير موجود");
+          throw new Error(t.notFound);
         }
         
         // جلب الحلقات المرتبطة (إذا كانت هناك حلقة مرتبطة)
@@ -516,7 +614,7 @@ export default function ArticleDetailPageClient() {
       } catch (e: unknown) {
         console.error("Error loading article:", e);
         if (mounted) {
-          setError((e as Error)?.message ?? "خطأ غير معروف");
+          setError((e as Error)?.message ?? t.error);
           setLoading(false);
         }
       }
@@ -525,7 +623,7 @@ export default function ArticleDetailPageClient() {
     return () => {
       mounted = false;
     };
-  }, [slugOrId]);
+  }, [slugOrId, language, t.error, t.notFound]);
   
   if (loading)
     return (
@@ -541,33 +639,33 @@ export default function ArticleDetailPageClient() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 text-center">
           <div className="text-red-500 text-6xl mb-4">404</div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">المقال غير موجود</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">{t.notFound}</h1>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            عذراً، المقال الذي تبحث عنه غير موجود أو قد تم حذفه.
+            {t.notFoundMessage}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/articles"
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
-              عرض جميع المقالات
+              {t.viewAllArticles}
             </Link>
             <Link
               href="/"
               className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
             >
-              العودة إلى الرئيسية
+              {t.backToHome}
             </Link>
           </div>
         </div>
       </div>
     );
       
-  if (!article) return <div className="p-8 text-center">لم تُعثر على المقال.</div>;
+  if (!article) return <div className="p-8 text-center">{t.noArticleFound}</div>;
   
-  const title = article.title;
-  const excerpt = article.excerpt;
-  const content = article.content;
+  const title = getLocalizedText(article.title, article.titleEn, language);
+  const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
+  const content = language === 'ar' ? article.content : article.contentEn || article.content;
   const publishedAt = article.publishedAt;
   
   // دالة للحصول على رابط الصورة بشكل آمن
@@ -770,7 +868,7 @@ export default function ArticleDetailPageClient() {
             preload="metadata"
           >
             <source src={url} type={`video/${url.split('.').pop()}`} />
-            متصفحك لا يدعم تشغيل الفيديو.
+            {language === 'ar' ? 'متصفحك لا يدعم تشغيل الفيديو.' : 'Your browser does not support video playback.'}
           </video>
         </div>
       );
@@ -800,7 +898,7 @@ export default function ArticleDetailPageClient() {
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white shadow-lg">
               <FaFileAlt className="text-sm" />
             </div>
-            <h3 className="text-lg font-bold">عرض المستند</h3>
+            <h3 className="text-lg font-bold">{t.viewDocument}</h3>
           </div>
           <a 
             href={url} 
@@ -809,7 +907,7 @@ export default function ArticleDetailPageClient() {
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
           >
             <FaGoogleDrive />
-            <span>فتح في Google Drive</span>
+            <span>{t.openInGoogleDrive}</span>
           </a>
         </div>
         <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700" style={{ paddingBottom: '75%' }}>
@@ -834,7 +932,7 @@ export default function ArticleDetailPageClient() {
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
               <FaImage className="text-sm" />
             </div>
-            <h3 className="text-lg font-bold">صورة</h3>
+            <h3 className="text-lg font-bold">{t.image}</h3>
           </div>
           <a 
             href={url} 
@@ -843,13 +941,13 @@ export default function ArticleDetailPageClient() {
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
           >
             <FaImage />
-            <span>فتح الصورة</span>
+            <span>{t.openImage}</span>
           </a>
         </div>
         <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700">
           <Image
             src={url}
-            alt="صورة من المحتوى"
+            alt={language === 'ar' ? "صورة من المحتوى" : "Image from content"}
             width={800}
             height={450}
             className="w-full h-auto object-contain"
@@ -989,7 +1087,7 @@ export default function ArticleDetailPageClient() {
       
       // عرض النص باستخدام ReactMarkdown
       result.push(
-        <div key={`markdown-${index}`} className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
+        <div key={`markdown-${index}`} className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw, rehypeSanitize]}
@@ -1078,11 +1176,11 @@ export default function ArticleDetailPageClient() {
     return result;
   };
   
-  // Function to format date in Arabic
+  // Function to format date based on language
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-EG', { 
+    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
@@ -1090,7 +1188,7 @@ export default function ArticleDetailPageClient() {
   };
   
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen">
+    <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* HERO */}
       <header className="relative w-full overflow-hidden shadow-2xl">
         <motion.div
@@ -1112,7 +1210,7 @@ export default function ArticleDetailPageClient() {
             />
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
-          <div className="absolute bottom-0 right-0 p-4 md:p-6 lg:p-10 text-right w-full">
+          <div className={`absolute bottom-0 ${isRTL ? 'right-0' : 'left-0'} p-4 md:p-6 lg:p-10 text-${isRTL ? 'right' : 'left'} w-full`}>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1121,11 +1219,11 @@ export default function ArticleDetailPageClient() {
             >
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-xs font-bold text-white shadow-lg">
-                  مقال جديد
+                  {language === 'ar' ? 'مقال جديد' : 'New article'}
                 </span>
                 <span className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-xs font-bold text-white shadow-lg">
                   <FaStar className="text-yellow-300" />
-                  مميز
+                  {t.featured}
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl lg:text-5xl font-extrabold leading-tight tracking-wide bg-gradient-to-r from-purple-400 via-pink-500 to-red-600 bg-clip-text text-transparent animate-gradient">
@@ -1133,7 +1231,7 @@ export default function ArticleDetailPageClient() {
               </h1>
               <div className="mt-3 flex items-center gap-3">
                 <p className="text-base md:text-lg lg:text-2xl text-gray-200 font-medium drop-shadow-md">
-                  {new Date(publishedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {formatDate(publishedAt)}
                 </p>
                 <div className="h-1 w-6 md:w-8 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full"></div>
               </div>
@@ -1159,14 +1257,14 @@ export default function ArticleDetailPageClient() {
                   <FaPlay className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">
-                  نبذة عن المقال
+                  {t.articleExcerpt}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
                 
                 {/* Favorite Button in Excerpt Section */}
                 <div className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 bg-gradient-to-r from-pink-500/40 to-red-500/40 backdrop-blur-lg rounded-full text-white hover:from-pink-500/60 hover:to-red-500/60 transition-all duration-300 shadow-lg border border-white/10 hover:border-white/20">
                   <FavoriteButton contentId={article._id} contentType="article" />
-                  <span className="font-medium text-sm md:text-base">المفضلة</span>
+                  <span className="font-medium text-sm md:text-base">{t.favorites}</span>
                 </div>
               </div>
               
@@ -1193,7 +1291,7 @@ export default function ArticleDetailPageClient() {
                   <FaPlay className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">
-                  المحتوى
+                  {t.content}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
               </div>
@@ -1220,13 +1318,14 @@ export default function ArticleDetailPageClient() {
                   <FaFolder className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
-                  الموسم المرتبط
+                  {t.relatedSeason}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {seasons.map((season) => {
+                  const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
                   const seasonImageUrl = getImageUrl(season.thumbnail);
                   console.log("Season image URL:", seasonImageUrl);
                   
@@ -1244,7 +1343,7 @@ export default function ArticleDetailPageClient() {
                         <div className="relative h-40 md:h-48 overflow-hidden">
                           <Image
                             src={seasonImageUrl}
-                            alt={season.title}
+                            alt={seasonTitle}
                             fill
                             className="object-cover transition-transform duration-500 hover:scale-110"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -1264,13 +1363,13 @@ export default function ArticleDetailPageClient() {
                           </div>
                         </div>
                         <div className="p-4">
-                          <h3 className="text-lg font-bold mb-2">{season.title}</h3>
+                          <h3 className="text-lg font-bold mb-2">{seasonTitle}</h3>
                           <div className="flex items-center justify-between">
                             <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
-                              موسم
+                              {t.season}
                             </span>
                             <span className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                              عرض الموسم
+                              {t.viewSeason}
                             </span>
                           </div>
                         </div>
@@ -1295,13 +1394,14 @@ export default function ArticleDetailPageClient() {
                   <FaVideo className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-700 bg-clip-text text-transparent">
-                  الحلقة المرتبطة
+                  {t.relatedEpisode}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {episodes.map((episode) => {
+                  const episodeTitle = getLocalizedText(episode.title, episode.titleEn, language);
                   const episodeImageUrl = getImageUrl(episode.thumbnail);
                   console.log("Episode image URL:", episodeImageUrl);
                   
@@ -1319,7 +1419,7 @@ export default function ArticleDetailPageClient() {
                         <div className="relative h-40 md:h-48 overflow-hidden">
                           <Image
                             src={episodeImageUrl}
-                            alt={episode.title}
+                            alt={episodeTitle}
                             fill
                             className="object-cover transition-transform duration-500 hover:scale-110"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -1339,13 +1439,13 @@ export default function ArticleDetailPageClient() {
                           </div>
                         </div>
                         <div className="p-4">
-                          <h3 className="text-lg font-bold mb-2">{episode.title}</h3>
+                          <h3 className="text-lg font-bold mb-2">{episodeTitle}</h3>
                           <div className="flex items-center justify-between">
                             <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full">
-                              حلقة
+                              {t.episode}
                             </span>
                             <span className="text-sm text-green-600 dark:text-green-400 hover:underline">
-                              مشاهدة الحلقة
+                              {t.watchEpisode}
                             </span>
                           </div>
                         </div>
@@ -1369,7 +1469,7 @@ export default function ArticleDetailPageClient() {
                 <FaComment className="text-xs md:text-sm" />
               </div>
               <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-700 bg-clip-text text-transparent">
-                التعليقات
+                {t.comments}
               </h2>
               <div className="flex-grow h-px bg-gradient-to-r from-yellow-200 to-transparent"></div>
             </div>

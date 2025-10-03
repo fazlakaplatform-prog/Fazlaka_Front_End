@@ -5,11 +5,13 @@ import { useUser } from "@clerk/nextjs";
 import { client, urlFor } from "@/lib/sanity";
 import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { useLanguage } from "@/components/LanguageProvider";
 
 // Updated Episode interface with proper Sanity image structure
 interface Episode {
   _id: string;
   title: string;
+  titleEn?: string;
   slug: {
     current: string;
   };
@@ -23,12 +25,14 @@ interface Episode {
   duration?: number;
   publishedAt?: string;
   categories?: string[];
+  language?: 'ar' | 'en';
 }
 
 // Updated Article interface with proper Sanity image structure
 interface Article {
   _id: string;
   title: string;
+  titleEn?: string;
   slug: {
     current: string;
   };
@@ -42,6 +46,7 @@ interface Article {
   publishedAt?: string;
   readTime?: number;
   categories?: string[];
+  language?: 'ar' | 'en';
 }
 
 // Union type for favorite items
@@ -71,22 +76,28 @@ function getItemImageUrl(item: FavoriteItem): string {
 }
 
 // Helper function to get additional info for a favorite item
-function getItemInfo(item: FavoriteItem): string {
+function getItemInfo(item: FavoriteItem, language: 'ar' | 'en'): string {
   if (isEpisode(item)) {
-    return item.duration ? `${Math.floor(item.duration / 60)} دقيقة` : "حلقة";
+    return item.duration ? `${Math.floor(item.duration / 60)} ${language === 'ar' ? 'دقيقة' : 'minutes'}` : language === 'ar' ? "حلقة" : "episode";
   } else {
-    return item.readTime ? `${item.readTime} دقيقة قراءة` : "مقال";
+    return item.readTime ? `${item.readTime} ${language === 'ar' ? 'دقيقة قراءة' : 'min read'}` : language === 'ar' ? "مقال" : "article";
   }
 }
 
 // Helper function to format date - modified to show numbers only
-function formatDate(dateString?: string): string {
+function formatDate(dateString?: string, language: 'ar' | 'en' = 'ar'): string {
   if (!dateString) return "";
   const date = new Date(dateString);
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  
+  if (language === 'ar') {
+    return `${day}/${month}/${year}`;
+  } else {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${monthNames[date.getMonth()]} ${day}, ${year}`;
+  }
 }
 
 // Get unique categories from favorites
@@ -107,13 +118,32 @@ const ConfirmationModal = ({
   isOpen, 
   onClose, 
   onConfirm, 
-  title 
+  title,
+  language
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   onConfirm: () => void; 
-  title: string; 
+  title: string;
+  language: 'ar' | 'en';
 }) => {
+  const texts = {
+    ar: {
+      confirmDelete: "تأكيد الحذف",
+      deleteMessage: "هل أنت متأكد من أنك تريد حذف هذا العنصر من المفضلة؟",
+      cancel: "إلغاء",
+      confirm: "تأكيد الحذف"
+    },
+    en: {
+      confirmDelete: "Confirm Delete",
+      deleteMessage: "Are you sure you want to remove this item from favorites?",
+      cancel: "Cancel",
+      confirm: "Confirm Delete"
+    }
+  };
+  
+  const t = texts[language];
+  
   return (
     <AnimatePresence>
       {isOpen && (
@@ -149,8 +179,8 @@ const ConfirmationModal = ({
                 </svg>
               </div>
               
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">تأكيد الحذف</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-1">هل أنت متأكد من أنك تريد حذف هذا العنصر من المفضلة؟</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t.confirmDelete}</h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-1">{t.deleteMessage}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 truncate" title={title}>{title}</p>
               
               <div className="flex justify-center gap-4 mt-6">
@@ -158,13 +188,13 @@ const ConfirmationModal = ({
                   onClick={onClose}
                   className="px-5 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
                 >
-                  إلغاء
+                  {t.cancel}
                 </button>
                 <button
                   onClick={onConfirm}
                   className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:from-red-700 hover:to-red-800 transition-all focus:outline-none focus:ring-2 focus:ring-red-300 shadow-sm hover:shadow-md transform hover:scale-105"
                 >
-                  تأكيد الحذف
+                  {t.confirm}
                 </button>
               </div>
             </div>
@@ -177,6 +207,7 @@ const ConfirmationModal = ({
 
 export default function FavoritesPage() {
   const { user } = useUser();
+  const { language, isRTL } = useLanguage();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
   // UI states
@@ -193,6 +224,82 @@ export default function FavoritesPage() {
   // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{id: string, type: "episode" | "article", title: string} | null>(null);
+
+  // Text translations based on language
+  const texts = {
+    ar: {
+      pageTitle: "مفضلاتي",
+      pageSubtitle: "كل المحتوى الذي تحبه في مكان واحد",
+      savedItems: "العناصر المحفوظة",
+      episodes: "حلقات",
+      articles: "مقالات",
+      searchPlaceholder: "ابحث في المفضلات...",
+      categories: "التصنيفات",
+      all: "الكل",
+      episodesOnly: "الحلقات فقط",
+      articlesOnly: "المقالات فقط",
+      gridView: "شبكي",
+      listView: "قائمة",
+      allEpisodes: "جميع الحلقات",
+      allArticles: "جميع المقالات",
+      remove: "إزالة",
+      noFavorites: "لا توجد عناصر في المفضلة",
+      noMatchingFavorites: "لا توجد مفضلات تطابق البحث",
+      tryDifferentKeywords: "جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.",
+      addFavorites: "أضف حلقات أو مقالات إلى المفضلة للعرض هنا.",
+      exploreEpisodes: "استكشف الحلقات",
+      exploreArticles: "استكشف المقالات",
+      loadingFavorites: "جاري تحميل المفضلات...",
+      loginRequired: "تسجيل الدخول مطلوب",
+      loginMessage: "يجب تسجيل الدخول لعرض المفضلات.",
+      signIn: "تسجيل الدخول",
+      swipeToDelete: "اسحب العنصر لليسار أو اليمين للحذف",
+      clearSearch: "مسح",
+      episode: "حلقة",
+      article: "مقال",
+      minute: "دقيقة",
+      minutes: "دقائق",
+      minRead: "دقيقة قراءة",
+      minReads: "دقائق قراءة"
+    },
+    en: {
+      pageTitle: "My Favorites",
+      pageSubtitle: "All your favorite content in one place",
+      savedItems: "Saved Items",
+      episodes: "Episodes",
+      articles: "Articles",
+      searchPlaceholder: "Search in favorites...",
+      categories: "Categories",
+      all: "All",
+      episodesOnly: "Episodes Only",
+      articlesOnly: "Articles Only",
+      gridView: "Grid",
+      listView: "List",
+      allEpisodes: "All Episodes",
+      allArticles: "All Articles",
+      remove: "Remove",
+      noFavorites: "No items in favorites",
+      noMatchingFavorites: "No favorites match your search",
+      tryDifferentKeywords: "Try different keywords or remove filters.",
+      addFavorites: "Add episodes or articles to favorites to display here.",
+      exploreEpisodes: "Explore Episodes",
+      exploreArticles: "Explore Articles",
+      loadingFavorites: "Loading favorites...",
+      loginRequired: "Login Required",
+      loginMessage: "You need to login to view your favorites.",
+      signIn: "Sign In",
+      swipeToDelete: "Swipe item left or right to delete",
+      clearSearch: "Clear",
+      episode: "episode",
+      article: "article",
+      minute: "minute",
+      minutes: "minutes",
+      minRead: "min read",
+      minReads: "mins read"
+    }
+  };
+  
+  const t = texts[language];
 
   // Prevent horizontal scrolling on the page
   useEffect(() => {
@@ -262,29 +369,33 @@ export default function FavoritesPage() {
     
     async function fetchFavorites() {
       try {
-        // Fetch episode favorites
+        // Fetch episode favorites - FILTERED BY LANGUAGE
         const episodeQuery = `*[_type == "favorite" && userId == $userId && episode._ref != null]{
           episode->{
             _id,
             title,
+            titleEn,
             slug,
             thumbnail{ _type, asset },
             duration,
             publishedAt,
-            categories
+            categories,
+            language
           }
         }`;
         
-        // Fetch article favorites
+        // Fetch article favorites - FILTERED BY LANGUAGE
         const articleQuery = `*[_type == "favorite" && userId == $userId && article._ref != null]{
           article->{
             _id,
             title,
+            titleEn,
             slug,
             featuredImage{ _type, asset },
             publishedAt,
             readTime,
-            categories
+            categories,
+            language
           }
         }`;
         
@@ -295,10 +406,16 @@ export default function FavoritesPage() {
         const episodes = episodeFavs.map((fav: { episode: Episode }) => fav.episode).filter(Boolean);
         const articles = articleFavs.map((fav: { article: Article }) => fav.article).filter(Boolean);
         
+        // FILTER BY CURRENT LANGUAGE - This is the key fix
+        const filteredEpisodes = episodes.filter((episode: Episode) => episode.language === language);
+        const filteredArticles = articles.filter((article: Article) => article.language === language);
+        
         // Combine and sort by title
-        const combinedFavorites = [...episodes, ...articles].sort((a, b) => 
-          a.title.localeCompare(b.title, 'ar')
-        );
+        const combinedFavorites = [...filteredEpisodes, ...filteredArticles].sort((a, b) => {
+          const titleA = language === 'ar' ? a.title : (a.titleEn || a.title);
+          const titleB = language === 'ar' ? b.title : (b.titleEn || b.title);
+          return titleA.localeCompare(titleB, language === 'ar' ? 'ar' : 'en');
+        });
         
         setFavorites(combinedFavorites);
       } catch (err) {
@@ -310,7 +427,7 @@ export default function FavoritesPage() {
     }
     
     fetchFavorites();
-  }, [user]);
+  }, [user, language]); // Add language as dependency
 
   useEffect(() => {
     if (!loading) {
@@ -341,11 +458,11 @@ export default function FavoritesPage() {
       } else {
         const errorData = await response.json();
         console.error("Error removing favorite:", errorData);
-        alert("حدث خطأ أثناء إزالة العنصر من المفضلة. يرجى المحاولة مرة أخرى.");
+        alert(language === 'ar' ? "حدث خطأ أثناء إزالة العنصر من المفضلة. يرجى المحاولة مرة أخرى." : "An error occurred while removing the item from favorites. Please try again.");
       }
     } catch (err) {
       console.error("❌ Failed to remove favorite:", err);
-      alert("حدث خطأ أثناء إزالة العنصر من المفضلة. يرجى المحاولة مرة أخرى.");
+      alert(language === 'ar' ? "حدث خطأ أثناء إزالة العنصر من المفضلة. يرجى المحاولة مرة أخرى." : "An error occurred while removing the item from favorites. Please try again.");
     }
   }
 
@@ -398,13 +515,15 @@ export default function FavoritesPage() {
     const q = searchTerm.trim().toLowerCase();
     if (q) {
       result = result.filter((item) => {
-        const title = (item.title || "").toString().toLowerCase();
+        const title = language === 'ar' 
+          ? (item.title || "").toString().toLowerCase()
+          : ((item.titleEn || item.title) || "").toString().toLowerCase();
         return title.includes(q);
       });
     }
     
     return result;
-  }, [favorites, searchTerm, selectedCategory]);
+  }, [favorites, searchTerm, selectedCategory, language]);
 
   // Calculate statistics
   const episodeCount = favorites.filter(isEpisode).length;
@@ -489,7 +608,7 @@ export default function FavoritesPage() {
     <div className="flex justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-purple-100 dark:from-gray-900 dark:to-gray-800">
       <div className="text-center">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mx-auto"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-300 font-medium">جاري تحميل المفضلات...</p>
+        <p className="mt-4 text-gray-600 dark:text-gray-300 font-medium">{t.loadingFavorites}</p>
       </div>
     </div>
   );
@@ -500,18 +619,18 @@ export default function FavoritesPage() {
         <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-1">
           <div className="h-full w-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
         </div>
-        <h3 className="mt-6 text-2xl font-bold text-gray-900 dark:text-gray-100">تسجيل الدخول مطلوب</h3>
-        <p className="mt-3 text-gray-600 dark:text-gray-300">يجب تسجيل الدخول لعرض المفضلات.</p>
+        <h3 className="mt-6 text-2xl font-bold text-gray-900 dark:text-gray-100">{t.loginRequired}</h3>
+        <p className="mt-3 text-gray-600 dark:text-gray-300">{t.loginMessage}</p>
         <div className="mt-8">
           <Link
             href="/sign-in"
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform transition hover:scale-105"
           >
-            تسجيل الدخول
+            {t.signIn}
           </Link>
         </div>
       </div>
@@ -522,7 +641,7 @@ export default function FavoritesPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 dark:from-gray-900 dark:to-gray-800 overflow-x-hidden">
       {/* Hero Section */}
       <motion.div 
-        className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 dark:from-blue-800 dark:via-purple-800 dark:to-indigo-900 text-white pt-24" // إضافة pt-24 هنا
+        className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 dark:from-blue-800 dark:via-purple-800 dark:to-indigo-900 text-white pt-24"
         initial="hidden"
         animate="visible"
         variants={heroVariants}
@@ -608,13 +727,13 @@ export default function FavoritesPage() {
               className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100"
               variants={heroVariants}
             >
-              مفضلاتي
+              {t.pageTitle}
             </motion.h1>
             <motion.p 
               className="mt-6 max-w-2xl mx-auto text-xl text-blue-100"
               variants={heroVariants}
             >
-              كل المحتوى الذي تحبه في مكان واحد
+              {t.pageSubtitle}
             </motion.p>
           </div>
 
@@ -629,7 +748,7 @@ export default function FavoritesPage() {
               whileHover="hover"
             >
               <div className="text-4xl font-bold mb-2">{favorites.length}</div>
-              <div className="text-blue-100">العناصر المحفوظة</div>
+              <div className="text-blue-100">{t.savedItems}</div>
               <div className="mt-3 flex justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -643,7 +762,7 @@ export default function FavoritesPage() {
               whileHover="hover"
             >
               <div className="text-4xl font-bold mb-2">{episodeCount}</div>
-              <div className="text-blue-100">حلقات</div>
+              <div className="text-blue-100">{t.episodes}</div>
               <div className="mt-3 flex justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -657,10 +776,10 @@ export default function FavoritesPage() {
               whileHover="hover"
             >
               <div className="text-4xl font-bold mb-2">{articleCount}</div>
-              <div className="text-blue-100">مقالات</div>
+              <div className="text-blue-100">{t.articles}</div>
               <div className="mt-3 flex justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
                 </svg>
               </div>
             </motion.div>
@@ -678,7 +797,7 @@ export default function FavoritesPage() {
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="ابحث في المفضلات..."
+                  placeholder={t.searchPlaceholder}
                   className="w-full pl-12 pr-12 py-3.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400 outline-none transition shadow-lg"
                 />
                 {/* Clear button on the left */}
@@ -686,8 +805,8 @@ export default function FavoritesPage() {
                   <button
                     onClick={() => setSearchTerm("")}
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 transition"
-                    aria-label="مسح البحث"
-                    title="مسح"
+                    aria-label={t.clearSearch}
+                    title={t.clearSearch}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -713,62 +832,62 @@ export default function FavoritesPage() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
-                  <span>التصنيفات</span>
+                  <span>{t.categories}</span>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
                 
                 {showCategoryDropdown && (
-                  <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                  <div className={`absolute ${isRTL ? 'right-0' : 'left-0'} mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10`}>
                     <div className="py-1">
                       <button
                         onClick={() => {
                           setSelectedCategory("all");
                           setShowCategoryDropdown(false);
                         }}
-                        className={`flex items-center w-full text-right px-4 py-2 text-sm ${
+                        className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2 text-sm ${
                           selectedCategory === "all"
                             ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
-                        الكل
+                        {t.all}
                       </button>
                       <button
                         onClick={() => {
                           setSelectedCategory("episodes");
                           setShowCategoryDropdown(false);
                         }}
-                        className={`flex items-center w-full text-right px-4 py-2 text-sm ${
+                        className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2 text-sm ${
                           selectedCategory === "episodes"
                             ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        الحلقات فقط
+                        {t.episodesOnly}
                       </button>
                       <button
                         onClick={() => {
                           setSelectedCategory("articles");
                           setShowCategoryDropdown(false);
                         }}
-                        className={`flex items-center w-full text-right px-4 py-2 text-sm ${
+                        className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2 text-sm ${
                           selectedCategory === "articles"
                             ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
                         </svg>
-                        المقالات فقط
+                        {t.articlesOnly}
                       </button>
                       
                       {categories.length > 0 && (
@@ -782,13 +901,13 @@ export default function FavoritesPage() {
                             setSelectedCategory(category);
                             setShowCategoryDropdown(false);
                           }}
-                          className={`flex items-center w-full text-right px-4 py-2 text-sm ${
+                          className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2 text-sm ${
                             selectedCategory === category
                               ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                               : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                           }`}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h10" />
                           </svg>
                           {category}
@@ -806,12 +925,12 @@ export default function FavoritesPage() {
                     viewMode === "grid" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                   aria-pressed={viewMode === "grid"}
-                  title="عرض شبكي"
+                  title={t.gridView}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zM14 3h7v7h-7V3zM3 14h7v7H3v-7zM14 14h7v7h-7v-7z" />
                   </svg>
-                  <span className="hidden sm:inline">شبكي</span>
+                  <span className="hidden sm:inline">{t.gridView}</span>
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
@@ -819,35 +938,35 @@ export default function FavoritesPage() {
                     viewMode === "list" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                   aria-pressed={viewMode === "list"}
-                  title="عرض قائمة"
+                  title={t.listView}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
-                  <span className="hidden sm:inline">قائمة</span>
+                  <span className="hidden sm:inline">{t.listView}</span>
                 </button>
               </div>
               
               <Link
                 href="/episodes"
                 className="inline-flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm transform hover:scale-105"
-                title="عرض جميع الحلقات"
+                title={t.allEpisodes}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isRTL ? 'ml-1' : 'mr-1'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                جميع الحلقات
+                {t.allEpisodes}
               </Link>
               <Link
                 href="/articles"
                 className="inline-flex items-center px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition shadow-sm transform hover:scale-105"
-                title="عرض جميع المقالات"
+                title={t.allArticles}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isRTL ? 'ml-1' : 'mr-1'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
                 </svg>
-                جميع المقالات
+                {t.allArticles}
               </Link>
             </div>
           </div>
@@ -855,10 +974,10 @@ export default function FavoritesPage() {
           {/* Swipe hint for mobile - only show in list view */}
           {isMobile && viewMode === "list" && (
             <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'mr-1' : 'ml-1'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
               </svg>
-              اسحب العنصر لليسار أو اليمين للحذف
+              {t.swipeToDelete}
             </div>
           )}
         </div>
@@ -874,12 +993,12 @@ export default function FavoritesPage() {
                 </div>
               </div>
               <div className="mt-6 text-xl font-medium text-gray-900 dark:text-gray-100">
-                {searchTerm || selectedCategory !== "all" ? "لا توجد مفضلات تطابق البحث" : "لا توجد عناصر في المفضلة"}
+                {searchTerm || selectedCategory !== "all" ? t.noMatchingFavorites : t.noFavorites}
               </div>
               <div className="mt-2 text-gray-500 dark:text-gray-400">
                 {searchTerm || selectedCategory !== "all" 
-                  ? "جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية." 
-                  : "أضف حلقات أو مقالات إلى المفضلة للعرض هنا."}
+                  ? t.tryDifferentKeywords
+                  : t.addFavorites}
               </div>
               {!searchTerm && selectedCategory === "all" && (
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
@@ -887,13 +1006,13 @@ export default function FavoritesPage() {
                     href="/episodes"
                     className="inline-flex items-center px-5 py-2.5 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition hover:scale-105"
                   >
-                    استكشف الحلقات
+                    {t.exploreEpisodes}
                   </Link>
                   <Link
                     href="/articles"
                     className="inline-flex items-center px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-full shadow-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform transition hover:scale-105"
                   >
-                    استكشف المقالات
+                    {t.exploreArticles}
                   </Link>
                 </div>
               )}
@@ -905,8 +1024,9 @@ export default function FavoritesPage() {
                   const itemUrl = getItemUrl(item);
                   const thumbnailUrl = getItemImageUrl(item);
                   const isEpisodeItem = isEpisode(item);
-                  const itemInfo = getItemInfo(item);
-                  const itemDate = formatDate(item.publishedAt);
+                  const itemInfo = getItemInfo(item, language);
+                  const itemDate = formatDate(item.publishedAt, language);
+                  const itemTitle = language === 'ar' ? item.title : (item.titleEn || item.title);
                   
                   return (
                     <motion.div
@@ -927,7 +1047,7 @@ export default function FavoritesPage() {
                           <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
                             <Image 
                               src={thumbnailUrl} 
-                              alt={item.title} 
+                              alt={itemTitle} 
                               fill
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -955,13 +1075,13 @@ export default function FavoritesPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
                                   )}
                                 </svg>
-                                {isEpisodeItem ? "حلقة" : "مقال"}
+                                {isEpisodeItem ? t.episode : t.article}
                               </div>
                             </div>
                           </div>
                           <div className="p-5">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {item.title}
+                              {itemTitle}
                             </h3>
                             
                             <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mt-4">
@@ -1008,12 +1128,12 @@ export default function FavoritesPage() {
                             {/* Enhanced Delete Button */}
                             <button
                               onClick={() => {
-                                setItemToDelete({ id: item._id, type: isEpisodeItem ? "episode" : "article", title: item.title });
+                                setItemToDelete({ id: item._id, type: isEpisodeItem ? "episode" : "article", title: itemTitle });
                                 setShowConfirmModal(true);
                               }}
                               className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 border border-transparent hover:bg-red-100 dark:hover:bg-red-900/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 md:px-3 md:py-2"
-                              aria-label="حذف من المفضلات"
-                              title="إزالة"
+                              aria-label={language === 'ar' ? "حذف من المفضلات" : "Remove from favorites"}
+                              title={t.remove}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-4 md:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M3 6h18" />
@@ -1022,8 +1142,8 @@ export default function FavoritesPage() {
                                 <path d="M14 11v6" />
                                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                               </svg>
-                              <span className="text-sm font-medium md:hidden">إزالة</span>
-                              <span className="hidden md:inline text-sm font-medium">إزالة</span>
+                              <span className="text-sm font-medium md:hidden">{t.remove}</span>
+                              <span className="hidden md:inline text-sm font-medium">{t.remove}</span>
                             </button>
                           </div>
                         </div>
@@ -1040,8 +1160,9 @@ export default function FavoritesPage() {
                   const itemUrl = getItemUrl(item);
                   const thumbnailUrl = getItemImageUrl(item);
                   const isEpisodeItem = isEpisode(item);
-                  const itemInfo = getItemInfo(item);
-                  const itemDate = formatDate(item.publishedAt);
+                  const itemInfo = getItemInfo(item, language);
+                  const itemDate = formatDate(item.publishedAt, language);
+                  const itemTitle = language === 'ar' ? item.title : (item.titleEn || item.title);
                   const isSwiped = swipedItemId === item._id;
                   
                   return (
@@ -1063,7 +1184,7 @@ export default function FavoritesPage() {
                         transition={{ duration: 0.2 }}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">حذف</span>
+                          <span className="text-white font-medium">{t.remove}</span>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
@@ -1079,7 +1200,7 @@ export default function FavoritesPage() {
                         dragMomentum={false}
                         dragPropagation={false}
                         onDragStart={() => setSwipedItemId(item._id)}
-                        onDragEnd={(_, info) => handleDragEndList(item._id, isEpisodeItem ? "episode" : "article", item.title, info)}
+                        onDragEnd={(_, info) => handleDragEndList(item._id, isEpisodeItem ? "episode" : "article", itemTitle, info)}
                         onDragTransitionEnd={() => {
                           if (!isSwiped) {
                             setSwipedItemId(null);
@@ -1092,7 +1213,7 @@ export default function FavoritesPage() {
                           <div className="relative w-44 h-28 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden">
                             <Image 
                               src={thumbnailUrl} 
-                              alt={item.title} 
+                              alt={itemTitle} 
                               fill
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -1120,7 +1241,7 @@ export default function FavoritesPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
                                   )}
                                 </svg>
-                                {isEpisodeItem ? "حلقة" : "مقال"}
+                                {isEpisodeItem ? t.episode : t.article}
                               </div>
                             </div>
                           </div>
@@ -1143,7 +1264,7 @@ export default function FavoritesPage() {
                               )}
                             </div>
                             <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {item.title}
+                              {itemTitle}
                             </h3>
                             
                             {/* Categories */}
@@ -1169,11 +1290,11 @@ export default function FavoritesPage() {
                         <div className="flex-shrink-0 flex items-center gap-2 px-4">
                           <button
                             onClick={() => {
-                              setItemToDelete({ id: item._id, type: isEpisodeItem ? "episode" : "article", title: item.title });
+                              setItemToDelete({ id: item._id, type: isEpisodeItem ? "episode" : "article", title: itemTitle });
                               setShowConfirmModal(true);
                             }}
                             className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 border border-transparent hover:bg-red-100 dark:hover:bg-red-900/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300"
-                            aria-label="حذف من المفضلات"
+                            aria-label={language === 'ar' ? "حذف من المفضلات" : "Remove from favorites"}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 6h18" />
@@ -1182,13 +1303,13 @@ export default function FavoritesPage() {
                               <path d="M14 11v6" />
                               <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                             </svg>
-                            <span className="hidden sm:inline text-sm font-medium">إزالة</span>
+                            <span className="hidden sm:inline text-sm font-medium">{t.remove}</span>
                           </button>
                         </div>
                         
                         {/* Swipe hint indicator for mobile */}
                         {isMobile && (
-                          <div className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center">
+                          <div className={`absolute ${isRTL ? 'right-0' : 'left-0'} top-0 bottom-0 w-8 flex items-center justify-center`}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                             </svg>
@@ -1210,6 +1331,7 @@ export default function FavoritesPage() {
         onClose={handleCancelDelete} 
         onConfirm={handleConfirmDelete}
         title={itemToDelete?.title || ""}
+        language={language}
       />
     </div>
   );

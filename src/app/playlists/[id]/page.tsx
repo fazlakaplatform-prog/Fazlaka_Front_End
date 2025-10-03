@@ -4,38 +4,55 @@ import Link from "next/link";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import FavoriteButton from "@/components/FavoriteButton";
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { fetchPlaylistBySlug, urlForImage } from "@/lib/sanity";
+import { fetchPlaylistBySlug, urlForImage, getLocalizedText } from "@/lib/sanity";
+import { useLanguage } from "@/components/LanguageProvider";
+import { 
+  FaCalendarAlt, 
+  FaVideo, 
+  FaNewspaper, 
+  FaSearch, 
+  FaTimes, 
+  FaPlay
+} from "react-icons/fa";
 
-// تعريف الواجهات
+// تعريف الواجهات مع دعم اللغة
 interface Playlist {
   _id: string;
   slug: { current: string };
   title: string;
+  titleEn?: string;
   description?: string;
+  descriptionEn?: string;
   imageUrl?: string;
   image?: SanityImage;
   episodes?: Episode[];
   articles?: Article[];
+  language?: 'ar' | 'en';
 }
 
 interface Episode {
   _id: string;
   slug: { current: string };
   title: string;
+  titleEn?: string;
   imageUrl?: string;
   content?: Record<string, unknown>;
   videoUrl?: string;
   publishedAt?: string;
+  language?: 'ar' | 'en';
 }
 
 interface Article {
   _id: string;
   slug: { current: string };
   title: string;
+  titleEn?: string;
   imageUrl?: string;
   excerpt?: string;
+  excerptEn?: string;
   content?: Record<string, unknown>;
   publishedAt?: string;
+  language?: 'ar' | 'en';
 }
 
 interface Props {
@@ -63,6 +80,50 @@ interface SanityImage {
   }
 }
 
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جاري التحميل...",
+    notFound: "القائمة غير موجودة",
+    invalidData: "بيانات القائمة غير صالحة",
+    errorLoading: "حدث خطأ أثناء تحميل القائمة",
+    playlist: "قائمة تشغيل",
+    allEpisodes: "جميع الحلقات",
+    allArticles: "جميع المقالات",
+    searchPlaceholder: "ابحث عن حلقة أو مقال...",
+    clearSearch: "مسح البحث",
+    showAll: "الكل",
+    showEpisodes: "الحلقات",
+    showArticles: "المقالات",
+    gridView: "شبكي",
+    listView: "قائمة",
+    episode: "حلقة",
+    article: "مقال",
+    noResults: "لا توجد حلقات أو مقالات تطابق البحث",
+    publishedAt: "تاريخ النشر"
+  },
+  en: {
+    loading: "Loading...",
+    notFound: "Playlist not found",
+    invalidData: "Invalid playlist data",
+    errorLoading: "Error loading playlist",
+    playlist: "Playlist",
+    allEpisodes: "All Episodes",
+    allArticles: "All Articles",
+    searchPlaceholder: "Search for an episode or article...",
+    clearSearch: "Clear Search",
+    showAll: "All",
+    showEpisodes: "Episodes",
+    showArticles: "Articles",
+    gridView: "Grid",
+    listView: "List",
+    episode: "Episode",
+    article: "Article",
+    noResults: "No episodes or articles matching the search",
+    publishedAt: "Published Date"
+  }
+};
+
 // دالة مساعدة لإنشاء رابط الصورة
 function buildMediaUrl(image?: SanityImage | string): string {
   if (!image) return "/placeholder.png";
@@ -86,13 +147,13 @@ function buildMediaUrl(image?: SanityImage | string): string {
   }
 }
 
-// دالة لتنسيق التاريخ
-function formatDate(dateString?: string): string {
+// دالة لتنسيق التاريخ بناءً على اللغة
+function formatDate(dateString?: string, language: string = 'ar'): string {
   if (!dateString) return '';
   
   try {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ar-EG', {
+    return new Intl.DateTimeFormat(language === 'ar' ? 'ar-EG' : 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -106,6 +167,9 @@ function formatDate(dateString?: string): string {
 export default function PlaylistDetails({ params }: Props) {
   const resolvedParams = React.use(params);
   const id = resolvedParams.id;
+  const { isRTL, language } = useLanguage();
+  const t = translations[language];
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [contentType, setContentType] = useState<"all" | "episodes" | "articles">("all");
@@ -118,18 +182,18 @@ export default function PlaylistDetails({ params }: Props) {
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
-        const data = await fetchPlaylistBySlug(id);
+        const data = await fetchPlaylistBySlug(id, language);
         
         // Validate data before setting state
         if (!data) {
-          setError("القائمة غير موجودة");
+          setError(t.notFound);
           setLoading(false);
           return;
         }
         
         // Ensure required fields exist
         if (!data._id || !data.title || !data.slug?.current) {
-          setError("بيانات القائمة غير صالحة");
+          setError(t.invalidData);
           setLoading(false);
           return;
         }
@@ -139,23 +203,23 @@ export default function PlaylistDetails({ params }: Props) {
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         console.error("Error fetching playlist:", err);
-        setError("حدث خطأ أثناء تحميل القائمة");
+        setError(t.errorLoading);
         setLoading(false);
       }
     };
     fetchPlaylist();
     return () => controller.abort();
-  }, [id]);
+  }, [id, language, t.notFound, t.invalidData, t.errorLoading]);
   
-  // تعديل منطق البحث ليبحث في العناوين فقط
+  // تعديل منطق البحث ليبحث في العناوين فقط مع دعم اللغة
   const filteredEpisodes = playlist?.episodes?.filter((episode) => {
-    const title = (episode.title || "").toString().toLowerCase();
+    const title = getLocalizedText(episode.title, episode.titleEn, language).toString().toLowerCase();
     const q = searchTerm.toLowerCase();
     return title.includes(q);
   }) || [];
   
   const filteredArticles = playlist?.articles?.filter((article) => {
-    const title = (article.title || "").toString().toLowerCase();
+    const title = getLocalizedText(article.title, article.titleEn, language).toString().toLowerCase();
     const q = searchTerm.toLowerCase();
     return title.includes(q);
   }) || [];
@@ -166,40 +230,46 @@ export default function PlaylistDetails({ params }: Props) {
   };
   
   if (loading) return (
-    <motion.div 
-      className="text-center mt-10 text-gray-700 dark:text-gray-200"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      جاري التحميل...
-    </motion.div>
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p className="text-gray-700 dark:text-gray-300 font-medium">{t.loading}</p>
+      </div>
+    </div>
   );
   
   if (error) return (
-    <motion.div 
-      className="text-center mt-10 text-red-500"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      {error}
-    </motion.div>
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+      <div className="text-center max-w-md p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="text-red-500 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t.errorLoading}</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+        >
+          إعادة المحاولة
+        </button>
+      </div>
+    </div>
   );
   
   if (!playlist) return (
-    <motion.p 
-      className="text-center mt-10 text-gray-600 dark:text-gray-400"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      القائمة غير موجودة
-    </motion.p>
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+      <div className="text-center p-6 text-gray-600 dark:text-gray-400">{t.notFound}</div>
+    </div>
   );
   
   // الحصول على رابط الصورة
   const playlistImageUrl = buildMediaUrl(playlist.image || playlist.imageUrl);
+  
+  // الحصول على العنوان والوصف المناسبين حسب اللغة
+  const playlistTitle = getLocalizedText(playlist.title, playlist.titleEn, language);
+  const playlistDescription = getLocalizedText(playlist.description, playlist.descriptionEn, language);
   
   // framer-motion variants
   const cardVariants: Variants = {
@@ -334,7 +404,7 @@ export default function PlaylistDetails({ params }: Props) {
   const displayArticles = contentType === "all" || contentType === "articles";
   
   return (
-    <div className="container mx-auto py-8 px-4 pt-12">
+    <div className="container mx-auto py-8 px-4 pt-12" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section - Modified to match SeasonPageClient style */}
       <motion.div 
         className="relative rounded-2xl overflow-hidden mb-10 mt-10 shadow-xl"
@@ -359,7 +429,7 @@ export default function PlaylistDetails({ params }: Props) {
           >
             <ImageWithFallback 
               src={playlistImageUrl} 
-              alt={playlist.title} 
+              alt={playlistTitle} 
               className="w-full h-full object-cover filter blur-sm scale-110"
             />
           </motion.div>
@@ -383,7 +453,7 @@ export default function PlaylistDetails({ params }: Props) {
               <div className="relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-2xl transform transition-transform duration-300 group-hover:scale-[1.02] dark:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)]">
                 <ImageWithFallback 
                   src={playlistImageUrl} 
-                  alt={playlist.title} 
+                  alt={playlistTitle} 
                   className="w-full h-80 object-cover"
                 />
               </div>
@@ -403,7 +473,7 @@ export default function PlaylistDetails({ params }: Props) {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
             >
-              قائمة تشغيل
+              {t.playlist}
             </motion.div>
             <motion.h1 
               className="text-4xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg dark:text-blue-100"
@@ -411,7 +481,7 @@ export default function PlaylistDetails({ params }: Props) {
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.6 }}
             >
-              {playlist.title}
+              {playlistTitle}
             </motion.h1>
             <motion.p 
               className="text-lg text-gray-100 mb-6 max-w-2xl leading-relaxed dark:text-blue-50"
@@ -419,7 +489,7 @@ export default function PlaylistDetails({ params }: Props) {
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.7 }}
             >
-              {playlist.description}
+              {playlistDescription}
             </motion.p>
             
             {/* Stats and meta info */}
@@ -434,20 +504,16 @@ export default function PlaylistDetails({ params }: Props) {
                 whileHover={{ scale: 1.05, y: -3 }}
                 transition={{ duration: 0.2 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <span className="text-white font-medium dark:text-blue-100">{playlist.episodes?.length || 0} حلقة</span>
+                <FaVideo className="h-5 w-5 text-blue-300 dark:text-blue-400" />
+                <span className="text-white font-medium dark:text-blue-100">{playlist.episodes?.length || 0} {language === 'ar' ? 'حلقة' : 'episode'}</span>
               </motion.div>
               <motion.div 
                 className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg dark:bg-purple-900/30 dark:border dark:border-purple-700/50 dark:shadow-[0_0_10px_2px_rgba(139,92,246,0.3)]"
                 whileHover={{ scale: 1.05, y: -3 }}
                 transition={{ duration: 0.2 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-300 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-                <span className="text-white font-medium dark:text-purple-100">{playlist.articles?.length || 0} مقال</span>
+                <FaNewspaper className="h-5 w-5 text-purple-300 dark:text-purple-400" />
+                <span className="text-white font-medium dark:text-purple-100">{playlist.articles?.length || 0} {language === 'ar' ? 'مقال' : 'article'}</span>
               </motion.div>
             </motion.div>
             
@@ -466,7 +532,7 @@ export default function PlaylistDetails({ params }: Props) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
-                  جميع الحلقات
+                  {t.allEpisodes}
                 </Link>
               </motion.div>
               <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
@@ -477,7 +543,7 @@ export default function PlaylistDetails({ params }: Props) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
-                  جميع المقالات
+                  {t.allArticles}
                 </Link>
               </motion.div>
             </motion.div>
@@ -498,31 +564,27 @@ export default function PlaylistDetails({ params }: Props) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <div className={`absolute inset-y-0 ${isRTL ? 'left-0' : 'right-0'} flex items-center ${isRTL ? 'pl-3' : 'pr-3'} pointer-events-none z-10`}>
+            <FaSearch className="h-5 w-5 text-gray-400" />
           </div>
           <motion.input
             type="text"
-            placeholder="ابحث عن حلقة أو مقال..."
+            placeholder={t.searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pr-10 pl-10 py-3 rounded-xl outline-none border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400 transition shadow-sm hover:shadow-md focus:shadow-lg"
+            className={`w-full ${isRTL ? 'pr-10 pl-10' : 'pl-10 pr-10'} py-3 rounded-xl outline-none border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400 transition shadow-sm hover:shadow-md focus:shadow-lg`}
             whileFocus={{ scale: 1.02 }}
             transition={{ duration: 0.2 }}
           />
           {searchTerm && (
             <motion.button 
               onClick={clearSearch}
-              className="absolute inset-y-0 left-0 flex items-center pl-3 z-10"
-              aria-label="مسح البحث"
+              className={`absolute inset-y-0 ${isRTL ? 'right-0' : 'left-0'} flex items-center ${isRTL ? 'pr-3' : 'pl-3'} z-10`}
+              aria-label={t.clearSearch}
               whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <FaTimes className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
             </motion.button>
           )}
         </motion.div>
@@ -544,7 +606,7 @@ export default function PlaylistDetails({ params }: Props) {
                 contentType === "all" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={contentType === "all"}
-              title="عرض الكل"
+              title={t.showAll}
             >
               <motion.svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -557,7 +619,7 @@ export default function PlaylistDetails({ params }: Props) {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </motion.svg>
-              <span className="hidden sm:inline">الكل</span>
+              <span className="hidden sm:inline">{t.showAll}</span>
             </motion.button>
             <motion.button
               variants={buttonVariants}
@@ -568,7 +630,7 @@ export default function PlaylistDetails({ params }: Props) {
                 contentType === "episodes" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={contentType === "episodes"}
-              title="عرض الحلقات فقط"
+              title={t.showEpisodes}
             >
               <motion.svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -581,7 +643,7 @@ export default function PlaylistDetails({ params }: Props) {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </motion.svg>
-              <span className="hidden sm:inline">الحلقات</span>
+              <span className="hidden sm:inline">{t.showEpisodes}</span>
             </motion.button>
             <motion.button
               variants={buttonVariants}
@@ -592,7 +654,7 @@ export default function PlaylistDetails({ params }: Props) {
                 contentType === "articles" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={contentType === "articles"}
-              title="عرض المقالات فقط"
+              title={t.showArticles}
             >
               <motion.svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -605,7 +667,7 @@ export default function PlaylistDetails({ params }: Props) {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
               </motion.svg>
-              <span className="hidden sm:inline">المقالات</span>
+              <span className="hidden sm:inline">{t.showArticles}</span>
             </motion.button>
           </div>
           
@@ -620,7 +682,7 @@ export default function PlaylistDetails({ params }: Props) {
                 viewMode === "grid" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={viewMode === "grid"}
-              title="عرض شبكي"
+              title={t.gridView}
             >
               <motion.svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -633,7 +695,7 @@ export default function PlaylistDetails({ params }: Props) {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zM14 3h7v7h-7V3zM3 14h7v7H3v-7zM14 14h7v7h-7v-7z" />
               </motion.svg>
-              <span className="hidden sm:inline">شبكي</span>
+              <span className="hidden sm:inline">{t.gridView}</span>
             </motion.button>
             <motion.button
               variants={buttonVariants}
@@ -644,7 +706,7 @@ export default function PlaylistDetails({ params }: Props) {
                 viewMode === "list" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
               aria-pressed={viewMode === "list"}
-              title="عرض قائمة"
+              title={t.listView}
             >
               <motion.svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -657,7 +719,7 @@ export default function PlaylistDetails({ params }: Props) {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </motion.svg>
-              <span className="hidden sm:inline">قائمة</span>
+              <span className="hidden sm:inline">{t.listView}</span>
             </motion.button>
           </div>
         </motion.div>
@@ -674,7 +736,7 @@ export default function PlaylistDetails({ params }: Props) {
             animate="visible"
             exit="exit"
           >
-            لا توجد حلقات أو مقالات تطابق البحث
+            {t.noResults}
           </motion.p>
         ) : viewMode === "grid" ? (
           <motion.div 
@@ -689,6 +751,8 @@ export default function PlaylistDetails({ params }: Props) {
             {displayEpisodes && filteredEpisodes.map((ep, idx) => {
               const slug = encodeURIComponent(ep.slug.current);
               const thumbnailUrl = ep.imageUrl || "/placeholder.png";
+              const episodeTitle = getLocalizedText(ep.title, ep.titleEn, language);
+              
               return (
                 <motion.article
                   key={`episode-${ep._id}`}
@@ -706,7 +770,7 @@ export default function PlaylistDetails({ params }: Props) {
                         whileHover={{ scale: 1.05 }}
                         transition={{ duration: 0.5 }}
                       >
-                        <ImageWithFallback src={thumbnailUrl} alt={ep.title || "حلقة"} className="w-full h-full object-cover" />
+                        <ImageWithFallback src={thumbnailUrl} alt={episodeTitle || t.episode} className="w-full h-full object-cover" />
                       </motion.div>
                       
                       {/* gradient overlay + play icon */}
@@ -722,9 +786,7 @@ export default function PlaylistDetails({ params }: Props) {
                           whileHover="hover"
                           className="w-16 h-16 rounded-full bg-white/90 dark:bg-black/80 flex items-center justify-center shadow-lg dark:shadow-[0_0_15px_5px_rgba(59,130,246,0.5)]"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-black dark:text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
+                          <FaPlay className="h-7 w-7 text-black dark:text-white" />
                         </motion.div>
                       </div>
                       
@@ -735,15 +797,16 @@ export default function PlaylistDetails({ params }: Props) {
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2 + idx * 0.05, type: "spring" }}
                       >
-                        حلقة
+                        {t.episode}
                       </motion.div>
                     </div>
                     <div className="p-4">
-                      <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{ep.title}</h2>
+                      <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{episodeTitle}</h2>
                       {ep.publishedAt && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          {formatDate(ep.publishedAt)}
-                        </p>
+                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          <FaCalendarAlt className="h-4 w-4 ml-2" />
+                          <span>{formatDate(ep.publishedAt, language)}</span>
+                        </div>
                       )}
                     </div>
                   </Link>
@@ -758,6 +821,9 @@ export default function PlaylistDetails({ params }: Props) {
             {displayArticles && filteredArticles.map((article, idx) => {
               const slug = encodeURIComponent(article.slug.current);
               const thumbnailUrl = article.imageUrl || "/placeholder.png";
+              const articleTitle = getLocalizedText(article.title, article.titleEn, language);
+              const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
+              
               return (
                 <motion.article
                   key={`article-${article._id}`}
@@ -775,7 +841,7 @@ export default function PlaylistDetails({ params }: Props) {
                         whileHover={{ scale: 1.05 }}
                         transition={{ duration: 0.5 }}
                       >
-                        <ImageWithFallback src={thumbnailUrl} alt={article.title || "مقال"} className="w-full h-full object-cover" />
+                        <ImageWithFallback src={thumbnailUrl} alt={articleTitle || t.article} className="w-full h-full object-cover" />
                       </motion.div>
                       
                       {/* Article badge */}
@@ -785,24 +851,25 @@ export default function PlaylistDetails({ params }: Props) {
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2 + idx * 0.05, type: "spring" }}
                       >
-                        مقال
+                        {t.article}
                       </motion.div>
                     </div>
                     <div className="p-4">
-                      <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{article.title}</h2>
+                      <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{articleTitle}</h2>
                       {article.publishedAt && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          {formatDate(article.publishedAt)}
-                        </p>
+                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          <FaCalendarAlt className="h-4 w-4 ml-2" />
+                          <span>{formatDate(article.publishedAt, language)}</span>
+                        </div>
                       )}
-                      {article.excerpt && (
+                      {articleExcerpt && (
                         <motion.p 
                           className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.3 }}
                         >
-                          {article.excerpt}
+                          {articleExcerpt}
                         </motion.p>
                       )}
                     </div>
@@ -827,6 +894,8 @@ export default function PlaylistDetails({ params }: Props) {
             {displayEpisodes && filteredEpisodes.map((ep, idx) => {
               const slug = encodeURIComponent(ep.slug.current);
               const thumbnailUrl = ep.imageUrl || "/placeholder.png";
+              const episodeTitle = getLocalizedText(ep.title, ep.titleEn, language);
+              
               return (
                 <motion.div
                   key={`episode-${ep._id}`}
@@ -843,7 +912,7 @@ export default function PlaylistDetails({ params }: Props) {
                       whileHover={{ scale: 1.05 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <ImageWithFallback src={thumbnailUrl} alt={ep.title || "حلقة"} className="w-full h-full object-cover" />
+                      <ImageWithFallback src={thumbnailUrl} alt={episodeTitle || t.episode} className="w-full h-full object-cover" />
                     </motion.div>
                     <div className="flex-1">
                       <motion.div 
@@ -853,7 +922,7 @@ export default function PlaylistDetails({ params }: Props) {
                         transition={{ delay: 0.1 }}
                       >
                         <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2 py-1 rounded-full dark:shadow-[0_0_8px_2px_rgba(59,130,246,0.5)]">
-                          حلقة
+                          {t.episode}
                         </span>
                       </motion.div>
                       <motion.h3 
@@ -862,17 +931,18 @@ export default function PlaylistDetails({ params }: Props) {
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
                       >
-                        {ep.title}
+                        {episodeTitle}
                       </motion.h3>
                       {ep.publishedAt && (
-                        <motion.p 
-                          className="text-sm text-gray-500 dark:text-gray-400 mt-1"
+                        <motion.div 
+                          className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.3 }}
                         >
-                          {formatDate(ep.publishedAt)}
-                        </motion.p>
+                          <FaCalendarAlt className="h-4 w-4 ml-2" />
+                          <span>{formatDate(ep.publishedAt, language)}</span>
+                        </motion.div>
                       )}
                     </div>
                   </Link>
@@ -892,6 +962,9 @@ export default function PlaylistDetails({ params }: Props) {
             {displayArticles && filteredArticles.map((article, idx) => {
               const slug = encodeURIComponent(article.slug.current);
               const thumbnailUrl = article.imageUrl || "/placeholder.png";
+              const articleTitle = getLocalizedText(article.title, article.titleEn, language);
+              const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
+              
               return (
                 <motion.div
                   key={`article-${article._id}`}
@@ -908,7 +981,7 @@ export default function PlaylistDetails({ params }: Props) {
                       whileHover={{ scale: 1.05 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <ImageWithFallback src={thumbnailUrl} alt={article.title || "مقال"} className="w-full h-full object-cover" />
+                      <ImageWithFallback src={thumbnailUrl} alt={articleTitle || t.article} className="w-full h-full object-cover" />
                     </motion.div>
                     <div className="flex-1">
                       <motion.div 
@@ -918,7 +991,7 @@ export default function PlaylistDetails({ params }: Props) {
                         transition={{ delay: 0.1 }}
                       >
                         <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium px-2 py-1 rounded-full dark:shadow-[0_0_8px_2px_rgba(16,185,129,0.5)]">
-                          مقال
+                          {t.article}
                         </span>
                       </motion.div>
                       <motion.h3 
@@ -927,26 +1000,27 @@ export default function PlaylistDetails({ params }: Props) {
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
                       >
-                        {article.title}
+                        {articleTitle}
                       </motion.h3>
                       {article.publishedAt && (
-                        <motion.p 
-                          className="text-sm text-gray-500 dark:text-gray-400 mt-1"
+                        <motion.div 
+                          className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.3 }}
                         >
-                          {formatDate(article.publishedAt)}
-                        </motion.p>
+                          <FaCalendarAlt className="h-4 w-4 ml-2" />
+                          <span>{formatDate(article.publishedAt, language)}</span>
+                        </motion.div>
                       )}
-                      {article.excerpt && (
+                      {articleExcerpt && (
                         <motion.p 
                           className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.3 }}
                         >
-                          {article.excerpt}
+                          {articleExcerpt}
                         </motion.p>
                       )}
                     </div>

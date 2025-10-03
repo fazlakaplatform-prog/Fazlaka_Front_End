@@ -1,78 +1,27 @@
-// app/team/page.tsx
-import React from "react";
+"use client";
+
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { 
-  FaLinkedin, FaTwitter, FaInstagram, FaFacebookF, 
-  FaEnvelope, FaGlobe, FaBriefcase, FaGraduationCap,
-  FaQuoteLeft, FaQuoteRight, FaArrowLeft, FaStar,
-  FaUsers, FaMedal, FaLightbulb, FaHeart,
-  FaCalendarAlt, FaMapMarkerAlt, FaPhone, FaVideo, FaFileAlt,
-  FaFlask, FaLandmark, FaChartLine, FaCalculator, FaBalanceScale, FaBook, FaAtom
+  FaEnvelope, FaUsers, FaMedal, FaLightbulb, FaHeart,
+  FaFlask, FaLandmark, FaChartLine, FaBalanceScale, FaBook, FaAtom
 } from "react-icons/fa";
-import { urlFor, fetchFromSanity } from '@/lib/sanity';
+import { urlFor, fetchTeamMembers, getLocalizedText } from '@/lib/sanity';
 
-// واجهة بيانات عضو الفريق
-interface TeamMember {
-  _id: string;
-  name: string;
-  role?: string;
-  bio?: string;
-  slug: {
-    current: string;
-  };
-  image?: {
-    _type: "image";
-    asset: {
-      _ref: string;
-      _type: "reference";
-    };
-  };
-  experience?: string;
-  education?: string;
-  achievements?: string[];
+// Import the base TeamMember type from sanity
+import { TeamMember as SanityTeamMember } from '@/lib/sanity';
+
+// Extend the TeamMember type to include additional properties
+interface TeamMember extends SanityTeamMember {
   skills?: string[];
-  socialLinks?: {
-    platform?: string;
-    url?: string;
-  }[];
-  contactEmail?: string;
-  joinDate?: string;
-  location?: string;
-  quote?: string;
+  skillsEn?: string[];
 }
 
-// جلب بيانات أعضاء الفريق
-async function getTeamMembers(): Promise<TeamMember[]> {
-  const query = `*[_type == "teamMember"]{
-    _id,
-    name,
-    role,
-    bio,
-    slug,
-    image{
-      _type,
-      asset{
-        _ref,
-        _type
-      }
-    },
-    experience,
-    education,
-    achievements,
-    skills,
-    socialLinks[]{
-      platform,
-      url
-    },
-    contactEmail,
-    joinDate,
-    location,
-    quote
-  }`;
-  
+// جلب بيانات أعضاء الفريق حسب اللغة
+async function getTeamMembersData(language: string = 'ar'): Promise<TeamMember[]> {
   try {
-    const members = await fetchFromSanity<TeamMember[]>(query);
+    const members = await fetchTeamMembers(language);
     return members || [];
   } catch (error) {
     console.error("Error fetching team members:", error);
@@ -80,38 +29,23 @@ async function getTeamMembers(): Promise<TeamMember[]> {
   }
 }
 
-// جلب عدد الحلقات والمقالات
-async function getContentCounts() {
-  try {
-    const episodesQuery = `count(*[_type == "episode"])`;
-    const articlesQuery = `count(*[_type == "article"])`;
-    
-    const [episodesCount, articlesCount] = await Promise.all([
-      fetchFromSanity<number>(episodesQuery),
-      fetchFromSanity<number>(articlesQuery)
-    ]);
-    
-    return {
-      episodes: episodesCount || 0,
-      articles: articlesCount || 0
-    };
-  } catch (error) {
-    console.error("Error fetching content counts:", error);
-    return {
-      episodes: 0,
-      articles: 0
-    };
-  }
-}
-
 // مكون بطاقة عضو الفريق
 interface TeamMemberCardProps {
   member: TeamMember;
   index: number;
+  isRTL: boolean;
 }
 
-const TeamMemberCard = ({ member, index }: TeamMemberCardProps) => {
+const TeamMemberCard = ({ member, index, isRTL }: TeamMemberCardProps) => {
   const imageUrl = member.image ? urlFor(member.image) : "/placeholder.png";
+  
+  const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
+  const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');
+  
+  // تحديد المهارات حسب اللغة
+  const skills = isRTL && member.skills ? member.skills : 
+                !isRTL && member.skillsEn ? member.skillsEn : 
+                member.skills || [];
   
   return (
     <div 
@@ -140,7 +74,7 @@ const TeamMemberCard = ({ member, index }: TeamMemberCardProps) => {
               <div className="relative w-40 h-40 rounded-full overflow-hidden border-4 border-white dark:border-gray-600 transition-all duration-1000 group-hover:border-purple-400 shadow-lg group-hover:shadow-xl">
                 <Image 
                   src={imageUrl}
-                  alt={member.name}
+                  alt={name}
                   width={160}
                   height={160}
                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
@@ -156,20 +90,20 @@ const TeamMemberCard = ({ member, index }: TeamMemberCardProps) => {
         {/* معلومات العضو */}
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3 transition-all duration-1000 group-hover:text-purple-600 dark:group-hover:text-purple-400 drop-shadow-md">
-            {member.name}
+            {name}
           </h3>
           
-          {member.role && (
+          {role && (
             <p className="text-gray-700 dark:text-gray-300 text-base px-6 py-2 bg-gradient-to-r from-gray-100 to-blue-100 dark:from-gray-700 dark:to-blue-900/50 rounded-full inline-block transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-purple-100 group-hover:to-blue-100 dark:group-hover:from-purple-900/50 dark:group-hover:to-blue-900/50 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10">
-              {member.role}
+              {role}
             </p>
           )}
         </div>
         
         {/* المهارات */}
-        {member.skills && member.skills.length > 0 && (
+        {skills && skills.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-8">
-            {member.skills.slice(0, 3).map((skill, idx) => (
+            {skills.slice(0, 3).map((skill, idx) => (
               <span 
                 key={idx} 
                 className="text-sm px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 text-blue-800 dark:text-blue-200 rounded-full transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-blue-200 group-hover:to-indigo-200 dark:group-hover:from-blue-800 dark:group-hover:to-indigo-800 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10"
@@ -177,9 +111,9 @@ const TeamMemberCard = ({ member, index }: TeamMemberCardProps) => {
                 {skill}
               </span>
             ))}
-            {member.skills.length > 3 && (
+            {skills.length > 3 && (
               <span className="text-sm px-4 py-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 rounded-full shadow-md shadow-gray-500/20 dark:shadow-gray-500/10">
-                +{member.skills.length - 3}
+                +{skills.length - 3}
               </span>
             )}
           </div>
@@ -192,7 +126,7 @@ const TeamMemberCard = ({ member, index }: TeamMemberCardProps) => {
             className="relative inline-flex items-center justify-center overflow-hidden bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 px-8 rounded-full transition-all duration-1000 transform hover:scale-105 shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/40 dark:hover:shadow-purple-500/30"
           >
             <span className="relative z-10 flex items-center">
-              عرض الملف الشخصي
+              {isRTL ? 'عرض الملف الشخصي' : 'View Profile'}
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 transition-transform duration-1000 group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
@@ -207,110 +141,39 @@ const TeamMemberCard = ({ member, index }: TeamMemberCardProps) => {
   );
 };
 
-// مكون قسم الإحصائيات - المميز
-const ContentStats = ({ episodes, articles }: { episodes: number; articles: number }) => {
-  return (
-    <div className="mb-20">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-bold mb-4 drop-shadow-lg">إنجازاتنا</h2>
-        <div className="w-24 h-1 bg-gradient-to-r from-yellow-400 to-orange-500 mx-auto rounded-full shadow-lg shadow-yellow-500/30 dark:shadow-yellow-500/20"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          نفتخر بما قدمناه من محتوى تعليمي متميز يساهم في تطوير المهارات
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {/* كرت الحلقات */}
-        <div className="group relative bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 rounded-3xl p-10 text-center text-white shadow-2xl shadow-blue-500/30 dark:shadow-blue-500/20 overflow-hidden transform transition-all duration-700 hover:scale-105 hover:shadow-3xl hover:shadow-blue-500/40 dark:hover:shadow-blue-500/30">
-          {/* خلفية متحركة */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-          
-          {/* دوائر زخرفية متحركة */}
-          <div className="absolute top-0 right-0 w-40 h-40 bg-blue-400 rounded-full opacity-20 transform translate-x-1/2 -translate-y-1/2 transition-all duration-1000 group-hover:scale-150"></div>
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400 rounded-full opacity-20 transform -translate-x-1/2 translate-y-1/2 transition-all duration-1000 group-hover:scale-150"></div>
-          
-          {/* تأثير لمعان */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full transition-transform duration-1000 group-hover:translate-x-full"></div>
-          
-          <div className="relative z-10">
-            {/* أيقونة متحركة */}
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-700 group-hover:bg-white/30 group-hover:rotate-12 shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation">
-                <FaVideo className="text-3xl transition-transform duration-700 group-hover:scale-110" />
-              </div>
-            </div>
-            
-            {/* الرقم مع تأثير عداد */}
-            <div className="text-5xl md:text-6xl font-bold mb-3 transition-all duration-700 group-hover:text-6xl group-hover:text-yellow-300 drop-shadow-lg">
-              {episodes}
-            </div>
-            
-            <div className="text-xl opacity-90 mb-4">حلقة فيديو</div>
-            
-            {/* وصف إضافي */}
-            <p className="text-blue-100 opacity-80 max-w-xs mx-auto text-sm">
-              محتوى تعليمي شامل في مختلف المجالات
-            </p>
-            
-            {/* تأثير خطي سفلي */}
-            <div className="mt-6 h-1 w-16 bg-gradient-to-r from-yellow-400 to-orange-500 mx-auto rounded-full transition-all duration-700 group-hover:w-24 shadow-lg shadow-yellow-500/30 dark:shadow-yellow-500/20"></div>
-          </div>
-        </div>
-        
-        {/* كرت المقالات */}
-        <div className="group relative bg-gradient-to-br from-purple-600 to-pink-700 dark:from-purple-800 dark:to-pink-900 rounded-3xl p-10 text-center text-white shadow-2xl shadow-purple-500/30 dark:shadow-purple-500/20 overflow-hidden transform transition-all duration-700 hover:scale-105 hover:shadow-3xl hover:shadow-purple-500/40 dark:hover:shadow-purple-500/30">
-          {/* خلفية متحركة */}
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-          
-          {/* دوائر زخرفية متحركة */}
-          <div className="absolute top-0 right-0 w-40 h-40 bg-purple-400 rounded-full opacity-20 transform translate-x-1/2 -translate-y-1/2 transition-all duration-1000 group-hover:scale-150"></div>
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-pink-400 rounded-full opacity-20 transform -translate-x-1/2 translate-y-1/2 transition-all duration-1000 group-hover:scale-150"></div>
-          
-          {/* تأثير لمعان */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full transition-transform duration-1000 group-hover:translate-x-full"></div>
-          
-          <div className="relative z-10">
-            {/* أيقونة متحركة */}
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-700 group-hover:bg-white/30 group-hover:-rotate-12 shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20 float-animation">
-                <FaFileAlt className="text-3xl transition-transform duration-700 group-hover:scale-110" />
-              </div>
-            </div>
-            
-            {/* الرقم مع تأثير عداد */}
-            <div className="text-5xl md:text-6xl font-bold mb-3 transition-all duration-700 group-hover:text-6xl group-hover:text-yellow-300 drop-shadow-lg">
-              {articles}
-            </div>
-            
-            <div className="text-xl opacity-90 mb-4">مقالة</div>
-            
-            {/* وصف إضافي */}
-            <p className="text-purple-100 opacity-80 max-w-xs mx-auto text-sm">
-              مقالات شاملة تغطي كافة الجوانب التعليمية
-            </p>
-            
-            {/* تأثير خطي سفلي */}
-            <div className="mt-6 h-1 w-16 bg-gradient-to-r from-yellow-400 to-orange-500 mx-auto rounded-full transition-all duration-700 group-hover:w-24 shadow-lg shadow-yellow-500/30 dark:shadow-yellow-500/20"></div>
-          </div>
-        </div>
-      </div>
-      
-      {/* جملة توضيحية مميزة */}
-      <div className="text-center mt-12">
-        <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold py-3 px-6 rounded-full text-lg shadow-lg shadow-yellow-500/30 dark:shadow-yellow-500/20">
-          أكثر من {episodes + articles} محتوى تعليمي متميز
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // مكون قسم القيم
-const ValuesSection = () => {
+interface ValuesSectionProps {
+  isRTL: boolean;
+}
+
+const ValuesSection = ({ isRTL }: ValuesSectionProps) => {
+  const translations = {
+    ar: {
+      title: "قيمنا الأساسية",
+      cooperation: "التعاون",
+      cooperationDesc: "نؤمن بقوة العمل الجماعي ونسعى لتحقيق أهدافنا من خلال التعاون المستمر ودعم بعضنا البعض.",
+      innovation: "الابتكار",
+      innovationDesc: "نسعى دائماً لتقديم حلول مبتكرة وإبداعية تلبي احتياجات عملائنا وتساهم في نجاحهم.",
+      excellence: "التميز",
+      excellenceDesc: "نلتزم بأعلى معايير الجودة في كل ما نقومه ونسعى لتحقيق التميز في جميع جوانب عملنا."
+    },
+    en: {
+      title: "Our Core Values",
+      cooperation: "Cooperation",
+      cooperationDesc: "We believe in the power of teamwork and strive to achieve our goals through continuous cooperation and mutual support.",
+      innovation: "Innovation",
+      innovationDesc: "We always strive to provide innovative and creative solutions that meet our clients' needs and contribute to their success.",
+      excellence: "Excellence",
+      excellenceDesc: "We are committed to the highest standards of quality in everything we do and strive for excellence in all aspects of our work."
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
   return (
     <div className="mb-16">
       <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-bold mb-4 drop-shadow-lg">قيمنا الأساسية</h2>
+        <h2 className="text-3xl md:text-4xl font-bold mb-4 drop-shadow-lg">{t.title}</h2>
         <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20"></div>
       </div>
       
@@ -327,9 +190,9 @@ const ValuesSection = () => {
             <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-6 mx-auto transition-all duration-700 group-hover:rotate-12 group-hover:shadow-lg shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation">
               <FaUsers className="text-white text-2xl transition-transform duration-700 group-hover:scale-110" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center transition-colors duration-700 group-hover:text-blue-600 dark:group-hover:text-blue-400 drop-shadow-md">التعاون</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center transition-colors duration-700 group-hover:text-blue-600 dark:group-hover:text-blue-400 drop-shadow-md">{t.cooperation}</h3>
             <p className="text-gray-600 dark:text-gray-400 text-center transition-all duration-700 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-              نؤمن بقوة العمل الجماعي ونسعى لتحقيق أهدافنا من خلال التعاون المستمر ودعم بعضنا البعض.
+              {t.cooperationDesc}
             </p>
           </div>
           
@@ -349,9 +212,9 @@ const ValuesSection = () => {
             <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center mb-6 mx-auto transition-all duration-700 group-hover:-rotate-12 group-hover:shadow-lg shadow-lg shadow-purple-500/30 dark:shadow-purple-500/20 float-animation">
               <FaLightbulb className="text-white text-2xl transition-transform duration-700 group-hover:scale-110" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center transition-colors duration-700 group-hover:text-purple-600 dark:group-hover:text-purple-400 drop-shadow-md">الابتكار</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center transition-colors duration-700 group-hover:text-purple-600 dark:group-hover:text-purple-400 drop-shadow-md">{t.innovation}</h3>
             <p className="text-gray-600 dark:text-gray-400 text-center transition-all duration-700 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-              نسعى دائماً لتقديم حلول مبتكرة وإبداعية تلبي احتياجات عملائنا وتساهم في نجاحهم.
+              {t.innovationDesc}
             </p>
           </div>
           
@@ -371,9 +234,9 @@ const ValuesSection = () => {
             <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-full flex items-center justify-center mb-6 mx-auto transition-all duration-700 group-hover:rotate-12 group-hover:shadow-lg shadow-lg shadow-indigo-500/30 dark:shadow-indigo-500/20 float-animation">
               <FaMedal className="text-white text-2xl transition-transform duration-700 group-hover:scale-110" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center transition-colors duration-700 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 drop-shadow-md">التميز</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center transition-colors duration-700 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 drop-shadow-md">{t.excellence}</h3>
             <p className="text-gray-600 dark:text-gray-400 text-center transition-all duration-700 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-              نلتزم بأعلى معايير الجودة في كل ما نقومه ونسعى لتحقيق التميز في جميع جوانب عملنا.
+              {t.excellenceDesc}
             </p>
           </div>
           
@@ -386,7 +249,32 @@ const ValuesSection = () => {
 };
 
 // مكون قسم الهيرو - مع أيقونات المواد الدراسية
-const HeroSection = () => {
+interface HeroSectionProps {
+  isRTL: boolean;
+}
+
+const HeroSection = ({ isRTL }: HeroSectionProps) => {
+  const translations = {
+    ar: {
+      badge: "فريق العمل",
+      title: "تعرف على <span class='text-yellow-300'>ابطال</span> فذلكة",
+      subtitle: "نفتخر بفريقنا من المحترفين الموهوبين الذين يعملون بجد لتحقيق رؤيتنا وتقديم أفضل تجربة لعملائنا.",
+      experience: "خبرة عالية",
+      innovation: "إبداع وابتكار",
+      passion: "شغف بالعمل"
+    },
+    en: {
+      badge: "Team",
+      title: "Meet Our <span class='text-yellow-300'>Heroes</span>",
+      subtitle: "We are proud of our team of talented professionals who work hard to achieve our vision and provide the best experience for our clients.",
+      experience: "High Expertise",
+      innovation: "Creativity & Innovation",
+      passion: "Passion for Work"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
   return (
     <div className="relative mb-16 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/30 dark:shadow-blue-500/20">
       {/* الخلفية المتدرجة */}
@@ -425,30 +313,28 @@ const HeroSection = () => {
         <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full mb-6 shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20">
           <span className="text-white font-medium flex items-center justify-center">
             <FaUsers className="text-yellow-300 mr-2 animate-pulse" />
-            فريق العمل
+            {t.badge}
           </span>
         </div>
         
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight drop-shadow-lg">
-          تعرف على <span className="text-yellow-300">ابطال</span> فذلكة
-        </h1>
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight drop-shadow-lg" dangerouslySetInnerHTML={{ __html: t.title }}></h1>
         
         <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto drop-shadow-md">
-          نفتخر بفريقنا من المحترفين الموهوبين الذين يعملون بجد لتحقيق رؤيتنا وتقديم أفضل تجربة لعملائنا.
+          {t.subtitle}
         </p>
         
         <div className="flex justify-center gap-4 flex-wrap">
           <div className="flex items-center bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20">
             <FaMedal className="text-yellow-300 mr-2" />
-            <span className="text-white">خبرة عالية</span>
+            <span className="text-white">{t.experience}</span>
           </div>
           <div className="flex items-center bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20">
             <FaLightbulb className="text-yellow-300 mr-2" />
-            <span className="text-white">إبداع وابتكار</span>
+            <span className="text-white">{t.innovation}</span>
           </div>
           <div className="flex items-center bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20">
             <FaHeart className="text-yellow-300 mr-2" />
-            <span className="text-white">شغف بالعمل</span>
+            <span className="text-white">{t.passion}</span>
           </div>
         </div>
         
@@ -482,7 +368,30 @@ const HeroSection = () => {
 };
 
 // مكون قسم التواصل المميز - بدون تفاصيل
-const ContactSection = () => {
+interface ContactSectionProps {
+  isRTL: boolean;
+}
+
+const ContactSection = ({ isRTL }: ContactSectionProps) => {
+  const translations = {
+    ar: {
+      badge: "تواصل معنا",
+      title: "نحن هنا <span class='text-yellow-300'>للمساعدة</span>",
+      subtitle: "إذا كان لديك أي استفسار أو ترغب في التواصل مع أحد أعضاء فريقنا، فلا تتردد في الاتصال بنا.",
+      contactUs: "تواصل معنا",
+      faq: "الأسئلة الشائعة"
+    },
+    en: {
+      badge: "Contact Us",
+      title: "We Are Here <span class='text-yellow-300'>To Help</span>",
+      subtitle: "If you have any inquiries or would like to contact one of our team members, do not hesitate to contact us.",
+      contactUs: "Contact Us",
+      faq: "FAQ"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
   return (
     <div className="relative mb-16 rounded-3xl overflow-hidden shadow-2xl shadow-indigo-500/30 dark:shadow-indigo-500/20">
       {/* الخلفية المتدرجة */}
@@ -501,16 +410,14 @@ const ContactSection = () => {
         <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full mb-6 shadow-lg shadow-indigo-500/30 dark:shadow-indigo-500/20">
           <span className="text-white font-medium flex items-center justify-center">
             <FaEnvelope className="text-yellow-300 mr-2 animate-pulse" />
-            تواصل معنا
+            {t.badge}
           </span>
         </div>
         
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-tight drop-shadow-lg">
-          نحن هنا <span className="text-yellow-300">للمساعدة</span>
-        </h2>
+        <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-tight drop-shadow-lg" dangerouslySetInnerHTML={{ __html: t.title }}></h2>
         
         <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto drop-shadow-md">
-          إذا كان لديك أي استفسار أو ترغب في التواصل مع أحد أعضاء فريقنا، فلا تتردد في الاتصال بنا.
+          {t.subtitle}
         </p>
         
         <div className="flex justify-center gap-6 flex-wrap">
@@ -520,7 +427,7 @@ const ContactSection = () => {
           >
             <span className="relative z-10 flex items-center">
               <FaEnvelope className="ml-3 text-xl" />
-              تواصل معنا
+              {t.contactUs}
             </span>
             
             {/* تأثير الموجة على الزر */}
@@ -532,7 +439,7 @@ const ContactSection = () => {
             className="group relative inline-flex items-center justify-center overflow-hidden bg-white/20 backdrop-blur-sm border border-white/30 text-white font-bold py-4 px-8 rounded-full transition-all duration-1000 transform hover:scale-105 hover:bg-white/30 shadow-lg shadow-indigo-500/30 dark:shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/40 dark:hover:shadow-indigo-500/30"
           >
             <span className="relative z-10 flex items-center">
-              الأسئلة الشائعة
+              {t.faq}
             </span>
             
             {/* تأثير الموجة على الزر */}
@@ -548,7 +455,31 @@ const ContactSection = () => {
 };
 
 // مكون قسم أعضاء الفريق المميز مع الكروت
-const TeamSection = ({ members }: { members: TeamMember[] }) => {
+interface TeamSectionProps {
+  members: TeamMember[];
+  isRTL: boolean;
+}
+
+const TeamSection = ({ members, isRTL }: TeamSectionProps) => {
+  const translations = {
+    ar: {
+      badge: "فريق العمل",
+      title: "أعضاء فريقنا",
+      subtitle: "تعرف على الأعضاء الموهوبين الذين يشكلون قوة دفع لنجاحنا",
+      noTeamData: "لا توجد بيانات عن أعضاء الفريق حالياً",
+      noTeamDataDesc: "سيتم تحديث هذا القسم قريباً"
+    },
+    en: {
+      badge: "Team",
+      title: "Our Team Members",
+      subtitle: "Meet the talented members who form the driving force for our success",
+      noTeamData: "No team member data available at the moment",
+      noTeamDataDesc: "This section will be updated soon"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
   return (
     <div className="relative mb-16 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/30 dark:shadow-blue-500/20">
       {/* الخلفية المتدرجة */}
@@ -582,16 +513,16 @@ const TeamSection = ({ members }: { members: TeamMember[] }) => {
           <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full mb-6 shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20">
             <span className="text-white font-medium flex items-center justify-center">
               <FaUsers className="text-yellow-300 mr-2 animate-pulse" />
-              فريق العمل
+              {t.badge}
             </span>
           </div>
           
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-tight drop-shadow-lg">
-            أعضاء فريقنا
+            {t.title}
           </h2>
           
           <p className="text-xl text-blue-100 max-w-2xl mx-auto drop-shadow-md">
-            تعرف على الأعضاء الموهوبين الذين يشكلون قوة دفع لنجاحنا
+            {t.subtitle}
           </p>
         </div>
         
@@ -599,15 +530,15 @@ const TeamSection = ({ members }: { members: TeamMember[] }) => {
         {members.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-8">
             {members.map((member, index) => (
-              <div key={member._id} className="w-full md:w-auto max-w-md">
-                <TeamMemberCard member={member} index={index} />
+              <div key={member._id || index} className="w-full md:w-auto max-w-md">
+                <TeamMemberCard member={member} index={index} isRTL={isRTL} />
               </div>
             ))}
           </div>
         ) : (
           <div className="text-center py-10 bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20">
-            <p className="text-white/80 italic">لا توجد بيانات عن أعضاء الفريق حالياً</p>
-            <p className="text-white/60 mt-2 text-sm">سيتم تحديث هذا القسم قريباً</p>
+            <p className="text-white/80 italic">{t.noTeamData}</p>
+            <p className="text-white/60 mt-2 text-sm">{t.noTeamDataDesc}</p>
           </div>
         )}
       </div>
@@ -618,30 +549,114 @@ const TeamSection = ({ members }: { members: TeamMember[] }) => {
   );
 };
 
-// الصفحة الرئيسية
-const TeamPage = async () => {
-  const members = await getTeamMembers();
-  const { episodes, articles } = await getContentCounts();
-  
+// مكون المحتوى الرئيسي
+function TeamContent() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isRTL, setIsRTL] = useState(true);
+
+  useEffect(() => {
+    // التحقق من تفضيل اللغة المحفوظ في localStorage
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage !== null) {
+      setIsRTL(savedLanguage === 'ar');
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
+      const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage;
+      // Add a check to ensure browserLang is not undefined
+      setIsRTL(browserLang ? browserLang.includes('ar') : false);
+    }
+    
+    // تطبيق اتجاه الصفحة بناءً على اللغة
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.documentElement.lang = isRTL ? 'ar' : 'en';
+  }, [isRTL]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const language = isRTL ? 'ar' : 'en';
+        
+        const membersData = await getTeamMembersData(language);
+        
+        setMembers(membersData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isRTL]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
       <div className="container mx-auto px-4 pt-24 pb-16 max-w-6xl">
         {/* الهيرو */}
-        <HeroSection />
-        
-        {/* إحصائيات المحتوى */}
-        <ContentStats episodes={episodes} articles={articles} />
+        <HeroSection isRTL={isRTL} />
         
         {/* قيم الفريق */}
-        <ValuesSection />
+        <ValuesSection isRTL={isRTL} />
         
         {/* قسم الفريق مع الكروت */}
-        <TeamSection members={members} />
+        <TeamSection members={members} isRTL={isRTL} />
         
         {/* قسم التواصل */}
-        <ContactSection />
+        <ContactSection isRTL={isRTL} />
       </div>
+      
+      {/* إضافة الأنماط العامة للصفحة */}
+      <style jsx global>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.4; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes float-animation {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        .float-animation {
+          animation: float-animation 6s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+        @keyframes border-rotate {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .animate-border-rotate {
+          animation: border-rotate 8s linear infinite;
+        }
+      `}</style>
     </div>
+  );
+}
+
+// مكون الصفحة الرئيسي مع Suspense
+const TeamPage = () => {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>}>
+      <TeamContent />
+    </Suspense>
   );
 };
 

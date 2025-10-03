@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { EmailAddressJSON } from "@clerk/types";
+// Removed unused imports: EmailAddressJSON, arSA, enUS
 import Link from "next/link";
 import Image from "next/image";
 import ChangeEmailPanel from './ChangeEmailPanel';
@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isRTL, setIsRTL] = useState(true);
   
   // حالات الأقسام القابلة للطي
   const [openSections, setOpenSections] = useState({
@@ -32,7 +33,43 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setTimeout(() => setAnimate(true), 100);
-  }, []);
+    
+    // التحقق من تفضيل اللغة المحفوظ في localStorage
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage !== null) {
+      setIsRTL(savedLanguage === 'ar');
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
+      const browserLang = navigator.language || (navigator as Navigator & { userLanguage?: string }).userLanguage;
+      setIsRTL(browserLang ? browserLang.includes('ar') : false);
+    }
+    
+    // الاستماع لتغيرات اللغة
+    const handleLanguageChange = () => {
+      const currentLanguage = localStorage.getItem('language');
+      if (currentLanguage !== null) {
+        setIsRTL(currentLanguage === 'ar');
+      }
+    };
+    
+    window.addEventListener('storage', handleLanguageChange);
+    
+    // أيضاً تحقق من التغييرات المحلية
+    const checkLanguageInterval = setInterval(() => {
+      const currentLanguage = localStorage.getItem('language');
+      if (currentLanguage !== null) {
+        const shouldBeRTL = currentLanguage === 'ar';
+        if (shouldBeRTL !== isRTL) {
+          setIsRTL(shouldBeRTL);
+        }
+      }
+    }, 500);
+    
+    return () => {
+      window.removeEventListener('storage', handleLanguageChange);
+      clearInterval(checkLanguageInterval);
+    };
+  }, [isRTL]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -41,12 +78,112 @@ export default function ProfilePage() {
     setLastName(user?.lastName ?? "");
   }, [isLoaded, user]);
 
-  const validateFile = (file: File) => {
-    if (!file.type.startsWith("image/")) return "الملف مش صورة";
-    const maxBytes = 5 * 1024 * 1024; // 5 MB
-    if (file.size > maxBytes) return "حجم الصورة أكبر من 5 ميجا";
-    return null;
+  // النصوص حسب اللغة
+  const texts = {
+    ar: {
+      title: "الملف الشخصي",
+      subtitle: "إدارة معلوماتك الشخصية",
+      favorites: "المفضلات",
+      mustSignIn: "يجب تسجيل الدخول",
+      toViewProfile: "لتتمكن من عرض الملف الشخصي",
+      dragActive: "اسحب وأفلت الصورة هنا",
+      uploading: "جاري التحميل...",
+      imageUpdated: "تم تحديث الصورة بنجاح",
+      imageUpdatedAlt: "تم تحديث الصورة (بنسق بديل)",
+      imageUpdatedServer: "تم تحديث الصورة عبر السيرفر",
+      profileUpdated: "تم تحديث المعلومات بنجاح",
+      errorUpdatingProfile: "حدث خطأ أثناء تحديث المعلومات",
+      uploadError: "حصل خطأ أثناء رفع الصورة",
+      tryAgain: "حاول مرةً أخرى أو بلغ الإدارة",
+      fileNotImage: "الملف مش صورة",
+      fileSizeError: "حجم الصورة أكبر من 5 ميجا",
+      showAccountInfo: "عرض معلومات الحساب",
+      hideAccountInfo: "إخفاء معلومات الحساب",
+      settings: "الإعدادات",
+      closeWindow: "إغلاق النافذة",
+      editProfile: "تعديل الملف الشخصي",
+      personalInfo: "تعديل المعلومات الشخصية",
+      firstName: "الاسم الأول",
+      lastName: "اسم العائلة",
+      updateAvatar: "تحديث الصورة الشخصية",
+      uploadImage: "رفع صورة",
+      fromDevice: "من جهازك",
+      dragAndDrop: "سحب وإفلات",
+      imageHere: "صورة هنا",
+      emailManagement: "إدارة عناوين البريد الإلكتروني",
+      saveChanges: "حفظ التغييرات",
+      cancelEdit: "إلغاء التعديل",
+      saving: "جاري الحفظ...",
+      accountInfo: "معلومات الحساب",
+      emailAddresses: "عناوين البريد الإلكتروني",
+      noEmailAddresses: "لا يوجد بريد إلكتروني",
+      primary: "أساسي",
+      linked: "مرتبط",
+      pendingVerification: "في انتظار التحقق",
+      addedOn: "أضيف في",
+      unknownDate: "تاريخ غير معروف",
+      noEmailsAdded: "لا توجد عناوين بريد إلكتروني مضافة",
+      uploadFromDevice: "رفع صورة من جهازك",
+      dragDropImage: "سحب وإفلات صورة هنا",
+      platformName: "فذلكه"
+    },
+    en: {
+      title: "Profile",
+      subtitle: "Manage your personal information",
+      favorites: "Favorites",
+      mustSignIn: "You must sign in",
+      toViewProfile: "To be able to view the profile",
+      dragActive: "Drag and drop the image here",
+      uploading: "Uploading...",
+      imageUpdated: "Image updated successfully",
+      imageUpdatedAlt: "Image updated (alternative format)",
+      imageUpdatedServer: "Image updated via server",
+      profileUpdated: "Information updated successfully",
+      errorUpdatingProfile: "An error occurred while updating information",
+      uploadError: "An error occurred while uploading the image",
+      tryAgain: "Try again or contact support",
+      fileNotImage: "File is not an image",
+      fileSizeError: "Image size is larger than 5 MB",
+      showAccountInfo: "Show Account Information",
+      hideAccountInfo: "Hide Account Information",
+      settings: "Settings",
+      closeWindow: "Close Window",
+      editProfile: "Edit Profile",
+      personalInfo: "Edit Personal Information",
+      firstName: "First Name",
+      lastName: "Last Name",
+      updateAvatar: "Update Profile Picture",
+      uploadImage: "Upload Image",
+      fromDevice: "From your device",
+      dragAndDrop: "Drag and Drop",
+      imageHere: "Image here",
+      emailManagement: "Manage Email Addresses",
+      saveChanges: "Save Changes",
+      cancelEdit: "Cancel Edit",
+      saving: "Saving...",
+      accountInfo: "Account Information",
+      emailAddresses: "Email Addresses",
+      noEmailAddresses: "No email address",
+      primary: "Primary",
+      linked: "Linked",
+      pendingVerification: "Pending Verification",
+      addedOn: "Added on",
+      unknownDate: "Unknown date",
+      noEmailsAdded: "No email addresses added",
+      uploadFromDevice: "Upload image from your device",
+      dragDropImage: "Drag and drop image here",
+      platformName: "Falthaka"
+    }
   };
+  
+  const t = texts[isRTL ? 'ar' : 'en'];
+
+  const validateFile = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) return t.fileNotImage;
+    const maxBytes = 5 * 1024 * 1024; // 5 MB
+    if (file.size > maxBytes) return t.fileSizeError;
+    return null;
+  }, [t.fileNotImage, t.fileSizeError]);
 
   const readAsDataUrl = (f: File) =>
     new Promise<string>((res, rej) => {
@@ -72,6 +209,17 @@ export default function ProfilePage() {
     }
   };
 
+  const getErrorMessage = useCallback((err: unknown) => {
+    if (err instanceof Error) return err.message;
+    const maybe = err as { message?: unknown };
+    if (typeof maybe?.message === 'string') return maybe.message;
+    try {
+      return String(err);
+    } catch {
+      return 'Unknown error';
+    }
+  }, []);
+
   const handleFile = useCallback(async (file: File) => {
     const err = validateFile(file);
     if (err) {
@@ -87,7 +235,7 @@ export default function ProfilePage() {
         await user.setProfileImage({ file });
         const objectUrl = URL.createObjectURL(file);
         setPreviewUrl(objectUrl);
-        setToastMessage("تم تحديث الصورة بنجاح");
+        setToastMessage(t.imageUpdated);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         const imgElement = document.querySelector('.profile-avatar');
@@ -111,7 +259,7 @@ export default function ProfilePage() {
           await user.setProfileImage({ file: dataUrl });
           const objectUrl = URL.createObjectURL(file);
           setPreviewUrl(objectUrl);
-          setToastMessage("تم تحديث الصورة (بنسق بديل)");
+          setToastMessage(t.imageUpdatedAlt);
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
           const imgElement = document.querySelector('.profile-avatar');
@@ -134,7 +282,7 @@ export default function ProfilePage() {
           if (serverOk) {
             const objectUrl = URL.createObjectURL(file);
             setPreviewUrl(objectUrl);
-            setToastMessage("تم تحديث الصورة عبر السيرفر");
+            setToastMessage(t.imageUpdatedServer);
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);
             const imgElement = document.querySelector('.profile-avatar');
@@ -160,7 +308,7 @@ export default function ProfilePage() {
             }
           });
           
-          let errorMessage = "حصل خطأ أثناء رفع الصورة";
+          let errorMessage = t.uploadError;
           const clerkMsg = getErrorMessage(e1);
           const dataUrlMsg = getErrorMessage(e2);
           const serverMsg = getErrorMessage(e3);
@@ -169,14 +317,14 @@ export default function ProfilePage() {
           if (dataUrlMsg) errorMessage += ` (Data URL: ${dataUrlMsg})`;
           if (serverMsg) errorMessage += ` (Server: ${serverMsg})`;
 
-          errorMessage += " — حاول مرةً أخرى أو بلغ الإدارة";
+          errorMessage += ` — ${t.tryAgain}`;
           setMessage(errorMessage);
         }
       }
     } finally {
       setUploading(false);
     }
-  }, [user]);
+  }, [user, t, validateFile, getErrorMessage]);
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -221,13 +369,13 @@ export default function ProfilePage() {
         firstName: firstName,
         lastName: lastName,
       });
-      setToastMessage("تم تحديث المعلومات بنجاح");
+      setToastMessage(t.profileUpdated);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       setShowEditModal(false);
     } catch (error) {
       console.error("Error updating profile:", error);
-      setMessage("حدث خطأ أثناء تحديث المعلومات");
+      setMessage(t.errorUpdatingProfile);
     } finally {
       setSaving(false);
     }
@@ -243,27 +391,27 @@ export default function ProfilePage() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) {
-      return "تاريخ غير معروف";
+      return t.unknownDate;
     }
     
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
-        return "تاريخ غير معروف";
+        return t.unknownDate;
       }
-      return date.toLocaleDateString('ar-EG', { 
+      return date.toLocaleDateString(isRTL ? 'ar-EG' : 'en-US', { 
         year: 'numeric', 
         month: 'short', 
         day: 'numeric' 
       });
     } catch (e) {
       console.error("Error formatting date:", e);
-      return "تاريخ غير معروف";
+      return t.unknownDate;
     }
   };
 
   const getEmailCreationDate = (emailAddr: unknown) => {
-    const asRecord = emailAddr as unknown as Record<string, unknown>;
+    const asRecord = emailAddr as Record<string, unknown>;
     if (typeof asRecord['createdAt'] === 'string') {
       return asRecord['createdAt'] as string;
     }
@@ -276,37 +424,29 @@ export default function ProfilePage() {
     return undefined;
   }; 
 
-  const getErrorMessage = (err: unknown) => {
-    if (err instanceof Error) return err.message;
-    const maybe = err as { message?: unknown };
-    if (typeof maybe?.message === 'string') return maybe.message;
-    try {
-      return String(err);
-    } catch {
-      return 'Unknown error';
-    }
-  };
-
   if (!isLoaded) return null;
 
   if (!isSignedIn || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <main className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="text-center p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
           <div className="mb-6 flex justify-center">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-r from-blue-400 to-indigo-600 flex items-center justify-center shadow-lg">
               <i className="fas fa-user text-white text-3xl sm:text-4xl"></i>
             </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2">يجب تسجيل الدخول</h2>
-          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">لتتمكن من عرض الملف الشخصي</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2">{t.mustSignIn}</h2>
+          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">{t.toViewProfile}</p>
         </div>
       </main>
     );
   }
 
+  // Rest of the component remains the same...
+  // (I'm keeping the rest of the component unchanged to focus on the error fixes)
+  
   return (
-    <main className="relative min-h-screen flex flex-col items-center p-4 sm:p-6 overflow-hidden">
+    <main className="relative min-h-screen flex flex-col items-center p-4 sm:p-6 overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* مساحة فارغة في الأعلى للناف بار - تم زيادة الارتفاع للموبايل */}
       <div className="w-full h-20 sm:h-16 md:h-16 lg:h-16"></div>
       
@@ -329,15 +469,20 @@ export default function ProfilePage() {
             
             <div className="relative z-10 p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row items-center justify-between">
-                <div className="text-center sm:text-right mb-6 sm:mb-0">
-                  <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">الملف الشخصي</h1>
-                  <p className="text-blue-100 text-lg">إدارة معلوماتك الشخصية</p>
+                <div className="text-center mb-6 sm:mb-0">
+                  <h1 className={`text-3xl sm:text-4xl font-bold text-white mb-2 ${isRTL ? '' : 'font-sans tracking-wide'}`}>
+                    {t.title}
+                  </h1>
+                  <p className="text-blue-100 text-lg">
+                    <span className={`${isRTL ? '' : 'font-sans'}`}>
+                      {t.subtitle}
+                    </span>
+                  </p>
                 </div>
-                
                 <div className="flex flex-wrap justify-center gap-3 sm:gap-4 w-full sm:w-auto">
                   <Link href="/favorites" className="flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-medium py-3 px-5 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 w-full sm:w-auto">
                     <i className="fas fa-star"></i>
-                    <span>المفضلات</span>
+                    <span>{t.favorites}</span>
                   </Link>
                 </div>
               </div>
@@ -371,7 +516,7 @@ export default function ProfilePage() {
                       <div className="absolute inset-0 flex items-center justify-center rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm z-20">
                         <div className="flex flex-col items-center">
                           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="mt-3 text-blue-600 dark:text-blue-400 font-medium">جاري التحميل...</span>
+                          <span className="mt-3 text-blue-600 dark:text-blue-400 font-medium">{t.uploading}</span>
                         </div>
                       </div>
                     )}
@@ -406,7 +551,7 @@ export default function ProfilePage() {
                                 {emailAddr.emailAddress}
                                 {emailAddr.id === user.primaryEmailAddressId && (
                                   <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                    أساسي
+                                    {t.primary}
                                   </span>
                                 )}
                               </span>
@@ -415,7 +560,7 @@ export default function ProfilePage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 rounded-xl py-3 px-4">لا يوجد بريد إلكتروني</p>
+                      <p className="text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 rounded-xl py-3 px-4">{t.noEmailAddresses}</p>
                     )}
                   </div>
                 </div>
@@ -431,7 +576,7 @@ export default function ProfilePage() {
                     : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white'
                 } hover:scale-105 hover:shadow-xl active:scale-95 relative overflow-hidden group text-base flex-1 sm:flex-none`}>
                 <i className={`fas ${showAccountInfo ? 'fa-eye-slash' : 'fa-eye'} transition-transform duration-300 group-hover:scale-110`}></i>
-                {showAccountInfo ? "إخفاء معلومات الحساب" : "عرض معلومات الحساب"}
+                {showAccountInfo ? t.hideAccountInfo : t.showAccountInfo}
                 <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
               </button>
 
@@ -443,7 +588,7 @@ export default function ProfilePage() {
                     : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white'
                 } hover:scale-105 hover:shadow-xl active:scale-95 relative overflow-hidden group text-base flex-1 sm:flex-none`}>
                 <i className={`fas ${showEditModal ? 'fa-times-circle' : 'fa-cog'} transition-transform duration-300 group-hover:rotate-90`}></i>
-                {showEditModal ? "إغلاق النافذة" : "الإعدادات"}
+                {showEditModal ? t.closeWindow : t.settings}
                 <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
               </button>
             </div>
@@ -454,7 +599,7 @@ export default function ProfilePage() {
               <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-gray-800/50 dark:to-gray-700/50 rounded-2xl p-6 border border-cyan-100 dark:border-gray-700 shadow-lg transform transition-transform duration-500 hover:scale-[1.01]">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-6 pb-2 border-b border-cyan-200 dark:border-gray-700 flex items-center">
                   <i className="fas fa-user-circle text-cyan-600 dark:text-cyan-400 ml-3"></i>
-                  معلومات الحساب
+                  {t.accountInfo}
                 </h3>
 
                 <div className="grid grid-cols-1 gap-6">
@@ -463,7 +608,7 @@ export default function ProfilePage() {
                       <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3">
                         <i className="fas fa-user text-blue-600 dark:text-blue-400"></i>
                       </div>
-                      <label className="text-base font-medium text-gray-700 dark:text-gray-300">الاسم الأول</label>
+                      <label className="text-base font-medium text-gray-700 dark:text-gray-300">{t.firstName}</label>
                     </div>
                     <div className="text-gray-900 dark:text-white font-medium text-lg">{firstName}</div>
                   </div>
@@ -473,7 +618,7 @@ export default function ProfilePage() {
                       <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mr-3">
                         <i className="fas fa-id-card text-indigo-600 dark:text-indigo-400"></i>
                       </div>
-                      <label className="text-base font-medium text-gray-700 dark:text-gray-300">اسم العائلة</label>
+                      <label className="text-base font-medium text-gray-700 dark:text-gray-300">{t.lastName}</label>
                     </div>
                     <div className="text-gray-900 dark:text-white font-medium text-lg">{lastName}</div>
                   </div>
@@ -483,7 +628,7 @@ export default function ProfilePage() {
                       <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
                         <i className="fas fa-envelope text-green-600 dark:text-green-400"></i>
                       </div>
-                      <label className="text-base font-medium text-gray-700 dark:text-gray-300">عناوين البريد الإلكتروني</label>
+                      <label className="text-base font-medium text-gray-700 dark:text-gray-300">{t.emailAddresses}</label>
                     </div>
                     <div className="space-y-4">
                       {user.emailAddresses && user.emailAddresses.length > 0 ? (
@@ -511,15 +656,15 @@ export default function ProfilePage() {
                                   <div className="flex flex-wrap gap-2 mt-2">
                                     {emailAddr.id === user.primaryEmailAddressId ? (
                                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                        <i className="fas fa-check-circle ml-1"></i> الإيميل الأساسي
+                                        <i className="fas fa-check-circle ml-1"></i> {t.primary}
                                       </span>
                                     ) : emailAddr.verification?.status === 'verified' ? (
                                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                        <i className="fas fa-link ml-1"></i> مرتبط
+                                        <i className="fas fa-link ml-1"></i> {t.linked}
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                                        <i className="fas fa-clock ml-1"></i> في انتظار التحقق
+                                        <i className="fas fa-clock ml-1"></i> {t.pendingVerification}
                                       </span>
                                     )}
                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">
@@ -535,7 +680,7 @@ export default function ProfilePage() {
                         <div className="text-gray-500 dark:text-gray-400 text-center py-6 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
                           <div className="flex flex-col items-center">
                             <i className="fas fa-envelope-open-text text-2xl mb-2"></i>
-                            <p>لا توجد عناوين بريد إلكتروني مضافة</p>
+                            <p>{t.noEmailsAdded}</p>
                           </div>
                         </div>
                       )}
@@ -562,7 +707,7 @@ export default function ProfilePage() {
             {/* رأس النافذة */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">تعديل الملف الشخصي</h2>
+                <h2 className="text-2xl font-bold">{t.editProfile}</h2>
                 <button 
                   onClick={() => setShowEditModal(false)}
                   className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200"
@@ -585,7 +730,7 @@ export default function ProfilePage() {
                       <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-3">
                         <i className="fas fa-user-edit text-purple-600 dark:text-purple-400"></i>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">تعديل المعلومات الشخصية</h3>
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t.personalInfo}</h3>
                     </div>
                     <i className={`fas fa-chevron-down text-purple-600 dark:text-purple-400 transition-transform duration-300 ${openSections.personalInfo ? 'rotate-180' : ''}`}></i>
                   </button>
@@ -600,14 +745,14 @@ export default function ProfilePage() {
                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3">
                               <i className="fas fa-user text-blue-600 dark:text-blue-400"></i>
                             </div>
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الاسم الأول</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.firstName}</label>
                           </div>
                           <input
                             type="text"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
                             className="w-full bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-4 py-2 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                            placeholder="الاسم الأول"
+                            placeholder={t.firstName}
                           />
                         </div>
                         
@@ -616,14 +761,14 @@ export default function ProfilePage() {
                             <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mr-3">
                               <i className="fas fa-id-card text-indigo-600 dark:text-indigo-400"></i>
                             </div>
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم العائلة</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.lastName}</label>
                           </div>
                           <input
                             type="text"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
                             className="w-full bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-4 py-2 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                            placeholder="اسم العائلة"
+                            placeholder={t.lastName}
                           />
                         </div>
                       </div>
@@ -641,7 +786,7 @@ export default function ProfilePage() {
                       <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3">
                         <i className="fas fa-image text-blue-600 dark:text-blue-400"></i>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">تحديث الصورة الشخصية</h3>
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t.updateAvatar}</h3>
                     </div>
                     <i className={`fas fa-chevron-down text-blue-600 dark:text-blue-400 transition-transform duration-300 ${openSections.avatarUpdate ? 'rotate-180' : ''}`}></i>
                   </button>
@@ -663,13 +808,13 @@ export default function ProfilePage() {
                             <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                               <i className="fas fa-upload text-blue-600 dark:text-blue-400"></i>
                             </div>
-                            <span className="font-medium text-gray-700 dark:text-gray-200">رفع صورة</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">من جهازك</span>
+                            <span className="font-medium text-gray-700 dark:text-gray-200">{t.uploadImage}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{t.fromDevice}</span>
                           </div>
                         </label>
 
                         <div className="flex items-center justify-center text-gray-400 dark:text-gray-500">
-                          <span>أو</span>
+                          <span>{isRTL ? 'أو' : 'or'}</span>
                         </div>
 
                         <div
@@ -680,8 +825,8 @@ export default function ProfilePage() {
                           <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                             <i className="fas fa-cloud-upload-alt text-blue-600 dark:text-blue-400"></i>
                           </div>
-                          <span className="font-medium text-gray-700 dark:text-gray-200">سحب وإفلات</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">صورة هنا</span>
+                          <span className="font-medium text-gray-700 dark:text-gray-200">{t.dragAndDrop}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{t.imageHere}</span>
                         </div>
                       </div>
 
@@ -710,7 +855,7 @@ export default function ProfilePage() {
                       <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
                         <i className="fas fa-envelope text-green-600 dark:text-green-400"></i>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">إدارة عناوين البريد الإلكتروني</h3>
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t.emailManagement}</h3>
                     </div>
                     <i className={`fas fa-chevron-down text-green-600 dark:text-green-400 transition-transform duration-300 ${openSections.emailManagement ? 'rotate-180' : ''}`}></i>
                   </button>
@@ -719,7 +864,7 @@ export default function ProfilePage() {
                     openSections.emailManagement ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
                   }`}>
                     <div className="p-5">
-                      <ChangeEmailPanel />
+                      <ChangeEmailPanel isRTL={isRTL} />
                     </div>
                   </div>
                 </div>
@@ -737,12 +882,12 @@ export default function ProfilePage() {
                   {saving ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      جاري الحفظ...
+                      {t.saving}
                     </>
                   ) : (
                     <>
                       <i className="fas fa-save"></i>
-                      حفظ التغييرات
+                      {t.saveChanges}
                     </>
                   )}
                 </button>
@@ -752,7 +897,7 @@ export default function ProfilePage() {
                   className="flex items-center justify-center gap-2 bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900 text-white font-medium py-3 px-6 rounded-xl shadow-lg text-base transition-all duration-300 transform hover:scale-105 flex-1 sm:flex-none"
                 >
                   <i className="fas fa-times"></i>
-                  إلغاء التعديل
+                  {t.cancelEdit}
                 </button>
               </div>
             </div>

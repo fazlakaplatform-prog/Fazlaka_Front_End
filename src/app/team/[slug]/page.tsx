@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -8,14 +8,17 @@ import rehypeSanitize from "rehype-sanitize";
 import { defaultSchema } from "hast-util-sanitize";
 import Link from "next/link";
 import Image from "next/image";
-import { urlFor } from '@/lib/sanity';
+import { urlFor, fetchFromSanity, getLocalizedText } from '@/lib/sanity';
 import { FaFileAlt, FaImage, FaGoogleDrive, FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaYoutube, FaTiktok, FaArrowLeft, FaQuoteLeft, FaQuoteRight, FaStar, FaCheckCircle, FaAward, FaExternalLinkAlt, FaPlay, FaExpand } from "react-icons/fa";
 
 interface Member {
   _id: string;
   name: string;
+  nameEn?: string;
   role?: string;
+  roleEn?: string;
   bio?: string;
+  bioEn?: string;
   slug: {
     current: string;
   };
@@ -30,6 +33,7 @@ interface Member {
     platform: string;
     url: string;
   }>;
+  language?: 'ar' | 'en';
 }
 
 // تعريف واجهة ImageUrlBuilder
@@ -59,7 +63,7 @@ function isMember(obj: unknown): obj is Member {
 }
 
 // دالة لعرض الفيديو بناءً على الرابط
-const renderVideo = (url: string, key?: string) => {
+const renderVideo = (url: string, key?: string, isRTL: boolean = false) => {
   // YouTube
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
     let videoId = '';
@@ -74,12 +78,14 @@ const renderVideo = (url: string, key?: string) => {
     
     return (
       <div key={key} className="my-6 md:my-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3">
+        <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
           <div className="flex items-center gap-2 md:gap-3">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white shadow-lg">
               <FaPlay className="text-sm md:text-base" />
             </div>
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">فيديو</h3>
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+              {isRTL ? 'فيديو' : 'Video'}
+            </h3>
           </div>
           <div className="flex gap-2">
             <a 
@@ -89,7 +95,7 @@ const renderVideo = (url: string, key?: string) => {
               className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg text-sm md:text-base"
             >
               <FaExternalLinkAlt />
-              <span>فتح في يوتيوب</span>
+              <span>{isRTL ? 'فتح في يوتيوب' : 'Open in YouTube'}</span>
             </a>
           </div>
         </div>
@@ -110,20 +116,20 @@ const renderVideo = (url: string, key?: string) => {
             target="_blank"
             rel="noopener noreferrer"
             className="md:hidden absolute bottom-4 right-4 bg-black/70 text-white p-2 rounded-full hover:bg-black/90 transition-colors"
-            aria-label="فتح في وضع ملء الشاشة"
+            aria-label={isRTL ? 'فتح في وضع ملء الشاشة' : 'Open in fullscreen'}
           >
             <FaExpand className="text-lg" />
           </a>
         </div>
         
         <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
-          لا يعمل الفيديو؟ <a 
+          {isRTL ? 'لا يعمل الفيديو؟' : 'Video not working?'} <a 
             href={youtubeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
           >
-            اضغط هنا لفتحه في يوتيوب
+            {isRTL ? 'اضغط هنا لفتحه في يوتيوب' : 'Click here to open in YouTube'}
           </a>
         </div>
       </div>
@@ -138,12 +144,14 @@ const renderVideo = (url: string, key?: string) => {
     
     return (
       <div key={key} className="my-6 md:my-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3">
+        <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
           <div className="flex items-center gap-2 md:gap-3">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
               <FaPlay className="text-sm md:text-base" />
             </div>
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">فيديو</h3>
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+              {isRTL ? 'فيديو' : 'Video'}
+            </h3>
           </div>
           <div className="flex gap-2">
             <a 
@@ -153,7 +161,7 @@ const renderVideo = (url: string, key?: string) => {
               className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg text-sm md:text-base"
             >
               <FaExternalLinkAlt />
-              <span>فتح في فيميو</span>
+              <span>{isRTL ? 'فتح في فيميو' : 'Open in Vimeo'}</span>
             </a>
           </div>
         </div>
@@ -174,20 +182,20 @@ const renderVideo = (url: string, key?: string) => {
             target="_blank"
             rel="noopener noreferrer"
             className="md:hidden absolute bottom-4 right-4 bg-black/70 text-white p-2 rounded-full hover:bg-black/90 transition-colors"
-            aria-label="فتح في وضع ملء الشاشة"
+            aria-label={isRTL ? 'فتح في وضع ملء الشاشة' : 'Open in fullscreen'}
           >
             <FaExpand className="text-lg" />
           </a>
         </div>
         
         <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
-          لا يعمل الفيديو؟ <a 
+          {isRTL ? 'لا يعمل الفيديو؟' : 'Video not working?'} <a 
             href={vimeoUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
           >
-            اضغط هنا لفتحه في فيميو
+            {isRTL ? 'اضغط هنا لفتحه في فيميو' : 'Click here to open in Vimeo'}
           </a>
         </div>
       </div>
@@ -198,12 +206,14 @@ const renderVideo = (url: string, key?: string) => {
   if (url.match(/\.(mp4|webm|ogg)$/i)) {
     return (
       <div key={key} className="my-6 md:my-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3">
+        <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
           <div className="flex items-center gap-2 md:gap-3">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg">
               <FaPlay className="text-sm md:text-base" />
             </div>
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">فيديو</h3>
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+              {isRTL ? 'فيديو' : 'Video'}
+            </h3>
           </div>
           <div className="flex gap-2">
             <a 
@@ -213,7 +223,7 @@ const renderVideo = (url: string, key?: string) => {
               className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg text-sm md:text-base"
             >
               <FaExternalLinkAlt />
-              <span>فتح الفيديو</span>
+              <span>{isRTL ? 'فتح الفيديو' : 'Open Video'}</span>
             </a>
           </div>
         </div>
@@ -224,22 +234,22 @@ const renderVideo = (url: string, key?: string) => {
             controls
             controlsList="nodownload"
             preload="metadata"
-            poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 450'%3E%3Crect fill='%23000' width='800' height='450'/%3E%3Ctext fill='%23fff' font-size='20' x='400' y='225' text-anchor='middle'%3Eجاري تحميل الفيديو...%3C/text%3E%3C/svg%3E"
+            poster={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 450'%3E%3Crect fill='%23000' width='800' height='450'/%3E%3Ctext fill='%23fff' font-size='20' x='400' y='225' text-anchor='middle'%3E${isRTL ? 'جاري تحميل الفيديو...' : 'Loading video...'}%3C/text%3E%3C/svg%3E`}
           >
             <source src={url} type={`video/${url.split('.').pop()}`} />
             <track kind="captions" />
-            متصفحك لا يدعم تشغيل الفيديو.
+            {isRTL ? 'متصفحك لا يدعم تشغيل الفيديو.' : 'Your browser does not support the video tag.'}
           </video>
         </div>
         
         <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
-          لا يعمل الفيديو؟ <a 
+          {isRTL ? 'لا يعمل الفيديو؟' : 'Video not working?'} <a 
             href={url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
           >
-            اضغط هنا لفتح الفيديو مباشرة
+            {isRTL ? 'اضغط هنا لفتح الفيديو مباشرة' : 'Click here to open video directly'}
           </a>
         </div>
       </div>
@@ -253,7 +263,9 @@ const renderVideo = (url: string, key?: string) => {
         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-gray-500 to-gray-600 flex items-center justify-center text-white shadow-lg">
           <FaExternalLinkAlt className="text-sm md:text-base" />
         </div>
-        <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">رابط خارجي</h3>
+        <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+          {isRTL ? 'رابط خارجي' : 'External Link'}
+        </h3>
       </div>
       <a 
         href={url} 
@@ -269,17 +281,19 @@ const renderVideo = (url: string, key?: string) => {
 };
 
 // دالة لعرض PDF بناءً على الرابط
-const renderPdf = (url: string, key?: string) => {
+const renderPdf = (url: string, key?: string, isRTL: boolean = false) => {
   const previewUrl = url.includes('drive.google.com') ? url.replace('/view', '/preview') : url;
   
   return (
     <div key={key} className="my-6 md:my-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3">
+      <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
         <div className="flex items-center gap-2 md:gap-3">
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white shadow-lg">
             <FaFileAlt className="text-sm md:text-base" />
           </div>
-          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">مستند PDF</h3>
+          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+            {isRTL ? 'مستند PDF' : 'PDF Document'}
+          </h3>
         </div>
         <div className="flex flex-wrap gap-2">
           <a 
@@ -289,7 +303,7 @@ const renderPdf = (url: string, key?: string) => {
             className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg text-sm md:text-base"
           >
             <FaExternalLinkAlt />
-            <span>فتح المستند</span>
+            <span>{isRTL ? 'فتح المستند' : 'Open Document'}</span>
           </a>
           {url.includes('drive.google.com') && (
             <a 
@@ -299,7 +313,7 @@ const renderPdf = (url: string, key?: string) => {
               className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg text-sm md:text-base"
             >
               <FaGoogleDrive />
-              <span>معاينة</span>
+              <span>{isRTL ? 'معاينة' : 'Preview'}</span>
             </a>
           )}
         </div>
@@ -316,13 +330,13 @@ const renderPdf = (url: string, key?: string) => {
       </div>
       
       <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">
-        لا يعرض المستند؟ <a 
+        {isRTL ? 'لا يعرض المستند؟' : 'Document not displaying?'} <a 
           href={url}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
         >
-          اضغط هنا لفتحه مباشرة
+          {isRTL ? 'اضغط هنا لفتحه مباشرة' : 'Click here to open directly'}
         </a>
       </div>
     </div>
@@ -330,15 +344,17 @@ const renderPdf = (url: string, key?: string) => {
 };
 
 // دالة لعرض الصورة بناءً على الرابط
-const renderImage = (url: string, key?: string) => {
+const renderImage = (url: string, key?: string, isRTL: boolean = false) => {
   return (
     <div key={key} className="my-6 md:my-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3">
+      <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-3 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
         <div className="flex items-center gap-2 md:gap-3">
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
             <FaImage className="text-sm md:text-base" />
           </div>
-          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">صورة</h3>
+          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+            {isRTL ? 'صورة' : 'Image'}
+          </h3>
         </div>
         <div className="flex gap-2">
           <a 
@@ -348,7 +364,7 @@ const renderImage = (url: string, key?: string) => {
             className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg text-sm md:text-base"
           >
             <FaExternalLinkAlt />
-            <span>فتح الصورة</span>
+            <span>{isRTL ? 'فتح الصورة' : 'Open Image'}</span>
           </a>
         </div>
       </div>
@@ -356,7 +372,7 @@ const renderImage = (url: string, key?: string) => {
       <div className="relative overflow-hidden rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900">
         <Image
           src={url}
-          alt="صورة من المحتوى"
+          alt={isRTL ? 'صورة من المحتوى' : 'Image from content'}
           width={800}
           height={450}
           className="w-full h-auto object-contain"
@@ -367,10 +383,10 @@ const renderImage = (url: string, key?: string) => {
             if (container) {
               container.innerHTML = `
                 <div class="p-8 text-center">
-                  <p class="mb-4 text-gray-600 dark:text-gray-400">لا يمكن عرض الصورة</p>
+                  <p class="mb-4 text-gray-600 dark:text-gray-400">${isRTL ? 'لا يمكن عرض الصورة' : 'Cannot display image'}</p>
                   <a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg">
                     <FaExternalLinkAlt />
-                    <span>فتح الصورة مباشرة</span>
+                    <span>${isRTL ? 'فتح الصورة مباشرة' : 'Open image directly'}</span>
                   </a>
                 </div>
               `;
@@ -383,7 +399,7 @@ const renderImage = (url: string, key?: string) => {
 };
 
 // دالة لمعالجة النصوص واستخراج روابط الوسائط
-const processMediaLinks = (text: string): { processedText: string; mediaElements: React.ReactNode[] } => {
+const processMediaLinks = (text: string, isRTL: boolean = false): { processedText: string; mediaElements: React.ReactNode[] } => {
   const mediaElements: React.ReactNode[] = []; 
   let processedText = text;
   
@@ -395,7 +411,7 @@ const processMediaLinks = (text: string): { processedText: string; mediaElements
     /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/|.*\.(?:mp4|webm|ogg))[\w\-._~:\/?#[\]@!$&'()*+,;=]*)/gi,
     (match) => {
       const id = genId();
-      mediaElements.push(renderVideo(match, id));
+      mediaElements.push(renderVideo(match, id, isRTL));
       return `{{${id}}}`;
     }
   );
@@ -405,7 +421,7 @@ const processMediaLinks = (text: string): { processedText: string; mediaElements
     /(https?:\/\/(?:www\.)?(?:drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+|.*\.pdf)[\w\-._~:\/?#[\]@!$&'()*+,;=]*)/gi,
     (match) => {
       const id = genId();
-      mediaElements.push(renderPdf(match, id));
+      mediaElements.push(renderPdf(match, id, isRTL));
       return `{{${id}}}`;
     }
   );
@@ -415,7 +431,7 @@ const processMediaLinks = (text: string): { processedText: string; mediaElements
     /(https?:\/\/(?:www\.)?(?:.*\.(?:jpg|jpeg|png|gif|webp|svg))[\w\-._~:\/?#[\]@!$&'()*+,;=]*)/gi,
     (match) => {
       const id = genId();
-      mediaElements.push(renderImage(match, id));
+      mediaElements.push(renderImage(match, id, isRTL));
       return `{{${id}}}`;
     }
   );
@@ -540,57 +556,115 @@ const MediaRenderer = ({ mediaElements }: { mediaElements: React.ReactNode[] }) 
 export default function Page({ params }: { params: Promise<{ slug: string }> }) {
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRTL, setIsRTL] = useState(true);
   
-  React.useEffect(() => {
-    const fetchMember = async () => {
-      try {
-        const { slug } = await params;
-        const query = `*[_type == "teamMember" && slug.current == $slug][0]{
-          _id,
-          name,
-          role,
-          bio,
-          slug,
-          image {
-            _type,
-            asset {
-              _type,
-              _ref
-            }
-          },
-          socialMedia[] {
-            platform,
-            url
-          }
-        }`;
-        
-        // استيراد fetchFromSanity هنا لتجنب مشاكل الـ SSR
-        const { fetchFromSanity } = await import('@/lib/sanity');
-        const memberData = await fetchFromSanity(query, { slug });
-        
-        // التحقق من أن العضو يحتوي على الخصائص الأساسية باستخدام type guard
-        if (!memberData || !isMember(memberData)) {
-          setMember(null);
-        } else {
-          setMember(memberData);
-        }
-      } catch (error) {
-        console.error("Error fetching team member:", error);
-        setMember(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+  useEffect(() => {
+    // التحقق من تفضيل اللغة المحفوظ في localStorage
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage !== null) {
+      setIsRTL(savedLanguage === 'ar');
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
+      const browserLang = navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage;
+      setIsRTL(browserLang.includes('ar'));
+    }
     
-    fetchMember();
-  }, [params]);
+    // تطبيق اتجاه الصفحة بناءً على اللغة
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.documentElement.lang = isRTL ? 'ar' : 'en';
+  }, [isRTL]);
+  
+  // استخدام useCallback لتحسين الأداء وتجنب مشاكل الاعتمادية
+  const fetchMember = useCallback(async () => {
+    try {
+      const { slug } = await params;
+      const language = isRTL ? 'ar' : 'en';
+      
+      const query = `*[_type == "teamMember" && slug.current == $slug && language == $language][0]{
+        _id,
+        name,
+        nameEn,
+        role,
+        roleEn,
+        bio,
+        bioEn,
+        slug,
+        image {
+          _type,
+          asset {
+            _type,
+            _ref
+          }
+        },
+        socialMedia[] {
+          platform,
+          url
+        },
+        language
+      }`;
+      
+      // تحديد نوع المعلمات بشكل صريح بدلاً من استخدام any
+      const queryParams: { slug: string; language: string } = { slug, language };
+      const memberData = await fetchFromSanity(query, queryParams);
+      
+      // التحقق من أن العضو يحتوي على الخصائص الأساسية باستخدام type guard
+      if (!memberData || !isMember(memberData)) {
+        setMember(null);
+      } else {
+        setMember(memberData);
+      }
+    } catch (error) {
+      console.error("Error fetching team member:", error);
+      setMember(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [params, isRTL]);
+  
+  useEffect(() => {
+    if (isRTL !== undefined) {
+      fetchMember();
+    }
+  }, [fetchMember, isRTL]);
+  
+  // الترجمات
+  const translations = {
+    ar: {
+      loading: "جاري تحميل البيانات...",
+      memberNotFound: "العضو غير موجود",
+      memberNotFoundDesc: "لم نتمكن من العثور على العضو الذي تبحث عنه.",
+      backToTeam: "العودة إلى صفحة الفريق",
+      noInfo: "لا توجد معلومات متاحة عن هذا العضو.",
+      contactMe: "تواصل معي",
+      noSocialMedia: "لا توجد وسائل تواصل اجتماعي متاحة",
+      video: "فيديو",
+      pdf: "مستند PDF",
+      image: "صورة",
+      externalLink: "رابط خارجي"
+    },
+    en: {
+      loading: "Loading data...",
+      memberNotFound: "Member Not Found",
+      memberNotFoundDesc: "We couldn't find the member you're looking for.",
+      backToTeam: "Back to Team Page",
+      noInfo: "No information available about this member.",
+      contactMe: "Contact Me",
+      noSocialMedia: "No social media available",
+      video: "Video",
+      pdf: "PDF Document",
+      image: "Image",
+      externalLink: "External Link"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
   
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-24 pb-12 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">جاري تحميل البيانات...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t.loading}</p>
         </div>
       </div>
     );
@@ -606,11 +680,11 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 0118 0 9 9 0 01-18 0z" />
               </svg>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-4">العضو غير موجود</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">لم نتمكن من العثور على العضو الذي تبحث عنه.</p>
-            <Link href="/team" className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-medium py-2 px-4 md:py-2.5 md:px-6 rounded-lg transition-all shadow-lg hover:shadow-xl">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-4">{t.memberNotFound}</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{t.memberNotFoundDesc}</p>
+            <Link href="/team" className={`inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-medium py-2 px-4 md:py-2.5 md:px-6 rounded-lg transition-all shadow-lg hover:shadow-xl ${isRTL ? 'flex-row-reverse' : ''}`}>
               <FaArrowLeft />
-              <span>العودة إلى صفحة الفريق</span>
+              <span>{t.backToTeam}</span>
             </Link>
           </div>
         </div>
@@ -644,9 +718,13 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
     }
   }
   
+  // الحصول على النصوص المناسبة حسب اللغة
+  const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
+  const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');
+  const bio = getLocalizedText(member.bio, member.bioEn, isRTL ? 'ar' : 'en') || t.noInfo;
+  
   // معالجة النصوص لاستخراج روابط الوسائط
-  const bio = member.bio || "لا توجد معلومات متاحة عن هذا العضو.";
-  const { processedText, mediaElements } = processMediaLinks(bio);
+  const { processedText, mediaElements } = processMediaLinks(bio, isRTL);
   
   // تعريف المكونات المخصصة لـ ReactMarkdown
   const markdownComponents: Components = {
@@ -659,14 +737,14 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
     h1: ({ ...props }) => <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mt-6 md:mt-8 mb-3 md:mb-4 pb-2 border-b border-gray-200 dark:border-gray-700" {...props} />,
     h2: ({ ...props }) => <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white mt-5 md:mt-7 mb-2 md:mb-3 pb-1 border-b border-gray-200 dark:border-gray-700" {...props} />,
     h3: ({ ...props }) => <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white mt-4 md:mt-6 mb-2 md:mb-3" {...props} />,
-    ul: ({ ...props }) => <ul className="list-disc pr-4 md:pr-6 mb-4 space-y-1 md:space-y-2 text-gray-700 dark:text-gray-300 text-sm md:text-base" {...props} />,
-    ol: ({ ...props }) => <ol className="list-decimal pr-4 md:pr-6 mb-4 space-y-1 md:space-y-2 text-gray-700 dark:text-gray-300 text-sm md:text-base" {...props} />,
+    ul: ({ ...props }) => <ul className={`list-disc ${isRTL ? 'pr-4 md:pr-6' : 'pl-4 md:pl-6'} mb-4 space-y-1 md:space-y-2 text-gray-700 dark:text-gray-300 text-sm md:text-base`} {...props} />,
+    ol: ({ ...props }) => <ol className={`list-decimal ${isRTL ? 'pr-4 md:pr-6' : 'pl-4 md:pl-6'} mb-4 space-y-1 md:space-y-2 text-gray-700 dark:text-gray-300 text-sm md:text-base`} {...props} />,
     li: ({ ...props }) => <li className="mb-1" {...props} />,
     blockquote: ({ ...props }) => (
-      <blockquote className="relative my-4 md:my-6 p-4 md:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl md:rounded-2xl border-r-4 border-blue-500 shadow-sm" {...props}>
-        <FaQuoteLeft className="absolute top-2 md:top-4 right-2 md:right-4 text-blue-300 dark:text-blue-700 text-base md:text-xl" />
-        <FaQuoteRight className="absolute bottom-2 md:bottom-4 left-2 md:left-4 text-blue-300 dark:text-blue-700 text-base md:text-xl" />
-        <div className="relative z-10 pr-6 md:pr-8 pl-6 md:pl-8 italic text-gray-700 dark:text-gray-300 text-sm md:text-base">
+      <blockquote className={`relative my-4 md:my-6 p-4 md:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl md:rounded-2xl ${isRTL ? 'border-l-4 border-r-0 border-blue-500' : 'border-r-4 border-l-0 border-blue-500'} shadow-sm`} {...props}>
+        <FaQuoteLeft className={`absolute top-2 md:top-4 ${isRTL ? 'left-2 md:left-4' : 'right-2 md:right-4'} text-blue-300 dark:text-blue-700 text-base md:text-xl`} />
+        <FaQuoteRight className={`absolute bottom-2 md:bottom-4 ${isRTL ? 'right-2 md:right-4' : 'left-2 md:left-4'} text-blue-300 dark:text-blue-700 text-base md:text-xl`} />
+        <div className={`relative z-10 ${isRTL ? 'pl-6 md:pl-8 pr-6 md:pr-8' : 'pr-6 md:pr-8 pl-6 md:pl-8'} italic text-gray-700 dark:text-gray-300 text-sm md:text-base`}>
           {props.children}
         </div>
       </blockquote>
@@ -681,8 +759,8 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-xl overflow-hidden">
           {/* تخطيط أفقي للهيرو والوصف */}
-          <div className="flex flex-col md:flex-row">
-            {/* الهيرو على اليسار */}
+          <div className={`flex flex-col md:flex-row ${isRTL ? 'md:flex-row-reverse' : ''}`}>
+            {/* الهيرو */}
             <div className="w-full md:w-2/5 lg:w-1/3 relative">
               {/* خلفية متدرجة مع عناصر زخرفية */}
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
@@ -709,7 +787,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                   <div className="relative w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl">
                     <Image 
                       src={photoUrl} 
-                      alt={member.name} 
+                      alt={name} 
                       width={300} 
                       height={300}
                       className="w-full h-full object-cover" 
@@ -736,18 +814,18 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                   {/* اسم العضو */}
                   <div className="mb-3 md:mb-4">
                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 md:mb-3 tracking-tight leading-tight">
-                      {member.name}
+                      {name}
                     </h1>
                     <div className="w-16 md:w-24 h-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full mx-auto"></div>
                   </div>
                   
                   {/* رتبة العضو */}
-                  {member.role && (
+                  {role && (
                     <div className="mb-5 md:mb-8">
                       <div className="inline-flex items-center gap-1.5 md:gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 md:px-5 md:py-2.5 rounded-full border border-white/30 shadow-lg">
                         <FaAward className="text-yellow-300 text-base md:text-lg" />
                         <span className="text-base md:text-lg font-medium text-white">
-                          {member.role}
+                          {role}
                         </span>
                       </div>
                     </div>
@@ -758,7 +836,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                     <div className="flex flex-col items-center">
                       <div className="flex items-center gap-1.5 md:gap-2 mb-3 md:mb-4">
                         <FaCheckCircle className="text-green-400 text-base md:text-lg" />
-                        <span className="text-white font-medium text-sm md:text-base">تواصل معي</span>
+                        <span className="text-white font-medium text-sm md:text-base">{t.contactMe}</span>
                       </div>
                       
                       {hasSocialMedia ? (
@@ -770,7 +848,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white transition-all duration-300 transform hover:scale-110 hover:shadow-xl ${getSocialIconColor(social.platform)}`}
-                              aria-label={`تابعنا على ${social.platform}`}
+                              aria-label={`${isRTL ? 'تابعنا على' : 'Follow us on'} ${social.platform}`}
                             >
                               {renderSocialIcon(social.platform)}
                             </a>
@@ -778,7 +856,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                         </div>
                       ) : (
                         <div className="text-white/70 text-xs md:text-sm bg-white/10 px-3 py-1.5 md:px-4 md:py-2 rounded-full">
-                          لا توجد وسائل تواصل اجتماعي متاحة
+                          {t.noSocialMedia}
                         </div>
                       )}
                     </div>
@@ -805,9 +883,9 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
               
               {/* زر العودة */}
               <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
-                <Link href="/team" className="inline-flex items-center gap-2 md:gap-3 px-6 py-3 md:px-8 md:py-4 border border-transparent text-base md:text-lg font-semibold rounded-full shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105">
+                <Link href="/team" className={`inline-flex items-center gap-2 md:gap-3 px-6 py-3 md:px-8 md:py-4 border border-transparent text-base md:text-lg font-semibold rounded-full shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <FaArrowLeft className="text-lg md:text-xl" />
-                  <span>العودة إلى صفحة الفريق</span>
+                  <span>{t.backToTeam}</span>
                 </Link>
               </div>
             </div>

@@ -1,4 +1,3 @@
-// lib/sanity.ts
 import { createClient } from 'next-sanity'
 import imageUrlBuilder from '@sanity/image-url'
 
@@ -118,65 +117,81 @@ export async function createComment(commentData: Omit<Comment, '_id' | '_type' |
   }
 }
 
-// دالة لجلب قوائم التشغيل من Sanity (محدثة)
-export async function fetchPlaylists(): Promise<Playlist[]> {
+// دالة لجلب قوائم التشغيل من Sanity (محدثة مع دعم اللغة)
+export async function fetchPlaylists(language: string = 'ar'): Promise<Playlist[]> {
   try {
-    const query = `*[_type == "playlist"]{
+    const query = `*[_type == "playlist" && language == $language] | order(_createdAt desc) {
       _id,
       title,
+      titleEn,
       slug,
       description,
+      descriptionEn,
       "imageUrl": image.asset->url,
       "episodes": episodes[]->{
         _id,
         title,
+        titleEn,
         slug,
         "imageUrl": thumbnail.asset->url
       },
       "articles": articles[]->{
         _id,
         title,
+        titleEn,
         slug,
         "imageUrl": featuredImage.asset->url,
-        excerpt
-      }
+        excerpt,
+        excerptEn
+      },
+      language
     }`;
-    return await fetchArrayFromSanity<Playlist>(query);
+    return await fetchArrayFromSanity<Playlist>(query, { language });
   } catch (error) {
     console.error('Error fetching playlists from Sanity:', error);
     return [];
   }
 }
 
-// دالة لجلب قائمة تشغيل معينة حسب الـ slug (محدثة)
-export async function fetchPlaylistBySlug(slug: string): Promise<Playlist | null> {
+// دالة لجلب قائمة تشغيل معينة حسب الـ slug (محدثة مع دعم اللغة)
+export async function fetchPlaylistBySlug(slug: string, language: string = 'ar'): Promise<Playlist | null> {
   try {
-    const query = `*[_type == "playlist" && slug.current == $slug][0]{
+    const query = `*[_type == "playlist" && slug.current == $slug && language == $language][0]{
       _id,
       title,
+      titleEn,
       slug,
       description,
+      descriptionEn,
       "imageUrl": image.asset->url,
       "episodes": episodes[]->{
         _id,
         title,
+        titleEn,
         slug,
         "imageUrl": thumbnail.asset->url,
         content,
+        contentEn,
         videoUrl,
-        publishedAt
+        publishedAt,
+        language
       },
       "articles": articles[]->{
         _id,
         title,
+        titleEn,
         slug,
         "imageUrl": featuredImage.asset->url,
         excerpt,
+        excerptEn,
         content,
-        publishedAt
-      }
+        contentEn,
+        publishedAt,
+        language
+      },
+      language
     }`;
-    return await fetchFromSanity<Playlist>(query, { slug });
+    return await fetchFromSanity<Playlist>(query, { slug, language });
   } catch (error) {
     console.error('Error fetching playlist by slug from Sanity:', error);
     return null;
@@ -216,25 +231,33 @@ export async function deletePlaylist(playlistId: string): Promise<void> {
   }
 }
 
-// دوال للتعامل مع الأسئلة الشائعة (FAQ)
+// دوال للتعامل مع الأسئلة الشائعة (FAQ) مع دعم اللغة
 export interface FAQ {
   _id?: string
   _type: 'faq'
   question: string
+  questionEn?: string
   answer: string
+  answerEn?: string
   category?: string
-  _createdAt?: string // إضافة الخاصية المفقودة
+  categoryEn?: string
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
-export async function fetchFaqs(): Promise<FAQ[]> {
+export async function fetchFaqs(language: string = 'ar'): Promise<FAQ[]> {
   try {
-    const query = `*[_type == "faq"] | order(_createdAt desc) {
+    const query = `*[_type == "faq" && language == $language] | order(_createdAt desc) {
       _id,
       question,
+      questionEn,
       answer,
-      category
+      answerEn,
+      category,
+      categoryEn,
+      language
     }`;
-    return await fetchArrayFromSanity<FAQ>(query);
+    return await fetchArrayFromSanity<FAQ>(query, { language });
   } catch (error) {
     console.error('Error fetching FAQs from Sanity:', error);
     return [];
@@ -271,141 +294,177 @@ export async function deleteFaq(faqId: string): Promise<void> {
   }
 }
 
-// واجهات جديدة لمحتوى الشروط والأحكام
+// واجهات جديدة لمحتوى الشروط والأحكام مع دعم اللغة
 export interface TermsContent {
   _id?: string
   _type: 'termsContent'
   sectionType: 'mainTerms' | 'legalTerm' | 'rightsResponsibility' | 'additionalPolicy' | 'siteSettings'
   title?: string
+  titleEn?: string
   content?: PortableTextBlock[]
+  contentEn?: PortableTextBlock[]
   term?: string
+  termEn?: string
   definition?: string
+  definitionEn?: string
   icon?: string
   rightsType?: 'userRights' | 'userResponsibilities' | 'companyRights'
-  items?: { item: string }[]
+  items?: { item: string; itemEn?: string }[]
   color?: string
   borderColor?: string
   description?: string
+  descriptionEn?: string
   linkText?: string
+  linkTextEn?: string
   linkUrl?: string
   siteTitle?: string
+  siteTitleEn?: string
   siteDescription?: string
+  siteDescriptionEn?: string
   logo?: SanityImage
   footerText?: string
+  footerTextEn?: string
   lastUpdated?: string
-  _createdAt?: string // إضافة الخاصية المفقودة
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
-// دوال جديدة للتعامل مع محتوى الشروط والأحكام
-export async function getAllTermsContent(): Promise<TermsContent[]> {
+// دوال جديدة للتعامل مع محتوى الشروط والأحكام مع دعم اللغة
+export async function getAllTermsContent(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent"] | order(sectionType asc, title asc) {
+    const query = `*[_type == "termsContent" && language == $language] | order(sectionType asc, title asc) {
       _id,
       sectionType,
       title,
+      titleEn,
       content,
+      contentEn,
       term,
+      termEn,
       definition,
+      definitionEn,
       icon,
       rightsType,
       items,
       color,
       borderColor,
       description,
+      descriptionEn,
       linkText,
+      linkTextEn,
       linkUrl,
       siteTitle,
+      siteTitleEn,
       siteDescription,
+      siteDescriptionEn,
       logo,
       footerText,
-      lastUpdated
+      footerTextEn,
+      lastUpdated,
+      language
     }`
-    return await fetchArrayFromSanity<TermsContent>(query);
+    return await fetchArrayFromSanity<TermsContent>(query, { language });
   } catch (error) {
     console.error('Error fetching all terms content from Sanity:', error);
     return [];
   }
 }
 
-// جلب شروط وأحكام الموقع الرئيسية
-export async function getMainTerms(): Promise<TermsContent | null> {
+// جلب شروط وأحكام الموقع الرئيسية مع دعم اللغة
+export async function getMainTerms(language: string = 'ar'): Promise<TermsContent | null> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == "mainTerms"][0] {
+    const query = `*[_type == "termsContent" && sectionType == 'mainTerms' && language == $language][0] {
       _id,
       title,
+      titleEn,
       content,
-      lastUpdated
+      contentEn,
+      lastUpdated,
+      language
     }`
-    return await fetchFromSanity<TermsContent>(query);
+    return await fetchFromSanity<TermsContent>(query, { language });
   } catch (error) {
     console.error('Error fetching main terms from Sanity:', error);
     return null;
   }
 }
 
-// جلب المصطلحات القانونية
-export async function getLegalTerms(): Promise<TermsContent[]> {
+// جلب المصطلحات القانونية مع دعم اللغة
+export async function getLegalTerms(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == "legalTerm"] | order(term asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'legalTerm' && language == $language] | order(term asc) {
       _id,
       term,
+      termEn,
       definition,
-      icon
+      definitionEn,
+      icon,
+      language
     }`
-    return await fetchArrayFromSanity<TermsContent>(query);
+    return await fetchArrayFromSanity<TermsContent>(query, { language });
   } catch (error) {
     console.error('Error fetching legal terms from Sanity:', error);
     return [];
   }
 }
 
-// جلب الحقوق والمسؤوليات
-export async function getRightsResponsibilities(): Promise<TermsContent[]> {
+// جلب الحقوق والمسؤوليات مع دعم اللغة
+export async function getRightsResponsibilities(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == "rightsResponsibility"] | order(rightsType asc, title asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'rightsResponsibility' && language == $language] | order(rightsType asc, title asc) {
       _id,
       title,
+      titleEn,
       rightsType,
       icon,
       items,
       color,
-      borderColor
+      borderColor,
+      language
     }`
-    return await fetchArrayFromSanity<TermsContent>(query);
+    return await fetchArrayFromSanity<TermsContent>(query, { language });
   } catch (error) {
     console.error('Error fetching rights and responsibilities from Sanity:', error);
     return [];
   }
 }
 
-// جلب السياسات الإضافية
-export async function getAdditionalPolicies(): Promise<TermsContent[]> {
+// جلب السياسات الإضافية مع دعم اللغة
+export async function getAdditionalPolicies(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == "additionalPolicy"] | order(title asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'additionalPolicy' && language == $language] | order(title asc) {
       _id,
       title,
+      titleEn,
       description,
+      descriptionEn,
       icon,
       linkText,
-      linkUrl
+      linkTextEn,
+      linkUrl,
+      language
     }`
-    return await fetchArrayFromSanity<TermsContent>(query);
+    return await fetchArrayFromSanity<TermsContent>(query, { language });
   } catch (error) {
     console.error('Error fetching additional policies from Sanity:', error);
     return [];
   }
 }
 
-// جلب إعدادات الموقع
-export async function getSiteSettings(): Promise<TermsContent | null> {
+// جلب إعدادات الموقع مع دعم اللغة
+export async function getSiteSettings(language: string = 'ar'): Promise<TermsContent | null> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == "siteSettings"][0]{
+    const query = `*[_type == "termsContent" && sectionType == 'siteSettings' && language == $language][0]{
       siteTitle,
+      siteTitleEn,
       siteDescription,
+      siteDescriptionEn,
       logo,
-      footerText
+      footerText,
+      footerTextEn,
+      language
     }`
-    return await fetchFromSanity<TermsContent>(query);
+    return await fetchFromSanity<TermsContent>(query, { language });
   } catch (error) {
     console.error('Error fetching site settings from Sanity:', error);
     return null;
@@ -445,80 +504,96 @@ export async function deleteTermsContent(termsId: string): Promise<void> {
   }
 }
 
-// واجهات جديدة لمحتوى سياسة الخصوصية
+// واجهات جديدة لمحتوى سياسة الخصوصية مع دعم اللغة
 export interface PrivacyContent {
   _id?: string
   _type: 'privacyContent'
   sectionType: 'mainPolicy' | 'userRight' | 'dataType' | 'securityMeasure'
   title?: string
+  titleEn?: string
   content?: PortableTextBlock[]
+  contentEn?: PortableTextBlock[]
   icon?: string
   description?: string
+  descriptionEn?: string
   color?: string
   textColor?: string
   lastUpdated?: string
-  _createdAt?: string // إضافة الخاصية المفقودة
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
-// دوال للتعامل مع سياسة الخصوصية
-export async function getPrivacyPolicy(): Promise<PrivacyContent | null> {
+// دوال للتعامل مع سياسة الخصوصية مع دعم اللغة
+export async function getPrivacyPolicy(language: string = 'ar'): Promise<PrivacyContent | null> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0] {
+    const query = `*[_type == "privacyContent" && sectionType == 'mainPolicy' && language == $language][0] {
       title,
+      titleEn,
       content,
-      lastUpdated
+      contentEn,
+      lastUpdated,
+      language
     }`
-    return await client.fetch(query)
+    return await fetchFromSanity<PrivacyContent>(query, { language });
   } catch (error) {
-    console.error('Error fetching privacy policy from Sanity:', error)
-    return null
+    console.error('Error fetching privacy policy from Sanity:', error);
+    return null;
   }
 }
 
-export async function getUserRights(): Promise<PrivacyContent[]> {
+export async function getUserRights(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == "userRight"] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == 'userRight' && language == $language] | order(title asc) {
       _id,
       title,
+      titleEn,
       description,
-      icon
+      descriptionEn,
+      icon,
+      language
     }`
-    return await client.fetch(query)
+    return await fetchArrayFromSanity<PrivacyContent>(query, { language });
   } catch (error) {
-    console.error('Error fetching user rights from Sanity:', error)
-    return []
+    console.error('Error fetching user rights from Sanity:', error);
+    return [];
   }
 }
 
-export async function getDataTypes(): Promise<PrivacyContent[]> {
+export async function getDataTypes(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == "dataType"] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == 'dataType' && language == $language] | order(title asc) {
       _id,
       title,
+      titleEn,
       description,
+      descriptionEn,
       icon,
       color,
-      textColor
+      textColor,
+      language
     }`
-    return await client.fetch(query)
+    return await fetchArrayFromSanity<PrivacyContent>(query, { language });
   } catch (error) {
-    console.error('Error fetching data types from Sanity:', error)
-    return []
+    console.error('Error fetching data types from Sanity:', error);
+    return [];
   }
 }
 
-export async function getSecurityMeasures(): Promise<PrivacyContent[]> {
+export async function getSecurityMeasures(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == "securityMeasure"] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == 'securityMeasure' && language == $language] | order(title asc) {
       _id,
       title,
+      titleEn,
       description,
-      icon
+      descriptionEn,
+      icon,
+      language
     }`
-    return await client.fetch(query)
+    return await fetchArrayFromSanity<PrivacyContent>(query, { language });
   } catch (error) {
-    console.error('Error fetching security measures from Sanity:', error)
-    return []
+    console.error('Error fetching security measures from Sanity:', error);
+    return [];
   }
 }
 
@@ -530,30 +605,30 @@ export async function createPrivacyContent(privacyData: Omit<PrivacyContent, '_i
     const result = await client.create({
       _type,
       ...restData
-    })
-    return result as PrivacyContent
+    });
+    return result as PrivacyContent;
   } catch (error) {
-    console.error('Error creating privacy content in Sanity:', error)
-    throw error
+    console.error('Error creating privacy content in Sanity:', error);
+    throw error;
   }
 }
 
 export async function updatePrivacyContent(privacyId: string, privacyData: Partial<PrivacyContent>): Promise<PrivacyContent> {
   try {
-    const result = await client.patch(privacyId).set(privacyData).commit() as PrivacyContent
-    return result
+    const result = await client.patch(privacyId).set(privacyData).commit() as PrivacyContent;
+    return result;
   } catch (error) {
-    console.error('Error updating privacy content in Sanity:', error)
-    throw error
+    console.error('Error updating privacy content in Sanity:', error);
+    throw error;
   }
 }
 
 export async function deletePrivacyContent(privacyId: string): Promise<void> {
   try {
-    await client.delete(privacyId)
+    await client.delete(privacyId);
   } catch (error) {
-    console.error('Error deleting privacy content in Sanity:', error)
-    throw error
+    console.error('Error deleting privacy content in Sanity:', error);
+    throw error;
   }
 }
 
@@ -566,12 +641,14 @@ export async function fetchUserFavorites(userId: string): Promise<Favorite[]> {
       episode->{
         _id,
         title,
+        titleEn,
         slug,
         "imageUrl": thumbnail.asset->url
       },
       article->{
         _id,
         title,
+        titleEn,
         slug,
         "imageUrl": featuredImage.asset->url
       }
@@ -656,7 +733,7 @@ export async function removeFromFavorites(userId: string, contentId: string, con
   }
 }
 
-// واجهات للأنواع الأساسية
+// واجهات للأنواع الأساسية مع دعم اللغة
 export interface SanityImage {
   _type: 'image'
   asset: {
@@ -686,8 +763,13 @@ export interface Season {
   _id: string
   _type: 'season'
   title: string
+  titleEn?: string
   slug: SanitySlug
   thumbnail?: SanityImage
+  description?: string
+  descriptionEn?: string
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
 // نوع لبيانات Portable Text من Sanity
@@ -710,27 +792,36 @@ export interface Episode {
   _id: string
   _type: 'episode'
   title: string
+  titleEn?: string
   slug: SanitySlug
   description?: string
+  descriptionEn?: string
   content?: PortableTextBlock[]
+  contentEn?: PortableTextBlock[]
   videoUrl?: string
   thumbnail?: SanityImage
   season?: Season
   publishedAt?: string
-  _createdAt?: string // إضافة الخاصية المفقودة
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
 export interface Article {
   _id: string
   _type: 'article'
   title: string
+  titleEn?: string
   slug: SanitySlug
   excerpt?: string
+  excerptEn?: string
   content?: PortableTextBlock[]
+  contentEn?: PortableTextBlock[]
   featuredImage?: SanityImage
   season?: Season
+  episode?: Episode
   publishedAt?: string
-  _createdAt?: string // إضافة الخاصية المفقودة
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
 export interface Comment {
@@ -745,46 +836,53 @@ export interface Comment {
 }
 
 export interface Favorite {
-  _id?: string // تم تغييرها إلى اختيارية
+  _id?: string
   _type: 'favorite'
   userId: string
   episode?: Episode
   article?: Article
 }
 
-// واجهة لقائمة التشغيل (محدثة)
+// واجهة لقائمة التشغيل (محدثة مع دعم اللغة)
 export interface Playlist {
   _id?: string
   _type: 'playlist'
   title: string
+  titleEn?: string
   slug: SanitySlug
   description?: string
+  descriptionEn?: string
   image?: SanityImage
   episodes?: Episode[]
-  articles?: Article[] // إضافة حقل المقالات
-  _createdAt?: string // إضافة الخاصية المفقودة
+  articles?: Article[]
+  language: 'ar' | 'en'
+  _createdAt?: string
 }
 
-// واجهة لعضو الفريق
+// واجهة لعضو الفريق مع دعم اللغة
 export interface TeamMember {
   _id?: string
   _type: 'teamMember'
   name: string
+  nameEn?: string
   bio?: string
+  bioEn?: string
   image?: SanityImage
   slug: SanitySlug
-  position?: string
+  role?: string
+  roleEn?: string
   socialLinks?: {
     platform?: string
     url?: string
   }[]
+  language: 'ar' | 'en'
   _createdAt?: string
 }
 
 // واجهة للإشعارات
 export interface NotificationItem {
   id: string;
-  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy' | 'team';
+  type: 'episode' | 'article' | 'playlist' | 'faq' | 'terms' | 'privacy' | 'team' | 'season';
   title: string;
   description?: string;
   date: string;
@@ -792,12 +890,14 @@ export interface NotificationItem {
   linkUrl: string;
 }
 
-// واجهة HeroSlider
+// واجهة HeroSlider مع دعم اللغة
 export interface HeroSlider {
   _id?: string;
   _type: 'heroSlider';
   title: string;
+  titleEn?: string;
   description: string;
+  descriptionEn?: string;
   mediaType: 'image' | 'video';
   image?: SanityImage;
   video?: {
@@ -810,28 +910,33 @@ export interface HeroSlider {
   videoUrl?: string;
   link?: {
     text?: string;
+    textEn?: string;
     url?: string;
   };
-  order?: number;
+  orderRank?: number;
+  language: 'ar' | 'en'
   _createdAt?: string;
 }
 
-// دالة لجلب عناصر السلايدر
-export async function fetchHeroSliders(): Promise<HeroSlider[]> {
+// دالة لجلب عناصر السلايدر مع دعم اللغة
+export async function fetchHeroSliders(language: string = 'ar'): Promise<HeroSlider[]> {
   try {
-    const query = `*[_type == "heroSlider"] | order(order asc) {
+    const query = `*[_type == "heroSlider" && language == $language] | order(orderRank asc) {
       _id,
       title,
+      titleEn,
       description,
+      descriptionEn,
       mediaType,
       image,
       video,
       videoUrl,
       link,
-      order,
-      _createdAt
+      orderRank,
+      _createdAt,
+      language
     }`;
-    return await fetchArrayFromSanity<HeroSlider>(query);
+    return await fetchArrayFromSanity<HeroSlider>(query, { language });
   } catch (error) {
     console.error('Error fetching hero sliders from Sanity:', error);
     return [];
@@ -868,86 +973,114 @@ export function getImageUrl(slider: HeroSlider): string | null {
   return null;
 }
 
-// دالة لجلب كل الإشعارات
-export async function getAllNotifications(): Promise<NotificationItem[]> {
+// دالة لجلب كل الإشعارات مع دعم اللغة
+export async function getAllNotifications(language: string = 'ar'): Promise<NotificationItem[]> {
   try {
-    // جلب الحلقات
-    const episodesQuery = `*[_type == "episode"] | order(publishedAt desc) {
+    const lang = language || 'ar';
+    
+    // جلب الحلقات مع فلترة حسب اللغة
+    const episodesQuery = `*[_type == "episode" && language == $lang] | order(publishedAt desc) {
       _id,
       title,
+      titleEn,
       description,
+      descriptionEn,
       publishedAt,
       _createdAt,
       "imageUrl": thumbnail.asset->url,
       "slug": slug.current,
       "type": "episode"
     }`;
-    const episodes = await fetchArrayFromSanity<Episode & { type: string; slug: string; imageUrl?: string }>(episodesQuery);
+    const episodes = await fetchArrayFromSanity<Episode & { type: string; slug: string; imageUrl?: string }>(episodesQuery, { lang });
 
-    // جلب المقالات
-    const articlesQuery = `*[_type == "article"] | order(publishedAt desc) {
+    // جلب المقالات مع فلترة حسب اللغة
+    const articlesQuery = `*[_type == "article" && language == $lang] | order(publishedAt desc) {
       _id,
       title,
+      titleEn,
       excerpt,
+      excerptEn,
       publishedAt,
       _createdAt,
       "imageUrl": featuredImage.asset->url,
       "slug": slug.current,
       "type": "article"
     }`;
-    const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; imageUrl?: string }>(articlesQuery);
+    const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; imageUrl?: string }>(articlesQuery, { lang });
 
-    // جلب قوائم التشغيل
-    const playlistsQuery = `*[_type == "playlist"] | order(_createdAt desc) {
+    // جلب قوائم التشغيل مع فلترة حسب اللغة
+    const playlistsQuery = `*[_type == "playlist" && language == $lang] | order(_createdAt desc) {
       _id,
       title,
+      titleEn,
       description,
+      descriptionEn,
       _createdAt,
       "imageUrl": image.asset->url,
       "slug": slug.current,
       "type": "playlist"
     }`;
-    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery);
+    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery, { lang });
 
-    // جلب الأسئلة الشائعة
-    const faqsQuery = `*[_type == "faq"] | order(_createdAt desc) {
+    // جلب المواسم مع فلترة حسب اللغة
+    const seasonsQuery = `*[_type == "season" && language == $lang] | order(_createdAt desc) {
+      _id,
+      title,
+      titleEn,
+      description,
+      descriptionEn,
+      _createdAt,
+      "imageUrl": thumbnail.asset->url,
+      "slug": slug.current,
+      "type": "season"
+    }`;
+    const seasons = await fetchArrayFromSanity<Season & { type: string; slug: string; imageUrl?: string }>(seasonsQuery, { lang });
+
+    // جلب الأسئلة الشائعة مع فلترة حسب اللغة
+    const faqsQuery = `*[_type == "faq" && language == $lang] | order(_createdAt desc) {
       _id,
       question,
+      questionEn,
       answer,
+      answerEn,
       _createdAt,
       "type": "faq"
     }`;
-    const faqs = await fetchArrayFromSanity<FAQ & { type: string }>(faqsQuery);
+    const faqs = await fetchArrayFromSanity<FAQ & { type: string }>(faqsQuery, { lang });
 
-    // جلب الشروط والأحكام
-    const termsQuery = `*[_type == "termsContent"] | order(_createdAt desc) {
+    // جلب الشروط والأحكام مع فلترة حسب اللغة
+    const termsQuery = `*[_type == "termsContent" && language == $lang] | order(_createdAt desc) {
       _id,
       title,
+      titleEn,
       _createdAt,
       "type": "terms"
     }`;
-    const terms = await fetchArrayFromSanity<TermsContent & { type: string }>(termsQuery);
+    const terms = await fetchArrayFromSanity<TermsContent & { type: string }>(termsQuery, { lang });
 
-    // جلب سياسة الخصوصية
-    const privacyQuery = `*[_type == "privacyContent"] | order(_createdAt desc) {
+    // جلب سياسة الخصوصية مع فلترة حسب اللغة
+    const privacyQuery = `*[_type == "privacyContent" && language == $lang] | order(_createdAt desc) {
       _id,
       title,
+      titleEn,
       _createdAt,
       "type": "privacy"
     }`;
-    const privacy = await fetchArrayFromSanity<PrivacyContent & { type: string }>(privacyQuery);
+    const privacy = await fetchArrayFromSanity<PrivacyContent & { type: string }>(privacyQuery, { lang });
 
-    // جلب أعضاء الفريق
-    const teamQuery = `*[_type == "teamMember"] | order(_createdAt desc) {
+    // جلب أعضاء الفريق مع فلترة حسب اللغة
+    const teamQuery = `*[_type == "teamMember" && language == $lang] | order(_createdAt desc) {
       _id,
       name,
+      nameEn,
       bio,
+      bioEn,
       _createdAt,
       "imageUrl": image.asset->url,
       "slug": slug.current,
       "type": "team"
     }`;
-    const teamMembers = await fetchArrayFromSanity<TeamMember & { type: string; slug: string; imageUrl?: string }>(teamQuery);
+    const teamMembers = await fetchArrayFromSanity<TeamMember & { type: string; slug: string; imageUrl?: string }>(teamQuery, { lang });
 
     // دالة للحصول على تاريخ صالح
     const getValidDate = (date1?: string, date2?: string) => {
@@ -961,12 +1094,17 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
       return date;
     };
 
+    // دالة للحصول على النص المناسب بناءً على اللغة
+    const getText = (arText?: string, enText?: string) => {
+      return lang === 'ar' ? (arText || '') : (enText || '');
+    };
+
     // تحويل البيانات إلى تنسيق موحد للإشعارات
     const episodeNotifications: NotificationItem[] = episodes.map(ep => ({
       id: ep._id,
       type: 'episode' as const,
-      title: ep.title,
-      description: ep.description,
+      title: getText(ep.title, ep.titleEn),
+      description: getText(ep.description, ep.descriptionEn),
       date: getValidDate(ep.publishedAt, ep._createdAt),
       imageUrl: ep.imageUrl,
       linkUrl: `/episodes/${ep.slug}`
@@ -975,44 +1113,54 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
     const articleNotifications: NotificationItem[] = articles.map(article => ({
       id: article._id,
       type: 'article' as const,
-      title: article.title,
-      description: article.excerpt,
+      title: getText(article.title, article.titleEn),
+      description: getText(article.excerpt, article.excerptEn),
       date: getValidDate(article.publishedAt, article._createdAt),
       imageUrl: article.imageUrl,
       linkUrl: `/articles/${article.slug}`
     }));
 
     const playlistNotifications: NotificationItem[] = playlists.map(playlist => ({
-      id: playlist._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      id: playlist._id || '',
       type: 'playlist' as const,
-      title: playlist.title,
-      description: playlist.description,
+      title: getText(playlist.title, playlist.titleEn),
+      description: getText(playlist.description, playlist.descriptionEn),
       date: getValidDate(playlist._createdAt),
       imageUrl: playlist.imageUrl,
       linkUrl: `/playlists/${playlist.slug}`
     }));
 
+    const seasonNotifications: NotificationItem[] = seasons.map(season => ({
+      id: season._id || '',
+      type: 'season' as const,
+      title: getText(season.title, season.titleEn),
+      description: getText(season.description, season.descriptionEn),
+      date: getValidDate(season._createdAt),
+      imageUrl: season.imageUrl,
+      linkUrl: `/seasons/${season.slug}`
+    }));
+
     const faqNotifications: NotificationItem[] = faqs.map(faq => ({
-      id: faq._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      id: faq._id || '',
       type: 'faq' as const,
-      title: faq.question,
-      description: faq.answer,
+      title: getText(faq.question, faq.questionEn),
+      description: getText(faq.answer, faq.answerEn),
       date: getValidDate(faq._createdAt),
-      linkUrl: `/faq#${faq._id}`
+      linkUrl: `/faq?faq=${faq._id}`
     }));
 
     const termsNotifications: NotificationItem[] = terms.map(term => ({
-      id: term._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      id: term._id || '',
       type: 'terms' as const,
-      title: term.title || 'شروط وأحكام',
+      title: getText(term.title, term.titleEn) || (lang === 'ar' ? 'شروط وأحكام' : 'Terms & Conditions'),
       date: getValidDate(term._createdAt),
       linkUrl: `/terms#${term._id}`
     }));
 
     const privacyNotifications: NotificationItem[] = privacy.map(priv => ({
-      id: priv._id || '', // استخدام قيمة افتراضية إذا كان _id غير موجود
+      id: priv._id || '',
       type: 'privacy' as const,
-      title: priv.title || 'سياسة الخصوصية',
+      title: getText(priv.title, priv.titleEn) || (lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'),
       date: getValidDate(priv._createdAt),
       linkUrl: `/privacy#${priv._id}`
     }));
@@ -1020,8 +1168,8 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
     const teamNotifications: NotificationItem[] = teamMembers.map(member => ({
       id: member._id || '',
       type: 'team' as const,
-      title: `عضو جديد في الفريق: ${member.name}`,
-      description: member.bio,
+      title: lang === 'ar' ? `عضو جديد في الفريق: ${getText(member.name, member.nameEn)}` : `New team member: ${getText(member.name, member.nameEn)}`,
+      description: getText(member.bio, member.bioEn),
       date: getValidDate(member._createdAt),
       imageUrl: member.imageUrl,
       linkUrl: `/team/${member.slug}`
@@ -1032,10 +1180,11 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
       ...episodeNotifications,
       ...articleNotifications,
       ...playlistNotifications,
+      ...seasonNotifications,
       ...faqNotifications,
       ...termsNotifications,
       ...privacyNotifications,
-      ...teamNotifications // إضافة إشعارات الفريق
+      ...teamNotifications
     ];
 
     // ترتيب الإشعارات حسب التاريخ (الأحدث أولاً)
@@ -1046,6 +1195,127 @@ export async function getAllNotifications(): Promise<NotificationItem[]> {
     console.error('Error fetching notifications:', error);
     return [];
   }
+}
+
+// دوال جديدة لجلب الحلقات والمقالات مع دعم اللغة
+export async function fetchEpisodes(language: string = 'ar'): Promise<Episode[]> {
+  try {
+    const query = `*[_type == "episode" && language == $language] | order(publishedAt desc) {
+      _id,
+      title,
+      titleEn,
+      slug,
+      description,
+      descriptionEn,
+      content,
+      contentEn,
+      videoUrl,
+      thumbnail,
+      season->,
+      publishedAt,
+      language
+    }`;
+    return await fetchArrayFromSanity<Episode>(query, { language });
+  } catch (error) {
+    console.error('Error fetching episodes from Sanity:', error);
+    return [];
+  }
+}
+
+export async function fetchArticles(language: string = 'ar'): Promise<Article[]> {
+  try {
+    const query = `*[_type == "article" && language == $language] | order(publishedAt desc) {
+      _id,
+      title,
+      titleEn,
+      slug,
+      excerpt,
+      excerptEn,
+      content,
+      contentEn,
+      featuredImage,
+      season->,
+      episode->,
+      publishedAt,
+      language
+    }`;
+    return await fetchArrayFromSanity<Article>(query, { language });
+  } catch (error) {
+    console.error('Error fetching articles from Sanity:', error);
+    return [];
+  }
+}
+
+export async function fetchSeasons(language: string = 'ar'): Promise<Season[]> {
+  try {
+    const query = `*[_type == "season" && language == $language] | order(_createdAt desc) {
+      _id,
+      title,
+      titleEn,
+      slug,
+      thumbnail,
+      description,
+      descriptionEn,
+      language,
+      _createdAt
+    }`;
+    return await fetchArrayFromSanity<Season>(query, { language });
+  } catch (error) {
+    console.error('Error fetching seasons from Sanity:', error);
+    return [];
+  }
+}
+
+export async function fetchArticlesBySeason(seasonId: string, language: string = 'ar'): Promise<Article[]> {
+  try {
+    const query = `*[_type == "article" && season._ref == $seasonId && language == $language] | order(publishedAt desc) {
+      _id,
+      title,
+      titleEn,
+      slug,
+      excerpt,
+      excerptEn,
+      content,
+      contentEn,
+      featuredImage,
+      season->,
+      episode->,
+      publishedAt,
+      language
+    }`;
+    return await fetchArrayFromSanity<Article>(query, { seasonId, language });
+  } catch (error) {
+    console.error('Error fetching articles by season from Sanity:', error);
+    return [];
+  }
+}
+
+export async function fetchTeamMembers(language: string = 'ar'): Promise<TeamMember[]> {
+  try {
+    const query = `*[_type == "teamMember" && language == $language] | order(_createdAt desc) {
+      _id,
+      name,
+      nameEn,
+      bio,
+      bioEn,
+      image,
+      slug,
+      role,
+      roleEn,
+      socialLinks,
+      language,
+      _createdAt
+    }`;
+    return await fetchArrayFromSanity<TeamMember>(query, { language });
+  } catch (error) {
+    console.error('Error fetching team members from Sanity:', error);
+    return [];
+  }
+}
+
+// دالة مساعدة للحصول على النص المناسب بناءً على اللغة
+export function getLocalizedText(arText?: string, enText?: string, language: string = 'ar'): string {
+  return language === 'ar' ? (arText || '') : (enText || '');
 }
 
 // إضافة هذا السطر لتجنب المشاكل مع الـ Dynamic Server Usage

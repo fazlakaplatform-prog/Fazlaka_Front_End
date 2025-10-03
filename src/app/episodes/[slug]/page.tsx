@@ -15,15 +15,14 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
-import { client } from "@/lib/sanity";
-import imageUrlBuilder from '@sanity/image-url';
+import { client, urlForImage, fetchFromSanity, fetchArrayFromSanity } from "@/lib/sanity";
 import FavoriteButton from "@/components/FavoriteButton";
+import { useLanguage } from "@/components/LanguageProvider";
+import { getLocalizedText } from "@/lib/sanity";
 
-import { FaPlay, FaShare, FaArrowLeft, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive } from "react-icons/fa";
+import { FaPlay, FaShare, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive } from "react-icons/fa";
 
-const builder = imageUrlBuilder(client);
-
-// تعريف الأنواع مباشرة في الملف
+// تعريف الأنواع مباشرة في الملف مع دعم اللغة
 interface SanityImage {
   _type: "image";
   asset: {
@@ -34,29 +33,39 @@ interface SanityImage {
 
 interface Season {
   _id: string;
-  title: string;
+  title?: string;
+  titleEn?: string;
   slug?: { current: string };
   thumbnail?: SanityImage | string;
+  language?: 'ar' | 'en';
 }
 
 interface Episode {
   _id: string;
-  title: string;
+  title?: string;
+  titleEn?: string;
   slug: { current: string };
   description?: string | SanityBlock[];
+  descriptionEn?: string | SanityBlock[];
   content?: string | SanityBlock[];
+  contentEn?: string | SanityBlock[];
   videoUrl?: string;
   thumbnail?: SanityImage | string;
   season?: Season;
   articles?: Article[];
+  publishedAt?: string;
+  language?: 'ar' | 'en';
 }
 
 interface Article {
   _id: string;
-  title: string;
+  title?: string;
+  titleEn?: string;
   slug: { current: string };
   excerpt?: string;
+  excerptEn?: string;
   featuredImage?: SanityImage | string;
+  language?: 'ar' | 'en';
 }
 
 interface Comment {
@@ -80,6 +89,86 @@ interface SanitySpan {
   _type?: "span" | "link";
   href?: string;
 }
+
+// كائن الترجمات
+const translations = {
+  ar: {
+    loading: "جارٍ التحميل...",
+    error: "حدث خطأ",
+    notFound: "لم تُعثر على الحلقة",
+    backToHome: "العودة إلى الرئيسية",
+    newEpisode: "حلقة جديدة",
+    featured: "مميز",
+    share: "مشاركة",
+    aboutEpisode: "نبذة عن الحلقة",
+    content: "المحتوى",
+    season: "الموسم",
+    suggestedEpisodes: "حلقات مقترحة",
+    relatedArticles: "مقالات مرتبطة",
+    comments: "التعليقات",
+    noComments: "لا توجد تعليقات بعد.",
+    signInToComment: "يجب تسجيل الدخول لكي تتمكن من إرسال تعليق.",
+    signIn: "تسجيل الدخول",
+    writeComment: "اكتب تعليقك هنا...",
+    sendComment: "أرسل التعليق",
+    sending: "جاري الإرسال...",
+    commentSent: "تم إرسال تعليقك بنجاح!",
+    writeCommentBeforeSend: "اكتب تعليقاً قبل الإرسال.",
+    noPermission: "ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة.",
+    unexpectedError: "حدث خطأ غير متوقع أثناء الإرسال",
+    viewAllEpisodes: "عرض جميع الحلقات",
+    clickToViewSeason: "اضغط لعرض حلقات الموسم",
+    readArticle: "قراءة المقال",
+    viewAllArticles: "عرض جميع المقالات",
+    episode: "حلقة",
+    article: "مقال",
+    document: "مستند",
+    image: "صورة",
+    openInDrive: "فتح في Google Drive",
+    openImage: "فتح الصورة",
+    noTitle: "بدون عنوان",
+    noSeason: "بدون موسم",
+    readMore: "اقرأ المزيد..."
+  },
+  en: {
+    loading: "Loading...",
+    error: "An error occurred",
+    notFound: "Episode not found",
+    backToHome: "Back to Home",
+    newEpisode: "New Episode",
+    featured: "Featured",
+    share: "Share",
+    aboutEpisode: "About the Episode",
+    content: "Content",
+    season: "Season",
+    suggestedEpisodes: "Suggested Episodes",
+    relatedArticles: "Related Articles",
+    comments: "Comments",
+    noComments: "No comments yet.",
+    signInToComment: "You must be signed in to post a comment.",
+    signIn: "Sign In",
+    writeComment: "Write your comment here...",
+    sendComment: "Send Comment",
+    sending: "Sending...",
+    commentSent: "Your comment has been sent successfully!",
+    writeCommentBeforeSend: "Write a comment before sending.",
+    noPermission: "You don't have permission to post comments. Please contact the administrator.",
+    unexpectedError: "An unexpected error occurred while sending",
+    viewAllEpisodes: "View All Episodes",
+    clickToViewSeason: "Click to view season episodes",
+    readArticle: "Read Article",
+    viewAllArticles: "View All Articles",
+    episode: "Episode",
+    article: "Article",
+    document: "Document",
+    image: "Image",
+    openInDrive: "Open in Google Drive",
+    openImage: "Open Image",
+    noTitle: "No Title",
+    noSeason: "No Season",
+    readMore: "Read more..."
+  }
+};
 
 // دالة محسّنة لتحويل محتوى الكتل من Sanity إلى نص مع الحفاظ على جميع التنسيقات
 function blocksToText(blocks: SanityBlock[]): string {
@@ -207,7 +296,7 @@ function toEmbed(url: string): string {
   }
 }
 
-// مكون التعليقات المدمج
+// مكون التعليقات المدمج مع دعم اللغة
 function CommentsClient({ 
   contentId, 
   type = "episode" 
@@ -215,6 +304,8 @@ function CommentsClient({
   contentId: string; 
   type?: "article" | "episode" 
 }) {
+  const { language } = useLanguage();
+  const t = translations[language];
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -246,11 +337,11 @@ function CommentsClient({
     setErrorMsg(null);
     setSuccessMsg(null);
     if (!content.trim()) {
-      setErrorMsg("اكتب تعليقاً قبل الإرسال.");
+      setErrorMsg(t.writeCommentBeforeSend);
       return;
     }
     if (!user) {
-      setErrorMsg("يجب تسجيل الدخول لإرسال تعليق.");
+      setErrorMsg(t.signInToComment);
       return;
     }
     setLoading(true);
@@ -273,7 +364,7 @@ function CommentsClient({
       if (apiResponse.ok) {
         const data = await apiResponse.json();
         console.log("Comment created via API:", data);
-        setSuccessMsg("تم إرسال تعليقك بنجاح!");
+        setSuccessMsg(t.commentSent);
         setContent("");
         fetchComments();
         setLoading(false);
@@ -299,19 +390,19 @@ function CommentsClient({
       const result = await client.create(newComment);
       console.log("Comment created directly:", result);
       
-      setSuccessMsg("تم إرسال تعليقك بنجاح!");
+      setSuccessMsg(t.commentSent);
       setContent("");
       fetchComments();
     } catch (err: unknown) {
       console.error("خطأ غير متوقع في الإرسال:", err);
       if (err instanceof Error) {
         if (err.message.includes("Insufficient permissions")) {
-          setErrorMsg("ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة.");
+          setErrorMsg(t.noPermission);
         } else {
-          setErrorMsg(`حدث خطأ غير متوقع أثناء الإرسال: ${err.message}`);
+          setErrorMsg(`${t.unexpectedError}: ${err.message}`);
         }
       } else {
-        setErrorMsg("حدث خطأ غير متوقع أثناء الإرسال.");
+        setErrorMsg(t.unexpectedError);
       }
     } finally {
       setLoading(false);
@@ -322,12 +413,12 @@ function CommentsClient({
     <div className="mt-6 border rounded p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
       <SignedOut>
         <div className="mb-4">
-          <p className="mb-2">يجب تسجيل الدخول لكي تتمكن من إرسال تعليق.</p>
+          <p className="mb-2">{t.signInToComment}</p>
           <Link
             href="/sign-in"
             className="px-3 py-2 bg-blue-600 dark:bg-blue-500 hover:opacity-95 text-white rounded inline-block"
           >
-            تسجيل الدخول
+            {t.signIn}
           </Link>
         </div>
       </SignedOut>
@@ -338,7 +429,7 @@ function CommentsClient({
             onChange={(e) => setContent(e.target.value)}
             rows={4}
             className="w-full border p-2 rounded mb-2 bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-            placeholder="اكتب تعليقك هنا..."
+            placeholder={t.writeComment}
             required
             disabled={loading}
             aria-label="تعليق"
@@ -354,7 +445,7 @@ function CommentsClient({
               }`}
               aria-busy={loading}
             >
-              {loading ? "جاري الإرسال..." : "أرسل التعليق"}
+              {loading ? t.sending : t.sendComment}
             </button>
             {errorMsg && (
               <p className="text-sm text-red-600 dark:text-red-400 break-words max-w-xl">{errorMsg}</p>
@@ -366,7 +457,7 @@ function CommentsClient({
         </form>
       </SignedIn>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">لا توجد تعليقات بعد.</p>}
+        {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">{t.noComments}</p>}
         {comments.map((c: Comment) => {
           const createdAt = new Date(c.createdAt);
           return (
@@ -388,6 +479,8 @@ function CommentsClient({
 export default function EpisodeDetailPageClient() {
   const params = useParams();
   const router = useRouter();
+  const { isRTL, language } = useLanguage();
+  const t = translations[language];
   const rawSlug = params?.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
   const [episode, setEpisode] = useState<Episode | null>(null);
@@ -404,48 +497,71 @@ export default function EpisodeDetailPageClient() {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 400], [0, 100]);
   
-  // دالة للتعامل مع صور Sanity بشكل صحيح
-  const getThumbnailUrl = (thumbnail?: SanityImage | string, width?: number, height?: number) => {
+  // دالة محسّنة للتعامل مع صور Sanity بشكل صحيح
+  const getThumbnailUrl = useCallback((thumbnail?: SanityImage | string, width?: number, height?: number): string => {
     if (!thumbnail) return "/placeholder.png";
     
+    // إذا كان الرابط نصياً، أرجعه كما هو
     if (typeof thumbnail === 'string') {
       return thumbnail;
     }
     
+    // إذا كان كائن صورة من Sanity
     try {
-      let imageUrl = builder.image(thumbnail);
+      const imageBuilder = urlForImage(thumbnail);
       
-      if (width && height) {
-        imageUrl = imageUrl.width(width).height(height);
+      // تحقق مما إذا كان imageBuilder يحتوي على الطرق المتوقعة
+      if (width && height && 
+          typeof imageBuilder === 'object' && 
+          imageBuilder !== null && 
+          'width' in imageBuilder && 
+          'height' in imageBuilder && 
+          'url' in imageBuilder) {
+        // استخدام type assertion للإشارة إلى أن imageBuilder يحتوي على هذه الطرق
+        const builder = imageBuilder as {
+          width: (w: number) => { height: (h: number) => { url: () => string } };
+          height: (h: number) => { url: () => string };
+          url: () => string;
+        };
+        return builder.width(width).height(height).url();
       }
       
-      return imageUrl.url();
+      // إذا لم يكن يحتوي على الطرق المتوقعة، استخدم url() مباشرة
+      if (typeof imageBuilder === 'object' && 
+          imageBuilder !== null && 
+          'url' in imageBuilder && 
+          typeof imageBuilder.url === 'function') {
+        return imageBuilder.url();
+      }
+      
+      // إذا لم يكن كائنًا أو لم يكن لديه طريقة url، ارجع صورة افتراضية
+      return "/placeholder.png";
     } catch (error) {
       console.error("Error generating Sanity image URL:", error);
       return "/placeholder.png";
     }
-  };
+  }, []);
   
   // دالة لتحديد ما إذا كان النص يحتوي على رابط فيديو
-  const isVideoUrl = (text: string) => {
+  const isVideoUrl = useCallback((text: string) => {
     const videoUrlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/|.*\.(?:mp4|webm|ogg))[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
     return videoUrlRegex.test(text);
-  };
+  }, []);
 
   // دالة لتحديد ما إذا كان النص يحتوي على رابط PDF
-  const isPdfUrl = (text: string) => {
+  const isPdfUrl = useCallback((text: string) => {
     const pdfUrlRegex = /(https?:\/\/(?:www\.)?(?:drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+|.*\.pdf)[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
     return pdfUrlRegex.test(text);
-  };
+  }, []);
 
   // دالة لتحديد ما إذا كان النص يحتوي على رابط صورة
-  const isImageUrl = (text: string) => {
+  const isImageUrl = useCallback((text: string) => {
     const imageUrlRegex = /(https?:\/\/(?:www\.)?(?:.*\.(?:jpg|jpeg|png|gif|webp|svg))[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
     return imageUrlRegex.test(text);
-  };
+  }, []);
 
   // دالة لتحويل رابط Google Drive إلى رابط عرض مباشر
-  const getDirectGoogleDriveLink = (url: string) => {
+  const getDirectGoogleDriveLink = useCallback((url: string) => {
     // تحويل روابط Google Drive إلى روابط عرض مباشر
     const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (driveMatch) {
@@ -460,10 +576,10 @@ export default function EpisodeDetailPageClient() {
     
     // إذا لم يكن أي من الأنواع المعروفة، نرجع الرابط الأصلي
     return url;
-  };
+  }, []);
 
   // دالة لعرض الفيديو بناءً على الرابط
-  const renderVideo = (url: string) => {
+  const renderVideo = useCallback((url: string) => {
     // YouTube
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       let videoId = '';
@@ -536,10 +652,10 @@ export default function EpisodeDetailPageClient() {
         {url}
       </a>
     );
-  };
+  }, []);
 
   // دالة لعرض PDF بناءً على الرابط
-  const renderPdf = (url: string) => {
+  const renderPdf = useCallback((url: string) => {
     const directUrl = getDirectGoogleDriveLink(url);
     
     return (
@@ -549,7 +665,7 @@ export default function EpisodeDetailPageClient() {
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white shadow-lg">
               <FaFileAlt className="text-sm" />
             </div>
-            <h3 className="text-lg font-bold">عرض المستند</h3>
+            <h3 className="text-lg font-bold">{t.document}</h3>
           </div>
           <a 
             href={url} 
@@ -558,7 +674,7 @@ export default function EpisodeDetailPageClient() {
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
           >
             <FaGoogleDrive />
-            <span>فتح في Google Drive</span>
+            <span>{t.openInDrive}</span>
           </a>
         </div>
         <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700" style={{ paddingBottom: '75%' }}>
@@ -572,19 +688,17 @@ export default function EpisodeDetailPageClient() {
         </div>
       </div>
     );
-  };
+  }, [getDirectGoogleDriveLink, t.document, t.openInDrive]);
 
   // دالة لعرض الصورة بناءً على الرابط
-  const renderImage = (url: string | SanityImage) => {
+  const renderImage = useCallback((url: string | SanityImage) => {
+    let imageUrl: string;
+    
     // إذا كان الرابط هو كائن صورة من Sanity
     if (typeof url === 'object' && url !== null) {
-      try {
-        const imageUrl = builder.image(url).width(800).height(450).url();
-        url = imageUrl;
-      } catch (error) {
-        console.error("Error processing Sanity image:", error);
-        return "/placeholder.png";
-      }
+      imageUrl = getThumbnailUrl(url, 800, 450);
+    } else {
+      imageUrl = url as string;
     }
     
     return (
@@ -594,21 +708,21 @@ export default function EpisodeDetailPageClient() {
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
               <FaImage className="text-sm" />
             </div>
-            <h3 className="text-lg font-bold">صورة</h3>
+            <h3 className="text-lg font-bold">{t.image}</h3>
           </div>
           <a 
-            href={url as string} 
+            href={imageUrl} 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
           >
             <FaImage />
-            <span>فتح الصورة</span>
+            <span>{t.openImage}</span>
           </a>
         </div>
         <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700">
           <Image
-            src={url as string}
+            src={imageUrl}
             alt="صورة من المحتوى"
             width={800}
             height={450}
@@ -618,43 +732,10 @@ export default function EpisodeDetailPageClient() {
         </div>
       </div>
     );
-  };
-
-  // مكون مخصص لعرض الروابط في ReactMarkdown
-  const LinkRenderer = ({ href, children, ...props }: {href?: string; children?: React.ReactNode}) => {
-    if (!href) return <span {...props}>{children}</span>;
-    
-    // التحقق إذا كان الرابط هو فيديو
-    if (isVideoUrl(href)) {
-      return renderVideo(href);
-    }
-    
-    // التحقق إذا كان الرابط هو PDF
-    if (isPdfUrl(href)) {
-      return renderPdf(href);
-    }
-    
-    // التحقق إذا كان الرابط هو صورة
-    if (isImageUrl(href)) {
-      return renderImage(href);
-    }
-    
-    // إذا لم يكن أي من الأنواع، عرض الرابط كالمعتاد
-    return (
-      <a 
-        href={href} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="text-blue-600 dark:text-blue-400 hover:underline"
-        {...props}
-      >
-        {children}
-      </a>
-    );
-  };
+  }, [getThumbnailUrl, t.image, t.openImage]);
 
   // دالة محسّنة لمعالجة المحتوى مع الحفاظ على جميع التنسيقات
-  const processContent = (content: string) => {
+  const processContent = useCallback((content: string): JSX.Element[] => {
     if (!content) return [];
     
     // معالجة الروابط المضمنة في النص دون تقسيم المحتوى
@@ -735,7 +816,38 @@ export default function EpisodeDetailPageClient() {
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw, rehypeSanitize]}
                         components={{
-                          a: LinkRenderer,
+                          a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+                            const { href, children, ...rest } = props;
+                            if (!href) return <span {...rest}>{children}</span>;
+                            
+                            // التحقق إذا كان الرابط هو فيديو
+                            if (isVideoUrl(href)) {
+                              return renderVideo(href);
+                            }
+                            
+                            // التحقق إذا كان الرابط هو PDF
+                            if (isPdfUrl(href)) {
+                              return renderPdf(href);
+                            }
+                            
+                            // التحقق إذا كان الرابط هو صورة
+                            if (isImageUrl(href)) {
+                              return renderImage(href);
+                            }
+                            
+                            // إذا لم يكن أي من الأنواع، عرض الرابط كالمعتاد
+                            return (
+                              <a 
+                                href={href} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                                {...rest}
+                              >
+                                {children}
+                              </a>
+                            );
+                          },
                           strong: ({ ...props }) => <strong className="font-bold" {...props} />,
                           em: ({ ...props }) => <em className="italic" {...props} />,
                           u: ({ ...props }) => <u className="underline" {...props} />,
@@ -790,7 +902,38 @@ export default function EpisodeDetailPageClient() {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw, rehypeSanitize]}
                 components={{
-                  a: LinkRenderer,
+                  a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+                    const { href, children, ...rest } = props;
+                    if (!href) return <span {...rest}>{children}</span>;
+                    
+                    // التحقق إذا كان الرابط هو فيديو
+                    if (isVideoUrl(href)) {
+                      return renderVideo(href);
+                    }
+                    
+                    // التحقق إذا كان الرابط هو PDF
+                    if (isPdfUrl(href)) {
+                      return renderPdf(href);
+                    }
+                    
+                    // التحقق إذا كان الرابط هو صورة
+                    if (isImageUrl(href)) {
+                      return renderImage(href);
+                    }
+                    
+                    // إذا لم يكن أي من الأنواع، عرض الرابط كالمعتاد
+                    return (
+                      <a 
+                        href={href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                        {...rest}
+                      >
+                        {children}
+                      </a>
+                    );
+                  },
                   strong: ({ ...props }) => <strong className="font-bold" {...props} />,
                   em: ({ ...props }) => <em className="italic" {...props} />,
                   u: ({ ...props }) => <u className="underline" {...props} />,
@@ -817,7 +960,7 @@ export default function EpisodeDetailPageClient() {
     });
     
     return result;
-  };
+  }, [isVideoUrl, isPdfUrl, isImageUrl, renderVideo, renderPdf, renderImage]);
   
   useEffect(() => {
     let mounted = true;
@@ -829,46 +972,53 @@ export default function EpisodeDetailPageClient() {
       setArticles([]);
       try {
         if (!slug) {
-          setError("لم يتم تحديد الحلقة");
+          setError(t.error);
           setLoading(false);
           return;
         }
         
         // Fetch episode with related articles
-        const episodeQuery = `*[_type == "episode" && slug.current == $slug][0]{
+        const episodeQuery = `*[_type == "episode" && slug.current == $slug && language == $language][0]{
           _id,
           title,
+          titleEn,
           slug,
           description,
+          descriptionEn,
           content,
+          contentEn,
           videoUrl,
           thumbnail,
           season->{
             _id,
             title,
+            titleEn,
             slug,
             thumbnail
           },
           articles[]-> {
             _id,
             title,
+            titleEn,
             slug,
             excerpt,
+            excerptEn,
             featuredImage
           }
         }`;
-        const ep = await client.fetch(episodeQuery, { slug });
+        const ep = await fetchFromSanity<Episode>(episodeQuery, { slug, language });
         
-        if (!ep) throw new Error("الحلقة غير موجودة");
+        if (!ep) throw new Error(t.notFound);
         
         // Fetch suggested episodes
-        const suggestedQuery = `*[_type == "episode" && _id != $id && !(_id in path("drafts.**"))][0...20]{
+        const suggestedQuery = `*[_type == "episode" && _id != $id && language == $language && !(_id in path("drafts.**"))][0...20]{
           _id,
           title,
+          titleEn,
           slug,
           thumbnail
         } | order(_createdAt desc)`;
-        const suggestedEpisodes = await client.fetch(suggestedQuery, { id: ep._id });
+        const suggestedEpisodes = await fetchArrayFromSanity<Episode>(suggestedQuery, { id: ep._id, language });
         
         if (mounted) {
           setEpisode(ep);
@@ -880,7 +1030,7 @@ export default function EpisodeDetailPageClient() {
         }
       } catch (e: unknown) {
         if (mounted) {
-          setError(e instanceof Error ? e.message : "خطأ غير معروف");
+          setError(e instanceof Error ? e.message : t.error);
           setLoading(false);
         }
       }
@@ -890,7 +1040,7 @@ export default function EpisodeDetailPageClient() {
     return () => {
       mounted = false;
     };
-  }, [slug]);
+  }, [slug, language, t.error, t.notFound]);
   
   if (loading)
     return (
@@ -908,30 +1058,49 @@ export default function EpisodeDetailPageClient() {
           onClick={() => router.push("/")}
           className="text-blue-600 hover:underline"
         >
-          العودة إلى الرئيسية
+          {t.backToHome}
         </button>
       </div>
     );
-  if (!episode) return <div className="p-8 text-center">لم تُعثر على الحلقة.</div>;
+  if (!episode) return <div className="p-8 text-center">{t.notFound}</div>;
   
-  const title = episode.title || "بدون عنوان";
-  const description = episode.description || "";
-  const content = episode.content || "";
+  const title = getLocalizedText(episode.title, episode.titleEn, language) || t.noTitle;
+  
+  // Convert SanityBlock[] to string before passing to getLocalizedText
+  const description = typeof episode.description === 'string' 
+    ? getLocalizedText(episode.description, typeof episode.descriptionEn === 'string' ? episode.descriptionEn : undefined, language) || ""
+    : blocksToText(episode.description || []);
+  
+  const content = typeof episode.content === 'string' 
+    ? getLocalizedText(episode.content, typeof episode.contentEn === 'string' ? episode.contentEn : undefined, language) || ""
+    : blocksToText(episode.content || []);
+  
   const videoUrl = episode.videoUrl || "";
   const embedUrl = toEmbed(videoUrl);
   const season = episode.season;
-  const seasonTitle = season?.title || "بدون موسم";
+  const seasonTitle = getLocalizedText(season?.title, season?.titleEn, language) || t.noSeason;
   const seasonSlug = season?.slug?.current || season?._id;
   
   const thumbnailUrl = getThumbnailUrl(episode.thumbnail, 1200, 630);
   const seasonThumbnailUrl = getThumbnailUrl(season?.thumbnail, 400, 300);
   
   // معالجة المحتوى
-  const processedDescription = processContent(typeof description === 'string' ? description : blocksToText(description));
-  const processedContent = content ? processContent(typeof content === 'string' ? content : blocksToText(content)) : [];
+  const processedDescription = processContent(description);
+  const processedContent = content ? processContent(content) : [];
+  
+  // Function to format date based on language
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
   
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen">
+    <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* HERO */}
       <header className="relative w-full overflow-hidden shadow-2xl">
         <motion.div
@@ -954,7 +1123,7 @@ export default function EpisodeDetailPageClient() {
             />
           </motion.div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
-          <div className="absolute bottom-0 right-0 p-4 md:p-6 lg:p-10 text-right w-full">
+          <div className={`absolute bottom-0 ${isRTL ? 'right-0' : 'left-0'} p-4 md:p-6 lg:p-10 text-${isRTL ? 'right' : 'left'} w-full`}>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
@@ -963,11 +1132,11 @@ export default function EpisodeDetailPageClient() {
             >
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-full text-xs font-bold text-white shadow-lg">
-                  حلقة جديدة
+                  {t.newEpisode}
                 </span>
                 <span className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-xs font-bold text-white shadow-lg">
                   <FaStar className="text-yellow-300" />
-                  مميز
+                  {t.featured}
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl lg:text-5xl font-extrabold leading-tight tracking-wide bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent animate-gradient">
@@ -979,6 +1148,12 @@ export default function EpisodeDetailPageClient() {
                 </p>
                 <div className="h-1 w-6 md:w-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full"></div>
               </div>
+              {episode.publishedAt && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-gray-300">
+                  <FaClock />
+                  <span>{formatDate(episode.publishedAt)}</span>
+                </div>
+              )}
             </motion.div>
           </div>
         </motion.div>
@@ -1047,7 +1222,7 @@ export default function EpisodeDetailPageClient() {
                     className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <FaShare className="text-base md:text-lg" />
-                    <span className="font-medium text-sm md:text-base">مشاركة</span>
+                    <span className="font-medium text-sm md:text-base">{t.share}</span>
                   </motion.button>
                 )}
               </div>
@@ -1067,7 +1242,7 @@ export default function EpisodeDetailPageClient() {
                   <FaPlay className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
-                  نبذة عن الحلقة
+                  {t.aboutEpisode}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
               </div>
@@ -1094,7 +1269,7 @@ export default function EpisodeDetailPageClient() {
                     <FaPlay className="text-xs md:text-sm" />
                   </div>
                   <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-700 bg-clip-text text-transparent">
-                    المحتوى
+                    {t.content}
                   </h2>
                   <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
                 </div>
@@ -1120,7 +1295,7 @@ export default function EpisodeDetailPageClient() {
                 <FaClock className="text-xs md:text-sm" />
               </div>
               <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">
-                الموسم
+                {t.season}
               </h2>
               <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
             </div>
@@ -1142,14 +1317,14 @@ export default function EpisodeDetailPageClient() {
                     sizes="100vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-start p-3 md:p-4">
-                    <span className="text-white font-bold text-sm md:text-base md:text-lg">عرض جميع الحلقات</span>
+                    <span className="text-white font-bold text-sm md:text-base md:text-lg">{t.viewAllEpisodes}</span>
                   </div>
                 </div>
                 <div className="p-4 md:p-5">
                   <h3 className="text-lg md:text-xl font-bold mb-2">{seasonTitle}</h3>
                   <div className="flex items-center justify-between">
                     <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                      اضغط لعرض حلقات الموسم
+                      {t.clickToViewSeason}
                     </p>
                     <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white">
                       <FaPlay className="text-xs md:text-sm ml-1" />
@@ -1173,7 +1348,7 @@ export default function EpisodeDetailPageClient() {
                   <FaPlay className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-700 bg-clip-text text-transparent">
-                  حلقات مقترحة
+                  {t.suggestedEpisodes}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
               </div>
@@ -1232,7 +1407,8 @@ export default function EpisodeDetailPageClient() {
                   className="py-6 md:py-8 overflow-visible"
                 >
                   {suggested.map((item) => {
-                    const thumbnailUrl = getThumbnailUrl(item.thumbnail, 400, 300);
+                    const itemTitle = getLocalizedText(item.title, item.titleEn, language) || t.noTitle;
+                    const itemThumbnailUrl = getThumbnailUrl(item.thumbnail, 400, 300);
                     
                     return (
                       <SwiperSlide key={item._id} className="overflow-visible px-1 md:px-2">
@@ -1250,8 +1426,8 @@ export default function EpisodeDetailPageClient() {
                           >
                             <div className="relative h-40 md:h-48 overflow-hidden flex-shrink-0">
                               <Image
-                                src={thumbnailUrl}
-                                alt={item.title}
+                                src={itemThumbnailUrl}
+                                alt={itemTitle}
                                 fill
                                 className="object-cover transition-transform duration-500 group-hover:scale-110"
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -1267,10 +1443,10 @@ export default function EpisodeDetailPageClient() {
                               </div>
                             </div>
                             <div className="p-4 flex-grow">
-                              <h3 className="text-base md:text-lg font-bold mb-2 line-clamp-2">{item.title}</h3>
+                              <h3 className="text-base md:text-lg font-bold mb-2 line-clamp-2">{itemTitle}</h3>
                               <div className="flex items-center justify-between mt-3 md:mt-4">
                                 <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-full">
-                                  حلقة
+                                  {t.episode}
                                 </span>
                               </div>
                             </div>
@@ -1299,14 +1475,16 @@ export default function EpisodeDetailPageClient() {
                   <FaFileAlt className="text-xs md:text-sm" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-700 bg-clip-text text-transparent">
-                  مقالات مرتبطة
+                  {t.relatedArticles}
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-teal-200 to-transparent"></div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {articles.map((article) => {
-                  const thumbnailUrl = getThumbnailUrl(article.featuredImage, 400, 300);
+                  const articleTitle = getLocalizedText(article.title, article.titleEn, language) || t.noTitle;
+                  const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language) || t.readMore;
+                  const articleThumbnailUrl = getThumbnailUrl(article.featuredImage, 400, 300);
                   const articleUrl = `/articles/${encodeURIComponent(String(article.slug.current))}`;
                   
                   return (
@@ -1319,8 +1497,8 @@ export default function EpisodeDetailPageClient() {
                       <Link href={articleUrl} className="block">
                         <div className="relative h-40 md:h-48 overflow-hidden">
                           <Image
-                            src={thumbnailUrl}
-                            alt={article.title}
+                            src={articleThumbnailUrl}
+                            alt={articleTitle}
                             fill
                             className="object-cover transition-transform duration-500 hover:scale-110"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -1336,13 +1514,13 @@ export default function EpisodeDetailPageClient() {
                           </div>
                         </div>
                         <div className="p-4">
-                          <h3 className="text-lg font-bold mb-2">{article.title}</h3>
+                          <h3 className="text-lg font-bold mb-2">{articleTitle}</h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                            {article.excerpt || "اقرأ المزيد..."}
+                            {articleExcerpt}
                           </p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-full">
-                              مقال
+                              {t.article}
                             </span>
                             <button
                               onClick={(e) => {
@@ -1351,7 +1529,7 @@ export default function EpisodeDetailPageClient() {
                               }}
                               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                             >
-                              قراءة المقال
+                              {t.readArticle}
                             </button>
                           </div>
                         </div>
@@ -1366,7 +1544,7 @@ export default function EpisodeDetailPageClient() {
                   href="/articles" 
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:opacity-90 transition-opacity"
                 >
-                  <span>عرض جميع المقالات</span>
+                  <span>{t.viewAllArticles}</span>
                 </Link>
               </div>
             </motion.section>
@@ -1384,7 +1562,7 @@ export default function EpisodeDetailPageClient() {
                 <FaComment className="text-xs md:text-sm" />
               </div>
               <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-700 bg-clip-text text-transparent">
-                التعليقات
+                {t.comments}
               </h2>
               <div className="flex-grow h-px bg-gradient-to-r from-yellow-200 to-transparent"></div>
             </div>
