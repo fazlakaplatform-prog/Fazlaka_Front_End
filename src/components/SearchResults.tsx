@@ -460,7 +460,8 @@ export default function SearchResults() {
       errorLoadingData: "حدث خطأ في تحميل البيانات",
       loadingSearchPage: "جاري تحميل صفحة البحث...",
       gridView: "عرض شبكي",
-      listView: "عرض قائمة"
+      listView: "عرض قائمة",
+      brandName: "فذلكه" // اسم العلامة التجارية بالعربية
     },
     en: {
       searchPlaceholder: "Search for episodes, articles, playlists, FAQs, seasons, team members, terms & conditions, privacy policy...",
@@ -493,7 +494,8 @@ export default function SearchResults() {
       errorLoadingData: "Error loading data",
       loadingSearchPage: "Loading search page...",
       gridView: "Grid View",
-      listView: "List View"
+      listView: "List View",
+      brandName: "Falakha" // اسم العلامة التجارية بالإنجليزية
     }
   };
 
@@ -517,7 +519,7 @@ export default function SearchResults() {
         setError(null);
         
         // جلب جميع البيانات من Sanity مع دعم اللغة
-        const episodesQuery = `*[_type == "episode"]{
+        const episodesQuery = `*[_type == "episode" && language == $language]{
           _id,
           _type,
           title,
@@ -535,7 +537,7 @@ export default function SearchResults() {
           language
         }`;
         
-        const articlesQuery = `*[_type == "article"]{
+        const articlesQuery = `*[_type == "article" && language == $language]{
           _id,
           _type,
           title,
@@ -553,7 +555,7 @@ export default function SearchResults() {
           language
         }`;
         
-        const playlistsQuery = `*[_type == "playlist"]{
+        const playlistsQuery = `*[_type == "playlist" && language == $language]{
           _id,
           _type,
           title,
@@ -565,7 +567,7 @@ export default function SearchResults() {
           language
         }`;
         
-        const faqsQuery = `*[_type == "faq"]{
+        const faqsQuery = `*[_type == "faq" && language == $language]{
           _id,
           _type,
           question,
@@ -577,7 +579,7 @@ export default function SearchResults() {
           language
         }`;
         
-        const seasonsQuery = `*[_type == "season"]{
+        const seasonsQuery = `*[_type == "season" && language == $language]{
           _id,
           _type,
           title,
@@ -587,7 +589,7 @@ export default function SearchResults() {
           language
         }`;
         
-        const teamMembersQuery = `*[_type == "teamMember"]{
+        const teamMembersQuery = `*[_type == "teamMember" && language == $language]{
           _id,
           _type,
           name,
@@ -602,7 +604,7 @@ export default function SearchResults() {
         }`;
         
         // استعلامات جديدة للشروط والأحكام وسياسة الخصوصية
-        const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
+        const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms" && language == $language][0]{
           _id,
           _type,
           title,
@@ -613,7 +615,7 @@ export default function SearchResults() {
           language
         }`;
         
-        const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
+        const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy" && language == $language][0]{
           _id,
           _type,
           title,
@@ -634,14 +636,14 @@ export default function SearchResults() {
           termsData, 
           privacyData
         ] = await Promise.all([
-          fetchFromSanity(episodesQuery),
-          fetchFromSanity(articlesQuery),
-          fetchFromSanity(playlistsQuery),
-          fetchFromSanity(faqsQuery),
-          fetchFromSanity(seasonsQuery),
-          fetchFromSanity(teamMembersQuery),
-          fetchFromSanity(termsQuery),
-          fetchFromSanity(privacyQuery)
+          fetchFromSanity(episodesQuery, { language }),
+          fetchFromSanity(articlesQuery, { language }),
+          fetchFromSanity(playlistsQuery, { language }),
+          fetchFromSanity(faqsQuery, { language }),
+          fetchFromSanity(seasonsQuery, { language }),
+          fetchFromSanity(teamMembersQuery, { language }),
+          fetchFromSanity(termsQuery, { language }),
+          fetchFromSanity(privacyQuery, { language })
         ]);
         
         // تحويل البيانات إلى الأنواع المناسبة
@@ -653,10 +655,10 @@ export default function SearchResults() {
         const privacy = privacyData as SearchResult | null;
         
         // حساب عدد الحلقات لكل موسم
-        const episodesCountQuery = `*[_type == "episode"]{
+        const episodesCountQuery = `*[_type == "episode" && language == $language]{
           season->{_id}
         }`;
-        const episodesCountData = await fetchFromSanity(episodesCountQuery);
+        const episodesCountData = await fetchFromSanity(episodesCountQuery, { language });
         const episodesDataCount = episodesCountData as { season?: { _id: string } }[];
         
         const episodeCounts: Record<string, number> = {};
@@ -730,7 +732,7 @@ export default function SearchResults() {
           });
         }
         
-        // دمجج جميع النتائج
+        // دمج جميع النتائج
         const allResults = [
           ...episodes,
           ...articles,
@@ -983,7 +985,7 @@ export default function SearchResults() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
               >
-                فذلكه
+                {t.brandName}
               </motion.h1>
               <motion.p 
                 variants={heroSubtitleVariants}
@@ -1677,7 +1679,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm, language }: SearchResu
       );
     }
 
-    // تصميم باقي أنواعد البطاقات
+    // تصميم باقي أنواع البطاقات
     return (
       <motion.article
         variants={cardVariants}
@@ -1825,7 +1827,7 @@ const SearchResultCard = ({ result, viewMode, searchTerm, language }: SearchResu
     );
   }
 
-  // عرض باقي الأنواعد في وضع القائمة
+  // عرض باقي الأنواع في وضع القائمة
   return (
     <motion.div
       variants={cardVariants}
