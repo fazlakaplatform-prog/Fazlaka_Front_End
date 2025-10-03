@@ -766,10 +766,6 @@ export interface Season {
   titleEn?: string
   slug: SanitySlug
   thumbnail?: SanityImage
-  description?: string
-  descriptionEn?: string
-  language: 'ar' | 'en'
-  _createdAt?: string
 }
 
 // نوع لبيانات Portable Text من Sanity
@@ -1020,21 +1016,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       "slug": slug.current,
       "type": "playlist"
     }`;
-    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery, { lang });
-
-    // جلب المواسم مع فلترة حسب اللغة
-    const seasonsQuery = `*[_type == "season" && language == $lang] | order(_createdAt desc) {
-      _id,
-      title,
-      titleEn,
-      description,
-      descriptionEn,
-      _createdAt,
-      "imageUrl": thumbnail.asset->url,
-      "slug": slug.current,
-      "type": "season"
-    }`;
-    const seasons = await fetchArrayFromSanity<Season & { type: string; slug: string; imageUrl?: string }>(seasonsQuery, { lang });
+    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery);
 
     // جلب الأسئلة الشائعة مع فلترة حسب اللغة
     const faqsQuery = `*[_type == "faq" && language == $lang] | order(_createdAt desc) {
@@ -1130,16 +1112,6 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       linkUrl: `/playlists/${playlist.slug}`
     }));
 
-    const seasonNotifications: NotificationItem[] = seasons.map(season => ({
-      id: season._id || '',
-      type: 'season' as const,
-      title: getText(season.title, season.titleEn),
-      description: getText(season.description, season.descriptionEn),
-      date: getValidDate(season._createdAt),
-      imageUrl: season.imageUrl,
-      linkUrl: `/seasons/${season.slug}`
-    }));
-
     const faqNotifications: NotificationItem[] = faqs.map(faq => ({
       id: faq._id || '',
       type: 'faq' as const,
@@ -1180,7 +1152,6 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       ...episodeNotifications,
       ...articleNotifications,
       ...playlistNotifications,
-      ...seasonNotifications,
       ...faqNotifications,
       ...termsNotifications,
       ...privacyNotifications,

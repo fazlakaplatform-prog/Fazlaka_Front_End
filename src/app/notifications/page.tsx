@@ -6,24 +6,11 @@ import Image from 'next/image';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { 
   FaBell, FaEnvelope, FaInfoCircle, FaNewspaper, FaVideo, FaListUl, 
-  FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaSearch, FaTimes
+  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook
 } from 'react-icons/fa';
-import { useUser, SignInButton } from '@clerk/nextjs';
-import { useLanguage } from '@/components/LanguageProvider';
 
-// مكون الهيرو العام للإشعارات
-const NotificationsHeroSection = ({ language }: { language: 'ar' | 'en' }) => {
-  const texts = {
-    ar: {
-      title: "كل المحتويات <span class='text-yellow-300'>الجديدة</span> في مكان واحد",
-      subtitle: "تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة، مرتبة حسب التاريخ لتسهيل الوصول إلى ما يهمك"
-    },
-    en: {
-      title: "All <span class='text-yellow-300'>New</span> Content in One Place",
-      subtitle: "Follow the latest updates and updated content from the Falthaka team, sorted by date to facilitate access to what interests you"
-    }
-  };
-  
+// مكون الهيرو الجديد للإشعارات
+const NotificationsHeroSection = () => {
   return (
     <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
       {/* الخلفية المتدرجة */}
@@ -62,10 +49,18 @@ const NotificationsHeroSection = ({ language }: { language: 'ar' | 'en' }) => {
       {/* المحتوى الرئيسي */}
       <div className="relative z-10 py-6 sm:py-8 px-4 sm:px-6 flex flex-col items-center justify-center">
         {/* القسم الأيسر - النص */}
-        <div className="w-full text-center mb-6">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3 leading-tight" dangerouslySetInnerHTML={{ __html: texts[language].title }}></h1>
-          <p className="text-sm sm:text-base text-blue-100 mb-4 max-w-xl mx-auto">
-            {texts[language].subtitle}
+        <div className="w-full text-center mb-8 md:mb-0">
+          <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
+            <span className="text-white font-medium flex items-center text-sm sm:text-base">
+              <FaStar className="text-yellow-300 mr-2 animate-pulse" />
+              آخر التحديثات
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+            كل المحتويات <span className="text-yellow-300">الجديدة</span> في مكان واحد
+          </h1>
+          <p className="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
+            تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة، مرتبة حسب التاريخ لتسهيل الوصول إلى ما يهمك
           </p>
           
           {/* أيقونات الإشعارات في الأسفل */}
@@ -140,31 +135,6 @@ const NotificationsHeroSection = ({ language }: { language: 'ar' | 'en' }) => {
   );
 };
 
-// مكون قسم الترحيب الخاص بالمستخدم
-const UserWelcomeSection = ({ language }: { language: 'ar' | 'en' }) => {
-  const { user } = useUser();
-  
-  const texts = {
-    ar: {
-      welcome: `مرحباً بك، ${user?.firstName || 'مستخدم'}!`,
-      subtitle: "تابع آخر المستجدات والمحتوى المحدث من فريق فذلكة"
-    },
-    en: {
-      welcome: `Welcome, ${user?.firstName || 'User'}!`,
-      subtitle: "Follow the latest updates and updated content from the Falthaka team"
-    }
-  };
-  
-  return (
-    <div className="max-w-4xl mx-auto px-4 mb-8">
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
-        <h2 className="text-2xl font-bold mb-2">{texts[language].welcome}</h2>
-        <p className="text-blue-100">{texts[language].subtitle}</p>
-      </div>
-    </div>
-  );
-};
-
 // مكون عنصر الإشعار المعدل
 function NotificationItemComponent({ notification, language }: { notification: NotificationItem; language: 'ar' | 'en' }) {
   const getTypeIcon = () => {
@@ -181,34 +151,15 @@ function NotificationItemComponent({ notification, language }: { notification: N
   };
 
   const getTypeLabel = () => {
-    if (language === 'ar') {
-      switch (notification.type) {
-        case 'episode': return 'حلقة جديدة';
-        case 'article': return 'مقال جديد';
-        case 'playlist': return 'قائمة تشغيل جديدة';
-        case 'faq': return 'سؤال شائع جديد';
-        case 'terms': return 'تحديث في الشروط والأحكام';
-        case 'privacy': return 'تحديث في سياسة الخصوصية';
-        case 'team': 
-          const teamTitle = notification.title.replace(/^عضو جديد في الفريق:\s*/, '');
-          return `عضو جديد في الفريق: ${teamTitle}`;
-        case 'season': return 'موسم جديد';
-        default: return 'إشعار جديد';
-      }
-    } else {
-      switch (notification.type) {
-        case 'episode': return 'New Episode';
-        case 'article': return 'New Article';
-        case 'playlist': return 'New Playlist';
-        case 'faq': return 'New FAQ';
-        case 'terms': return 'Terms Update';
-        case 'privacy': return 'Privacy Update';
-        case 'team': 
-          const teamTitle = notification.title.replace(/^New team member:\s*/, '');
-          return `New team member: ${teamTitle}`;
-        case 'season': return 'New Season';
-        default: return 'New Notification';
-      }
+    switch (notification.type) {
+      case 'episode': return 'حلقة جديدة';
+      case 'article': return 'مقال جديد';
+      case 'playlist': return 'قائمة تشغيل جديدة';
+      case 'faq': return 'سؤال شائع جديد';
+      case 'terms': return 'تحديث في الشروط والأحكام';
+      case 'privacy': return 'تحديث في سياسة الخصوصية';
+      case 'team': return 'عضو جديد في الفريق';
+      default: return 'إشعار جديد';
     }
   };
 
@@ -226,34 +177,17 @@ function NotificationItemComponent({ notification, language }: { notification: N
   };
 
   const getCustomMessage = () => {
-    if (language === 'ar') {
-      switch (notification.type) {
-        case 'episode': return `تمت إضافة حلقة جديدة: ${notification.title}`;
-        case 'article': return `نشرنا مقالًا جديدًا: ${notification.title}`;
-        case 'playlist': return `قائمة تشغيل جديدة متاحة الآن: ${notification.title}`;
-        case 'faq': return `أضفنا سؤالًا شائعًا جديدًا: ${notification.title}`;
-        case 'terms': return `تم تحديث الشروط والأحكام: ${notification.title}`;
-        case 'privacy': return `تم تحديث سياسة الخصوصية: ${notification.title}`;
-        case 'team': 
-          const teamTitle = notification.title.replace(/^عضو جديد في الفريق:\s*/, '');
-          return `انضم إلينا عضو جديد في الفريق: ${teamTitle}`;
-        case 'season': return `بدأ موسم جديد: ${notification.title}`;
-        default: return `إشعار جديد: ${notification.title}`;
-      }
-    } else {
-      switch (notification.type) {
-        case 'episode': return `New episode added: ${notification.title}`;
-        case 'article': return `New article published: ${notification.title}`;
-        case 'playlist': return `New playlist available: ${notification.title}`;
-        case 'faq': return `New FAQ added: ${notification.title}`;
-        case 'terms': return `Terms updated: ${notification.title}`;
-        case 'privacy': return `Privacy policy updated: ${notification.title}`;
-        case 'team': 
-          const teamTitle = notification.title.replace(/^New team member:\s*/, '');
-          return `New team member joined: ${teamTitle}`;
-        case 'season': return `New season started: ${notification.title}`;
-        default: return `New notification: ${notification.title}`;
-      }
+    switch (notification.type) {
+      case 'episode': return `تمت إضافة حلقة جديدة: ${notification.title}`;
+      case 'article': return `نشرنا مقالًا جديدًا: ${notification.title}`;
+      case 'playlist': return `قائمة تشغيل جديدة متاحة الآن: ${notification.title}`;
+      case 'faq': return `أضفنا سؤالًا شائعًا جديدًا: ${notification.title}`;
+      case 'terms': return `تم تحديث الشروط والأحكام: ${notification.title}`;
+      case 'privacy': return `تم تحديث سياسة الخصوصية: ${notification.title}`;
+      case 'team': 
+        const teamTitle = notification.title.replace(/^عضو جديد في الفريق:\s*/, '');
+        return `انضم إلينا عضو جديد في الفريق: ${teamTitle}`;
+      default: return `إشعار جديد: ${notification.title}`;
     }
   };
 
@@ -331,9 +265,9 @@ function NotificationItemComponent({ notification, language }: { notification: N
               </p>
             )}
             
-            <div className="flex items-center text-xs text-blue-500 dark:text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-2">
-              <span>{language === 'ar' ? 'اقرأ المزيد' : 'Read more'}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-center text-sm text-blue-500 dark:text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-2">
+              <span>اقرأ المزيد</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9.2-9.2M17 17V7m0 0H7" />
               </svg>
             </div>
@@ -343,15 +277,11 @@ function NotificationItemComponent({ notification, language }: { notification: N
             <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4 overflow-hidden rounded-xl shadow-md">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
-                <div className="relative h-20 w-20">
-                  <Image 
-                    className="object-cover transform group-hover:scale-110 transition-transform duration-500" 
-                    src={notification.imageUrl} 
-                    alt={notification.title}
-                    fill
-                    sizes="80px"
-                  />
-                </div>
+                <img 
+                  className="h-24 w-24 object-cover transform group-hover:scale-110 transition-transform duration-500" 
+                  src={notification.imageUrl} 
+                  alt={notification.title} 
+                />
               </div>
             </div>
           )}
@@ -461,8 +391,8 @@ function NotificationListComponent({ notifications, language }: { notifications:
             </div>
             <input
               type="text"
-              className="w-full py-2 pr-10 pl-3 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-              placeholder={texts[language].searchPlaceholder}
+              className="w-full py-3 pr-10 pl-4 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+              placeholder="ابحث في الإشعارات..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -520,11 +450,11 @@ function NotificationListComponent({ notifications, language }: { notifications:
       ) : (
         <div className="space-y-5">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-              {activeFilter === 'all' ? texts[language].allNotifications : notificationTypes.find(t => t.id === activeFilter)?.label}
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {activeFilter === 'all' ? 'جميع الإشعارات' : notificationTypes.find(t => t.id === activeFilter)?.label}
             </h2>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {filteredNotifications.length} {language === 'ar' ? 'من' : 'of'} {notifications.length} {language === 'ar' ? 'إشعار' : 'notifications'}
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {filteredNotifications.length} من {notifications.length} إشعار
             </span>
           </div>
           {filteredNotifications.map((notification) => (
@@ -575,90 +505,39 @@ function LoadingComponent() {
   );
 }
 
-// مكون تلميح تسجيل الدخول
-const SignInPrompt = ({ language }: { language: 'ar' | 'en' }) => {
-  const texts = {
-    ar: {
-      title: "سجل دخولك لعرض الإشعارات",
-      message: "يرجى تسجيل الدخول إلى حسابك لعرض الإشعارات والمستجدات الجديدة",
-      signIn: "تسجيل الدخول"
-    },
-    en: {
-      title: "Sign in to view notifications",
-      message: "Please sign in to your account to view notifications and new updates",
-      signIn: "Sign In"
-    }
-  };
-  
-  return (
-    <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="text-6xl mb-5">🔐</div>
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{texts[language].title}</h3>
-      <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6">
-        {texts[language].message}
-      </p>
-      <SignInButton mode="modal">
-        <button className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-full hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl active:scale-95">
-          {texts[language].signIn}
-        </button>
-      </SignInButton>
-    </div>
-  );
-};
-
 // المكون الرئيسي للصفحة
 function NotificationsContent() {
-  const { isLoaded, isSignedIn } = useUser();
-  const { language } = useLanguage();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // فقط قم بجلب الإشعارات إذا كان المستخدم مسجلاً للدخول
-    if (isSignedIn) {
-      const fetchNotifications = async () => {
-        try {
-          // تمرير اللغة الحالية إلى دالة getAllNotifications
-          const data = await getAllNotifications(language);
-          setNotifications(data);
-        } catch (error) {
-          console.error('Failed to fetch notifications:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
+    const fetchNotifications = async () => {
+      try {
+        const data = await getAllNotifications();
+        setNotifications(data);
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchNotifications();
-    } else {
-      setLoading(false);
-    }
-  }, [isSignedIn, language]); // إضافة language كـ dependency
+    fetchNotifications();
+  }, []);
 
   if (!isLoaded) {
     return <LoadingComponent />;
   }
 
   return (
-    <>
-      {/* الهيرو العام للإشعارات - يظهر للجميع */}
-      <div className="max-w-4xl mx-auto px-4 mt-12">
-        <NotificationsHeroSection language={language} />
-      </div>
-      
-      {/* قسم الترحيب الخاص بالمستخدم - يظهر فقط للمستخدمين المسجلين */}
-      {isSignedIn && <UserWelcomeSection language={language} />}
-      
-      {/* المحتوى الرئيسي */}
-      <div className="max-w-4xl mx-auto px-4 pb-12">
-        {isSignedIn ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
-            <Suspense fallback={<LoadingComponent />}>
-              {loading ? <LoadingComponent /> : <NotificationListComponent notifications={notifications} language={language} />}
-            </Suspense>
-          </div>
-        ) : (
-          <SignInPrompt language={language} />
-        )}
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* استخدام الهيرو الجديد */}
+      <NotificationsHeroSection />
+
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8">
+        <Suspense fallback={<LoadingComponent />}>
+          <NotificationListComponent notifications={notifications} />
+        </Suspense>
       </div>
     </>
   );
