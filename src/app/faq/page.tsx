@@ -21,8 +21,11 @@ type FaqItem = {
 interface SanityFaqItem {
   _id: string;
   question: string;
+  questionEn?: string;
   answer: string;
+  answerEn?: string;
   category?: string;
+  categoryEn?: string;
 }
 
 // إضافة الترجمات
@@ -88,7 +91,9 @@ const translations = {
     errorLoading: "حدث خطأ أثناء تحميل الأسئلة. يرجى المحاولة مرة أخرى لاحقاً.",
     tryAgain: "إعادة المحاولة",
     questionOpened: "لقد تم فتح السؤال الذي بحثت عنه أدناه",
-    noQuestionsAvailable: "لا توجد أسئلة شائعة حالياً"
+    noQuestionsAvailable: "لا توجد أسئلة شائعة حالياً",
+    noTitle: "(بدون عنوان)",
+    noAnswer: "لا يوجد جواب."
   },
   en: {
     home: "Home",
@@ -151,8 +156,15 @@ const translations = {
     errorLoading: "An error occurred while loading questions. Please try again later.",
     tryAgain: "Try Again",
     questionOpened: "The question you searched for has been opened below",
-    noQuestionsAvailable: "No frequently asked questions available at the moment"
+    noQuestionsAvailable: "No frequently asked questions available at the moment",
+    noTitle: "(No title)",
+    noAnswer: "No answer available."
   }
+};
+
+// دالة للحصول على النص المناسب بناءً على اللغة (تم نقلها للخارج)
+const getLocalizedText = (language: string, arText?: string, enText?: string) => {
+  return language === 'ar' ? (arText || '') : (enText || '');
 };
 
 function FaqContent() {
@@ -226,21 +238,24 @@ function FaqContent() {
       try {
         setFaqLoading(true);
         
-        // تمرير اللغة الحالية إلى الاستعلام
+        // تمرير اللغة الحالية إلى الاستعلام وجلب الحقول المناسبة
         const query = `*[_type == "faq" && language == $language] | order(_createdAt desc) {
           _id,
           question,
+          questionEn,
           answer,
-          category
+          answerEn,
+          category,
+          categoryEn
         }`;
         
         const data = await fetchFromSanity(query, { language }) as SanityFaqItem[];
         
         const formattedFaqs = data.map((item: SanityFaqItem) => ({
           id: item._id,
-          question: item.question,
-          answer: item.answer,
-          category: item.category
+          question: getLocalizedText(language, item.question, item.questionEn),
+          answer: getLocalizedText(language, item.answer, item.answerEn),
+          category: getLocalizedText(language, item.category, item.categoryEn)
         }));
         
         setFaqs(formattedFaqs);
@@ -324,17 +339,20 @@ function FaqContent() {
         const query = `*[_type == "faq" && language == $language] | order(_createdAt desc) {
           _id,
           question,
+          questionEn,
           answer,
-          category
+          answerEn,
+          category,
+          categoryEn
         }`;
         
         const data = await fetchFromSanity(query, { language }) as SanityFaqItem[];
         
         const formattedFaqs = data.map((item: SanityFaqItem) => ({
           id: item._id,
-          question: item.question,
-          answer: item.answer,
-          category: item.category
+          question: getLocalizedText(language, item.question, item.questionEn),
+          answer: getLocalizedText(language, item.answer, item.answerEn),
+          category: getLocalizedText(language, item.category, item.categoryEn)
         }));
         
         setFaqs(formattedFaqs);
@@ -678,7 +696,7 @@ function FaqContent() {
                           <div className={`p-3 rounded-xl bg-white/20 backdrop-blur-sm shadow-sm mr-4 flex-shrink-0`}>
                             <FaQuestionCircle className={`text-xl ${colors.headerText}`} />
                           </div>
-                          <span className="font-bold text-base md:text-lg text-right text-white break-words">{f.question || "(بدون عنوان)"}</span>
+                          <span className="font-bold text-base md:text-lg text-right text-white break-words">{f.question || t.noTitle}</span>
                         </div>
                         <motion.span animate={reduceMotion ? {} : { rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.3 }} className="ml-3 flex-shrink-0" aria-hidden>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isOpen ? "M19 15l-7-7-7 7" : "M19 9l-7 7-7 7"} /></svg>
@@ -692,7 +710,7 @@ function FaqContent() {
                     </div>
                     <motion.div ref={setContentRef(f.id)} style={{ maxHeight: isOpen ? contentHeights[f.id] ?? undefined : 0, overflow: "hidden", transition: reduceMotion ? undefined : "max-height 260ms ease, opacity 200ms ease", opacity: isOpen ? 1 : 0, }} aria-hidden={!isOpen}>
                       <div className={`p-4 md:p-6 bg-white dark:bg-gray-800 ${colors.text} ${colors.darkText} text-sm leading-relaxed`}>
-                        {f.answer ? <div dangerouslySetInnerHTML={{ __html: f.answer }} /> : <p>لا يوجد جواب.</p>}
+                        {f.answer ? <div dangerouslySetInnerHTML={{ __html: f.answer }} /> : <p>{t.noAnswer}</p>}
                       </div>
                     </motion.div>
                   </motion.div>

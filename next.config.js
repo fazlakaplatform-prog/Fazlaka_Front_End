@@ -1,12 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      "img.clerk.com", // السماح بعرض صور من Clerk
-      "growing-acoustics-35909e61eb.media.strapiapp.com", // Strapi media domain
-      "localhost", // For local development
-      "cdn.sanity.io", // Sanity CDN for images
-      "res.cloudinary.com", // Cloudinary domain for images
+    // تم استبدال قائمة domains بـ remotePatterns للسماح بأي مصدر خارجي
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**', // <-- السماح بأي نطاق
+        pathname: '/**', // <-- السماح بأي مسار للملف
+      },
     ],
   },
 };

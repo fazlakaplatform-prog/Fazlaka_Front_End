@@ -100,7 +100,8 @@ const translations = {
     episode: "حلقة",
     article: "مقال",
     noResults: "لا توجد حلقات أو مقالات تطابق البحث",
-    publishedAt: "تاريخ النشر"
+    publishedAt: "تاريخ النشر",
+    retry: "إعادة المحاولة"
   },
   en: {
     loading: "Loading...",
@@ -120,7 +121,8 @@ const translations = {
     episode: "Episode",
     article: "Article",
     noResults: "No episodes or articles matching the search",
-    publishedAt: "Published Date"
+    publishedAt: "Published Date",
+    retry: "Retry"
   }
 };
 
@@ -182,7 +184,16 @@ export default function PlaylistDetails({ params }: Props) {
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
-        const data = await fetchPlaylistBySlug(id, language);
+        setError(null);
+        
+        // جلب القائمة باللغة المطلوبة، إذا لم توجد، جرب اللغة الأخرى
+        let data = await fetchPlaylistBySlug(id, language);
+        
+        // إذا لم يتم العثور على القائمة باللغة المطلوبة، جرب اللغة الأخرى
+        if (!data) {
+          const fallbackLanguage = language === 'ar' ? 'en' : 'ar';
+          data = await fetchPlaylistBySlug(id, fallbackLanguage);
+        }
         
         // Validate data before setting state
         if (!data) {
@@ -192,7 +203,20 @@ export default function PlaylistDetails({ params }: Props) {
         }
         
         // Ensure required fields exist
-        if (!data._id || !data.title || !data.slug?.current) {
+        if (!data._id || !data.slug?.current) {
+          console.error('Invalid playlist data:', data);
+          setError(t.invalidData);
+          setLoading(false);
+          return;
+        }
+        
+        // التحقق من وجود عنوان صالح
+        const hasValidTitle = language === 'ar' ? 
+          (data.title || data.titleEn) : 
+          (data.titleEn || data.title);
+        
+        if (!hasValidTitle) {
+          console.error('No valid title found:', data);
           setError(t.invalidData);
           setLoading(false);
           return;
@@ -252,7 +276,7 @@ export default function PlaylistDetails({ params }: Props) {
           onClick={() => window.location.reload()}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
         >
-          إعادة المحاولة
+          {t.retry}
         </button>
       </div>
     </div>
@@ -405,16 +429,16 @@ export default function PlaylistDetails({ params }: Props) {
   
   return (
     <div className="container mx-auto py-8 px-4 pt-12" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Hero Section - Modified to match SeasonPageClient style */}
+      {/* Hero Section */}
       <motion.div 
         className="relative rounded-2xl overflow-hidden mb-10 mt-10 shadow-xl"
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
-        {/* Background gradient overlay with blue shadows for dark mode */}
+        {/* Background gradient overlay */}
         <motion.div 
-          className="absolute inset-0 bg-gradient-to-r from-blue-900/80 to-indigo-900/80 z-10 dark:from-blue-800/90 dark:to-indigo-800/90 dark:shadow-[0_0_30px_5px_rgba(59,130,246,0.3)]"
+          className="absolute inset-0 bg-gradient-to-r from-blue-900/80 to-indigo-900/80 z-10 dark:from-blue-800/90 dark:to-indigo-800/90"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.2 }}
@@ -446,11 +470,11 @@ export default function PlaylistDetails({ params }: Props) {
           >
             <div className="relative group">
               <motion.div 
-                className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300 dark:shadow-[0_0_15px_5px_rgba(59,130,246,0.5)]"
+                className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
               />
-              <div className="relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-2xl transform transition-transform duration-300 group-hover:scale-[1.02] dark:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)]">
+              <div className="relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-2xl transform transition-transform duration-300 group-hover:scale-[1.02]">
                 <ImageWithFallback 
                   src={playlistImageUrl} 
                   alt={playlistTitle} 
@@ -468,7 +492,7 @@ export default function PlaylistDetails({ params }: Props) {
             transition={{ duration: 0.7, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
             <motion.div 
-              className="inline-block px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-full mb-4 self-start dark:bg-blue-700 dark:shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"
+              className="inline-block px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-full mb-4 self-start"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
@@ -476,7 +500,7 @@ export default function PlaylistDetails({ params }: Props) {
               {t.playlist}
             </motion.div>
             <motion.h1 
-              className="text-4xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg dark:text-blue-100"
+              className="text-4xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.6 }}
@@ -484,7 +508,7 @@ export default function PlaylistDetails({ params }: Props) {
               {playlistTitle}
             </motion.h1>
             <motion.p 
-              className="text-lg text-gray-100 mb-6 max-w-2xl leading-relaxed dark:text-blue-50"
+              className="text-lg text-gray-100 mb-6 max-w-2xl leading-relaxed"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.7 }}
@@ -500,20 +524,20 @@ export default function PlaylistDetails({ params }: Props) {
               transition={{ duration: 0.6, delay: 0.8 }}
             >
               <motion.div 
-                className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg dark:bg-blue-900/30 dark:border dark:border-blue-700/50 dark:shadow-[0_0_10px_2px_rgba(59,130,246,0.3)]"
+                className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg"
                 whileHover={{ scale: 1.05, y: -3 }}
                 transition={{ duration: 0.2 }}
               >
-                <FaVideo className="h-5 w-5 text-blue-300 dark:text-blue-400" />
-                <span className="text-white font-medium dark:text-blue-100">{playlist.episodes?.length || 0} {language === 'ar' ? 'حلقة' : 'episode'}</span>
+                <FaVideo className="h-5 w-5 text-blue-300" />
+                <span className="text-white font-medium">{playlist.episodes?.length || 0} {language === 'ar' ? 'حلقة' : 'episode'}</span>
               </motion.div>
               <motion.div 
-                className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg dark:bg-purple-900/30 dark:border dark:border-purple-700/50 dark:shadow-[0_0_10px_2px_rgba(139,92,246,0.3)]"
+                className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg"
                 whileHover={{ scale: 1.05, y: -3 }}
                 transition={{ duration: 0.2 }}
               >
-                <FaNewspaper className="h-5 w-5 text-purple-300 dark:text-purple-400" />
-                <span className="text-white font-medium dark:text-purple-100">{playlist.articles?.length || 0} {language === 'ar' ? 'مقال' : 'article'}</span>
+                <FaNewspaper className="h-5 w-5 text-purple-300" />
+                <span className="text-white font-medium">{playlist.articles?.length || 0} {language === 'ar' ? 'مقال' : 'article'}</span>
               </motion.div>
             </motion.div>
             
@@ -527,7 +551,7 @@ export default function PlaylistDetails({ params }: Props) {
               <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
                 <Link
                   href="/episodes"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-600 font-medium rounded-lg text-sm hover:bg-blue-50 transition-all duration-300 shadow-md dark:bg-blue-700 dark:text-white dark:hover:bg-blue-600 dark:shadow-[0_4px_6px_-1px_rgba(59,130,246,0.5)] hover:shadow-lg"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-600 font-medium rounded-lg text-sm hover:bg-blue-50 transition-all duration-300 shadow-md hover:shadow-lg"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -538,7 +562,7 @@ export default function PlaylistDetails({ params }: Props) {
               <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
                 <Link
                   href="/articles"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-purple-600 font-medium rounded-lg text-sm hover:bg-purple-50 transition-all duration-300 shadow-md dark:bg-purple-700 dark:text-white dark:hover:bg-purple-600 dark:shadow-[0_4px_6px_-1px_rgba(139,92,246,0.5)] hover:shadow-lg"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-purple-600 font-medium rounded-lg text-sm hover:bg-purple-50 transition-all duration-300 shadow-md hover:shadow-lg"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -551,7 +575,7 @@ export default function PlaylistDetails({ params }: Props) {
         </div>
       </motion.div>
       
-      {/* search + view toggle + content type filter - Improved */}
+      {/* search + view toggle + content type filter */}
       <motion.div 
         className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8"
         initial={{ opacity: 0, y: 20 }}
@@ -761,7 +785,7 @@ export default function PlaylistDetails({ params }: Props) {
                   whileHover="hover"
                   exit="exit"
                   layout
-                  className="relative border rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 group dark:shadow-[0_4px_15px_-5px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)]"
+                  className="relative border rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 group"
                 >
                   <Link href={`/episodes/${slug}`} className="block">
                     <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 overflow-hidden relative">
@@ -784,7 +808,7 @@ export default function PlaylistDetails({ params }: Props) {
                           variants={playIconVariants}
                           initial="rest"
                           whileHover="hover"
-                          className="w-16 h-16 rounded-full bg-white/90 dark:bg-black/80 flex items-center justify-center shadow-lg dark:shadow-[0_0_15px_5px_rgba(59,130,246,0.5)]"
+                          className="w-16 h-16 rounded-full bg-white/90 dark:bg-black/80 flex items-center justify-center shadow-lg"
                         >
                           <FaPlay className="h-7 w-7 text-black dark:text-white" />
                         </motion.div>
@@ -792,7 +816,7 @@ export default function PlaylistDetails({ params }: Props) {
                       
                       {/* Episode badge */}
                       <motion.div 
-                        className="absolute top-3 right-3 bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full dark:bg-blue-700 dark:shadow-[0_0_8px_2px_rgba(59,130,246,0.5)]"
+                        className="absolute top-3 right-3 bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2 + idx * 0.05, type: "spring" }}
@@ -832,7 +856,7 @@ export default function PlaylistDetails({ params }: Props) {
                   whileHover="hover"
                   exit="exit"
                   layout
-                  className="relative border rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 group dark:shadow-[0_4px_15px_-5px_rgba(16,185,129,0.2)] dark:hover:shadow-[0_10px_25px_-5px_rgba(16,185,129,0.4)]"
+                  className="relative border rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 group"
                 >
                   <Link href={`/articles/${slug}`} className="block">
                     <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 overflow-hidden relative">
@@ -846,7 +870,7 @@ export default function PlaylistDetails({ params }: Props) {
                       
                       {/* Article badge */}
                       <motion.div 
-                        className="absolute top-3 right-3 bg-green-600 text-white text-xs font-medium px-2 py-1 rounded-full dark:bg-green-700 dark:shadow-[0_0_8px_2px_rgba(16,185,129,0.5)]"
+                        className="absolute top-3 right-3 bg-green-600 text-white text-xs font-medium px-2 py-1 rounded-full"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2 + idx * 0.05, type: "spring" }}
@@ -904,7 +928,7 @@ export default function PlaylistDetails({ params }: Props) {
                   whileHover="hover"
                   exit="exit"
                   layout
-                  className="flex gap-4 items-center border rounded-xl overflow-hidden p-4 hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 dark:shadow-[0_4px_15px_-5px_rgba(59,130,246,0.2)] dark:hover:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)]"
+                  className="flex gap-4 items-center border rounded-xl overflow-hidden p-4 hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                 >
                   <Link href={`/episodes/${slug}`} className="flex items-center gap-4 flex-1">
                     <motion.div 
@@ -921,7 +945,7 @@ export default function PlaylistDetails({ params }: Props) {
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: 0.1 }}
                       >
-                        <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2 py-1 rounded-full dark:shadow-[0_0_8px_2px_rgba(59,130,246,0.5)]">
+                        <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2 py-1 rounded-full">
                           {t.episode}
                         </span>
                       </motion.div>
@@ -973,7 +997,7 @@ export default function PlaylistDetails({ params }: Props) {
                   whileHover="hover"
                   exit="exit"
                   layout
-                  className="flex gap-4 items-center border rounded-xl overflow-hidden p-4 hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 dark:shadow-[0_4px_15px_-5px_rgba(16,185,129,0.2)] dark:hover:shadow-[0_10px_25px_-5px_rgba(16,185,129,0.4)]"
+                  className="flex gap-4 items-center border rounded-xl overflow-hidden p-4 hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                 >
                   <Link href={`/articles/${slug}`} className="flex items-center gap-4 flex-1">
                     <motion.div 
@@ -990,7 +1014,7 @@ export default function PlaylistDetails({ params }: Props) {
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: 0.1 }}
                       >
-                        <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium px-2 py-1 rounded-full dark:shadow-[0_0_8px_2px_rgba(16,185,129,0.5)]">
+                        <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium px-2 py-1 rounded-full">
                           {t.article}
                         </span>
                       </motion.div>

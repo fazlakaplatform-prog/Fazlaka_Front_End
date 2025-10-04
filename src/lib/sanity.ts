@@ -157,6 +157,7 @@ export async function fetchPlaylists(language: string = 'ar'): Promise<Playlist[
 // دالة لجلب قائمة تشغيل معينة حسب الـ slug (محدثة مع دعم اللغة)
 export async function fetchPlaylistBySlug(slug: string, language: string = 'ar'): Promise<Playlist | null> {
   try {
+    // جلب القائمة باللغة المطلوبة
     const query = `*[_type == "playlist" && slug.current == $slug && language == $language][0]{
       _id,
       title,
@@ -192,7 +193,16 @@ export async function fetchPlaylistBySlug(slug: string, language: string = 'ar')
       },
       language
     }`;
-    return await fetchFromSanity<Playlist>(query, { slug, language });
+    
+    let result = await fetchFromSanity<Playlist>(query, { slug, language });
+    
+    // إذا لم يتم العثور على القائمة باللغة المطلوبة، جرب اللغة الأخرى
+    if (!result) {
+      const fallbackLanguage = language === 'ar' ? 'en' : 'ar';
+      result = await fetchFromSanity<Playlist>(query, { slug, language: fallbackLanguage });
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error fetching playlist by slug from Sanity:', error);
     return null;
@@ -1006,7 +1016,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
     const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; imageUrl?: string }>(articlesQuery, { lang });
 
     // جلب قوائم التشغيل مع فلترة حسب اللغة - تم إصلاح الخطأ هنا
-    const playlistsQuery = `*[_type == "playlist" && language == $language] | order(_createdAt desc) {
+    const playlistsQuery = `*[_type == "playlist" && language == $lang] | order(_createdAt desc) {
       _id,
       title,
       titleEn,
@@ -1017,7 +1027,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       "slug": slug.current,
       "type": "playlist"
     }`;
-    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery, { language: lang });
+    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery, { lang });
 
     // جلب الأسئلة الشائعة مع فلترة حسب اللغة
     const faqsQuery = `*[_type == "faq" && language == $lang] | order(_createdAt desc) {

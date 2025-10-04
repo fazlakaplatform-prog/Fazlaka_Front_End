@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import { 
   FaBell, FaEnvelope, FaInfoCircle, FaNewspaper, FaVideo, FaListUl, 
-  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine, FaBook,
+  FaStar, FaCalendarAlt, FaUsers, FaGlobe, FaChartLine,
   FaSearch, FaTimes
 } from 'react-icons/fa';
 
@@ -278,10 +278,12 @@ function NotificationItemComponent({ notification, language }: { notification: N
             <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4 overflow-hidden rounded-xl shadow-md">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
-                <img 
+                <Image 
                   className="h-24 w-24 object-cover transform group-hover:scale-110 transition-transform duration-500" 
                   src={notification.imageUrl} 
-                  alt={notification.title} 
+                  alt={notification.title}
+                  width={96}
+                  height={96}
                 />
               </div>
             </div>

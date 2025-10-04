@@ -77,9 +77,18 @@ export default function Footer() {
   const year = new Date().getFullYear();
   const [mounted, setMounted] = useState(false);
   const [isRTL, setIsRTL] = useState(true); // القيمة الافتراضية هي العربية (RTL)
+  const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
     setMounted(true);
+    
+    // التحقق من حجم الشاشة
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     
     // التحقق من تفضيل اللغة المحفوظ في localStorage
     const savedLanguage = localStorage.getItem('language');
@@ -90,6 +99,8 @@ export default function Footer() {
       const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage || 'en';
       setIsRTL(browserLang.includes('ar'));
     }
+    
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
   const t = translations[isRTL ? 'ar' : 'en'];
@@ -172,13 +183,15 @@ export default function Footer() {
           behavior: 'smooth'
         });
         
-        // إضافة تأثير بصري جميل أثناء التمرير
-        document.body.style.transition = 'all 0.5s ease';
-        document.body.style.transform = 'scale(1.01)';
-        
-        setTimeout(() => {
-          document.body.style.transform = 'scale(1)';
-        }, 300);
+        // إضافة تأثير بصري جميل أثناء التمرير (فقط على سطح المكتب)
+        if (!isMobile) {
+          document.body.style.transition = 'all 0.5s ease';
+          document.body.style.transform = 'scale(1.01)';
+          
+          setTimeout(() => {
+            document.body.style.transform = 'scale(1)';
+          }, 300);
+        }
       }, 200);
     } else {
       // إذا لم يتم العثور على الشعار، قم بالتمرير مباشرة
@@ -195,6 +208,9 @@ export default function Footer() {
   };
   
   if (!mounted) return null;
+  
+  // تقليل عدد النجوم المتلألئة على الموبايل
+  const starCount = isMobile ? 6 : 12;
   
   return (
     <>
@@ -215,47 +231,54 @@ export default function Footer() {
         className="bg-gradient-to-br from-[#0a0a1a] via-[#1a1a3a] to-[#0f172a] text-gray-200 pt-16 pb-12 relative overflow-hidden"
         dir={isRTL ? 'rtl' : 'ltr'}
       >
-        {/* خلفية متحركة */}
+        {/* خلفية متحركة - مبسطة على الموبايل */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern opacity-5"></div>
-          <motion.div 
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
-            animate={{ 
-              x: [0, 30, 0],
-              y: [0, -30, 0],
-              scale: [1, 1.1, 1]
-            }}
-            transition={{ 
-              duration: 15, 
-              repeat: Infinity,
-              repeatType: "reverse"
-            }}
-          />
-          <motion.div 
-            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
-            animate={{ 
-              x: [0, -30, 0],
-              y: [0, 30, 0],
-              scale: [1, 1.1, 1]
-            }}
-            transition={{ 
-              duration: 18, 
-              repeat: Infinity,
-              repeatType: "reverse"
-            }}
-          />
-          <motion.div 
-            className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"
-            animate={{ 
-              scale: [1, 1.2, 1],
-              opacity: [0.1, 0.2, 0.1]
-            }}
-            transition={{ 
-              duration: 12, 
-              repeat: Infinity,
-              repeatType: "reverse"
-            }}
-          />
+          {!isMobile && <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern opacity-5"></div>}
+          
+          {/* تقليل عدد الدوائر المتحركة على الموبايل */}
+          {!isMobile && (
+            <>
+              <motion.div 
+                className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+                animate={{ 
+                  x: [0, 30, 0],
+                  y: [0, -30, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ 
+                  duration: 15, 
+                  repeat: Infinity,
+                  repeatType: "reverse"
+                }}
+              />
+              <motion.div 
+                className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
+                animate={{ 
+                  x: [0, -30, 0],
+                  y: [0, 30, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ 
+                  duration: 18, 
+                  repeat: Infinity,
+                  repeatType: "reverse"
+                }
+              }
+            />
+            <motion.div 
+              className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [0.1, 0.2, 0.1]
+              }}
+              transition={{ 
+                duration: 12, 
+                repeat: Infinity,
+                repeatType: "reverse"
+              }}
+            />
+          </>
+        )}
         </div>
         
         <div className="max-w-7xl mx-auto px-6 relative z-10">
@@ -266,52 +289,56 @@ export default function Footer() {
             transition={{ delay: 0.2, duration: 0.8 }}
             className="flex flex-col items-center mb-16"
           >
-            {/* خلفية متوهجة للشعار */}
+            {/* خلفية متوهجة للشعار - مبسطة على الموبايل */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 1 }}
               className="relative mb-20"
             >
-              {/* دوائر متوهجة متعددة */}
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 opacity-30 blur-3xl"
-                animate={{ 
-                  scale: [1, 1.3, 1],
-                  opacity: [0.3, 0.5, 0.3]
-                }}
-                transition={{ 
-                  duration: 4, 
-                  repeat: Infinity,
-                  repeatType: "reverse"
-                }}
-              />
-              
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 opacity-20 blur-2xl"
-                animate={{ 
-                  scale: [1, 1.2, 1],
-                  opacity: [0.2, 0.4, 0.2]
-                }}
-                transition={{ 
-                  duration: 5, 
-                  repeat: Infinity,
-                  repeatType: "reverse"
-                }}
-              />
-              
-              {/* دائرة خارجية متحركة */}
-              <motion.div 
-                className="absolute inset-0 rounded-full border-2 border-dashed border-white/20"
-                animate={{ 
-                  rotate: 360,
-                }}
-                transition={{ 
-                  duration: 20, 
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
-              />
+              {/* دوائر متوهجة متعددة - فقط على سطح المكتب */}
+              {!isMobile && (
+                <>
+                  <motion.div 
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 opacity-30 blur-3xl"
+                    animate={{ 
+                      scale: [1, 1.3, 1],
+                      opacity: [0.3, 0.5, 0.3]
+                    }}
+                    transition={{ 
+                      duration: 4, 
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
+                  />
+                  
+                  <motion.div 
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 opacity-20 blur-2xl"
+                    animate={{ 
+                      scale: [1, 1.2, 1],
+                      opacity: [0.2, 0.4, 0.2]
+                    }}
+                    transition={{ 
+                      duration: 5, 
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
+                  />
+                  
+                  {/* دائرة خارجية متحركة */}
+                  <motion.div 
+                    className="absolute inset-0 rounded-full border-2 border-dashed border-white/20"
+                    animate={{ 
+                      rotate: 360,
+                    }}
+                    transition={{ 
+                      duration: 20, 
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                  />
+                </>
+              )}
               
               {/* حاوية الشعار المحسنة مع رابط */}
               <motion.div
@@ -331,8 +358,8 @@ export default function Footer() {
                 <Image
                   src={logoSrc}
                   alt={logoAlt}
-                  width={160}
-                  height={160}
+                  width={isMobile ? 120 : 160}
+                  height={isMobile ? 120 : 160}
                   className="object-contain drop-shadow-2xl transition-all duration-300"
                   priority
                   style={{ 
@@ -341,11 +368,11 @@ export default function Footer() {
                   }}
                 />
                 
-                {/* نجوم صغيرة متلألئة */}
-                {[...Array(12)].map((_, i) => {
+                {/* نجوم صغيرة متلألئة - تقليل العدد على الموبايل */}
+                {[...Array(starCount)].map((_, i) => {
                   // حساب المواقع وتقريبها لتجنب مشاكل الـ hydration
-                  const top = roundPosition(50 + 40 * Math.cos(i * Math.PI / 6));
-                  const left = roundPosition(50 + 40 * Math.sin(i * Math.PI / 6));
+                  const top = roundPosition(50 + 40 * Math.cos(i * Math.PI / (starCount/2)));
+                  const left = roundPosition(50 + 40 * Math.sin(i * Math.PI / (starCount/2)));
                   
                   return (
                     <motion.div
@@ -377,25 +404,27 @@ export default function Footer() {
               transition={{ delay: 0.8, duration: 0.8 }}
               className="mb-10 relative"
             >
-              {/* خلفية متوهجة للنص */}
-              <motion.div 
-                className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-3xl blur-xl -z-10"
-                animate={{ 
-                  opacity: [0.3, 0.6, 0.3],
-                  scale: [0.95, 1.05, 0.95]
-                }}
-                transition={{ 
-                  duration: 4, 
-                  repeat: Infinity,
-                  repeatType: "reverse"
-                }}
-              />
+              {/* خلفية متوهجة للنص - فقط على سطح المكتب */}
+              {!isMobile && (
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-3xl blur-xl -z-10"
+                  animate={{ 
+                    opacity: [0.3, 0.6, 0.3],
+                    scale: [0.95, 1.05, 0.95]
+                  }}
+                  transition={{ 
+                    duration: 4, 
+                    repeat: Infinity,
+                    repeatType: "reverse"
+                  }}
+                />
+              )}
               
               <motion.h2 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 1, duration: 0.8, type: "spring", stiffness: 100 }}
-                className="text-6xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-6 tracking-tight cursor-pointer transition-all duration-300"
+                className={`${isMobile ? 'text-4xl md:text-5xl' : 'text-6xl md:text-7xl'} font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-6 tracking-tight cursor-pointer transition-all duration-300`}
                 whileHover={{ 
                   scale: 1.01,
                 }}
@@ -412,59 +441,63 @@ export default function Footer() {
                 className="h-2 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full mb-4"
               />
               
-              {/* تأثيرات لامعة حول النص */}
-              <motion.div 
-                className="absolute -top-6 -left-6 w-10 h-10 rounded-full bg-yellow-400/20 blur-lg"
-                animate={{ 
-                  scale: [1, 1.5, 1],
-                  opacity: [0.3, 0.7, 0.3]
-                }}
-                transition={{ 
-                  duration: 3, 
-                  repeat: Infinity,
-                  repeatType: "reverse"
-                }}
-              />
-              <motion.div 
-                className="absolute -bottom-6 -right-6 w-10 h-10 rounded-full bg-blue-400/20 blur-lg"
-                animate={{ 
-                  scale: [1, 1.5, 1],
-                  opacity: [0.3, 0.7, 0.3]
-                }}
-                transition={{ 
-                  duration: 3, 
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                  delay: 1.5
-                }}
-              />
-              
-              {/* زخارف جانبية */}
-              <motion.div 
-                className={`absolute top-1/2 ${isRTL ? '-right-12' : '-left-12'} w-8 h-1 bg-gradient-to-r ${isRTL ? 'from-transparent to-blue-400' : 'from-blue-400 to-transparent'}`}
-                animate={{ 
-                  opacity: [0.3, 0.8, 0.3],
-                  scaleX: [0.8, 1.2, 0.8]
-                }}
-                transition={{ 
-                  duration: 3, 
-                  repeat: Infinity,
-                  repeatType: "reverse"
-                }}
-              />
-              <motion.div 
-                className={`absolute top-1/2 ${isRTL ? '-left-12' : '-right-12'} w-8 h-1 bg-gradient-to-l ${isRTL ? 'from-transparent to-purple-400' : 'from-purple-400 to-transparent'}`}
-                animate={{ 
-                  opacity: [0.3, 0.8, 0.3],
-                  scaleX: [0.8, 1.2, 0.8]
-                }}
-                transition={{ 
-                  duration: 3, 
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                  delay: 1.5
-                }}
-              />
+              {/* تأثيرات لامعة حول النص - فقط على سطح المكتب */}
+              {!isMobile && (
+                <>
+                  <motion.div 
+                    className="absolute -top-6 -left-6 w-10 h-10 rounded-full bg-yellow-400/20 blur-lg"
+                    animate={{ 
+                      scale: [1, 1.5, 1],
+                      opacity: [0.3, 0.7, 0.3]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
+                  />
+                  <motion.div 
+                    className="absolute -bottom-6 -right-6 w-10 h-10 rounded-full bg-blue-400/20 blur-lg"
+                    animate={{ 
+                      scale: [1, 1.5, 1],
+                      opacity: [0.3, 0.7, 0.3]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      delay: 1.5
+                    }}
+                  />
+                  
+                  {/* زخارف جانبية */}
+                  <motion.div 
+                    className={`absolute top-1/2 ${isRTL ? '-right-12' : '-left-12'} w-8 h-1 bg-gradient-to-r ${isRTL ? 'from-transparent to-blue-400' : 'from-blue-400 to-transparent'}`}
+                    animate={{ 
+                      opacity: [0.3, 0.8, 0.3],
+                      scaleX: [0.8, 1.2, 0.8]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
+                  />
+                  <motion.div 
+                    className={`absolute top-1/2 ${isRTL ? '-left-12' : '-right-12'} w-8 h-1 bg-gradient-to-l ${isRTL ? 'from-transparent to-purple-400' : 'from-purple-400 to-transparent'}`}
+                    animate={{ 
+                      opacity: [0.3, 0.8, 0.3],
+                      scaleX: [0.8, 1.2, 0.8]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      delay: 1.5
+                    }}
+                  />
+                </>
+              )}
             </motion.div>
             
             {/* العبارة التوضيحية المحسنة */}
@@ -478,7 +511,7 @@ export default function Footer() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.6, duration: 0.8 }}
-                className="text-3xl md:text-4xl text-center font-light text-gray-300 mb-6 max-w-3xl leading-relaxed cursor-pointer transition-all duration-300"
+                className={`${isMobile ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl'} text-center font-light text-gray-300 mb-6 max-w-3xl leading-relaxed cursor-pointer transition-all duration-300`}
                 whileHover={{ 
                   color: "#e2e8f0",
                 }}
@@ -503,32 +536,36 @@ export default function Footer() {
                 </motion.span>
               </motion.p>
               
-              {/* تأثيرات لامعة حول العبارة */}
-              <motion.div 
-                className="absolute top-0 left-1/4 w-6 h-6 rounded-full bg-yellow-400/30 blur-md"
-                animate={{ 
-                  x: [0, 30, 0],
-                  y: [0, -15, 0],
-                }}
-                transition={{ 
-                  duration: 4, 
-                  repeat: Infinity,
-                  repeatType: "reverse"
-                }}
-              />
-              <motion.div 
-                className="absolute bottom-0 right-1/4 w-6 h-6 rounded-full bg-purple-400/30 blur-md"
-                animate={{ 
-                  x: [0, -30, 0],
-                  y: [0, 15, 0],
-                }}
-                transition={{ 
-                  duration: 4, 
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                  delay: 2
-                }}
-              />
+              {/* تأثيرات لامعة حول العبارة - فقط على سطح المكتب */}
+              {!isMobile && (
+                <>
+                  <motion.div 
+                    className="absolute top-0 left-1/4 w-6 h-6 rounded-full bg-yellow-400/30 blur-md"
+                    animate={{ 
+                      x: [0, 30, 0],
+                      y: [0, -15, 0],
+                    }}
+                    transition={{ 
+                      duration: 4, 
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
+                  />
+                  <motion.div 
+                    className="absolute bottom-0 right-1/4 w-6 h-6 rounded-full bg-purple-400/30 blur-md"
+                    animate={{ 
+                      x: [0, -30, 0],
+                      y: [0, 15, 0],
+                    }}
+                    transition={{ 
+                      duration: 4, 
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      delay: 2
+                    }}
+                  />
+                </>
+              )}
               
               {/* خط زخرفي تحت العبارة */}
               <motion.div 
@@ -569,7 +606,7 @@ export default function Footer() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 2.2, duration: 0.8 }}
-                className="text-xl md:text-2xl text-center text-gray-400 leading-relaxed font-light cursor-pointer transition-all duration-300"
+                className={`${isMobile ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'} text-center text-gray-400 leading-relaxed font-light cursor-pointer transition-all duration-300`}
                 whileHover={{ 
                   color: "#cbd5e1",
                 }}
@@ -672,23 +709,27 @@ export default function Footer() {
                     scale: 1.05,
                   }}
                   whileTap={{ scale: 0.95 }}
-                  className={`flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-gray-800/60 backdrop-blur-sm transition-all duration-300 ${social.color} border border-gray-700/50 group overflow-hidden shadow-lg relative`}
+                  className={`flex flex-col items-center justify-center ${isMobile ? 'w-16 h-16' : 'w-24 h-24'} rounded-2xl bg-gray-800/60 backdrop-blur-sm transition-all duration-300 ${social.color} border border-gray-700/50 group overflow-hidden shadow-lg relative`}
                   aria-label={social.label}
                 >
-                  {/* تأثير التوهج عند الهوفر */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-white/30 transition-all duration-300"></div>
-                  
-                  {/* تأثير الإضاءة من الأسفل */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-2xl"></div>
+                  {/* تأثير التوهج عند الهوفر - مبسط على الموبايل */}
+                  {!isMobile && (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-white/30 transition-all duration-300"></div>
+                      <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-2xl"></div>
+                    </>
+                  )}
                   
                   {/* الأيقونة مع تأثير اللمعان */}
-                  <div className="text-2xl mb-2 transition-all duration-300 group-hover:scale-110 z-10">
+                  <div className={`${isMobile ? 'text-xl' : 'text-2xl'} mb-2 transition-all duration-300 group-hover:scale-110 z-10`}>
                     {social.icon}
                   </div>
                   
-                  {/* النص مع تأثير اللمعان */}
-                  <span className="text-sm font-medium transition-all duration-300 group-hover:text-white z-10">{social.label}</span>
+                  {/* النص مع تأثير اللمعان - إخفاء على الموبايل */}
+                  {!isMobile && (
+                    <span className="text-sm font-medium transition-all duration-300 group-hover:text-white z-10">{social.label}</span>
+                  )}
                 </motion.a>
               ))}
             </motion.div>
@@ -699,7 +740,7 @@ export default function Footer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 3.2, duration: 0.8 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16"
+            className={`${isMobile ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8'} mb-16`}
           >
             {/* قسم المحتوى */}
             <motion.div
@@ -731,11 +772,13 @@ export default function Footer() {
                       href={link.href}
                       className="text-gray-300 hover:text-white transition-all duration-300 flex items-center group p-3 rounded-xl hover:bg-gray-700/30 relative overflow-hidden"
                     >
-                      {/* تأثير التوهج الخلفي */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      {/* إطار لامع */}
-                      <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-blue-400/50 transition-all duration-300"></div>
+                      {/* تأثير التوهج الخلفي - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-blue-400/50 transition-all duration-300"></div>
+                        </>
+                      )}
                       
                       {/* الأيقونة مع تأثير اللمعان */}
                       <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-blue-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
@@ -743,8 +786,10 @@ export default function Footer() {
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
-                      {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      {/* السهم مع تأثير الحركة واللمعان - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      )}
                     </Link>
                   </motion.li>
                 ))}
@@ -781,11 +826,13 @@ export default function Footer() {
                       href={link.href}
                       className="text-gray-300 hover:text-white transition-all duration-300 flex items-center group p-3 rounded-xl hover:bg-gray-700/30 relative overflow-hidden"
                     >
-                      {/* تأثير التوهج الخلفي */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      {/* إطار لامع */}
-                      <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-purple-400/50 transition-all duration-300"></div>
+                      {/* تأثير التوهج الخلفي - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-purple-400/50 transition-all duration-300"></div>
+                        </>
+                      )}
                       
                       {/* الأيقونة مع تأثير اللمعان */}
                       <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-purple-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
@@ -793,8 +840,10 @@ export default function Footer() {
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
-                      {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      {/* السهم مع تأثير الحركة واللمعان - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      )}
                     </Link>
                   </motion.li>
                 ))}
@@ -831,11 +880,13 @@ export default function Footer() {
                       href={link.href}
                       className="text-gray-300 hover:text-white transition-all duration-300 flex items-center group p-3 rounded-xl hover:bg-gray-700/30 relative overflow-hidden"
                     >
-                      {/* تأثير التوهج الخلفي */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      {/* إطار لامع */}
-                      <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-green-400/50 transition-all duration-300"></div>
+                      {/* تأثير التوهج الخلفي - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-green-400/50 transition-all duration-300"></div>
+                        </>
+                      )}
                       
                       {/* الأيقونة مع تأثير اللمعان */}
                       <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-green-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
@@ -843,8 +894,10 @@ export default function Footer() {
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
-                      {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      {/* السهم مع تأثير الحركة واللمعان - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      )}
                     </Link>
                   </motion.li>
                 ))}
@@ -881,11 +934,13 @@ export default function Footer() {
                       href={link.href}
                       className="text-gray-300 hover:text-white transition-all duration-300 flex items-center group p-3 rounded-xl hover:bg-gray-700/30 relative overflow-hidden"
                     >
-                      {/* تأثير التوهج الخلفي */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      {/* إطار لامع */}
-                      <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-pink-400/50 transition-all duration-300"></div>
+                      {/* تأثير التوهج الخلفي - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="absolute inset-0 rounded-xl border border-transparent group-hover:border-pink-400/50 transition-all duration-300"></div>
+                        </>
+                      )}
                       
                       {/* الأيقونة مع تأثير اللمعان */}
                       <span className={`${isRTL ? 'ml-3' : 'mr-3'} text-pink-400 transition-all duration-300 group-hover:scale-110 z-10`}>{link.icon}</span>
@@ -893,8 +948,10 @@ export default function Footer() {
                       {/* النص مع تأثير اللمعان */}
                       <span className="flex-1 transition-all duration-300 group-hover:text-white z-10">{link.text}</span>
                       
-                      {/* السهم مع تأثير الحركة واللمعان */}
-                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      {/* السهم مع تأثير الحركة واللمعان - فقط على سطح المكتب */}
+                      {!isMobile && (
+                        <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 ${isRTL ? 'group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-all duration-300 z-10`} />
+                      )}
                     </Link>
                   </motion.li>
                 ))}

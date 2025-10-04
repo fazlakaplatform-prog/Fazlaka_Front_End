@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Facebook, Instagram, Youtube, Users, BookOpen } from "lucide-react";
 import { FaTiktok, FaXTwitter } from "react-icons/fa6";
-import { arSA, enUS } from "@clerk/localizations";
 
 export default function SignInPage() {
   const [isVisible, setIsVisible] = useState(false);
