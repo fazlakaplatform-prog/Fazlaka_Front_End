@@ -1,3 +1,4 @@
+// app/team/[slug]/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -9,7 +10,13 @@ import { defaultSchema } from "hast-util-sanitize";
 import Link from "next/link";
 import Image from "next/image";
 import { urlFor, fetchFromSanity, getLocalizedText } from '@/lib/sanity';
-import { FaFileAlt, FaImage, FaGoogleDrive, FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaYoutube, FaTiktok, FaArrowLeft, FaQuoteLeft, FaQuoteRight, FaStar, FaCheckCircle, FaAward, FaExternalLinkAlt, FaPlay, FaExpand } from "react-icons/fa";
+import { 
+  FaFileAlt, FaImage, FaGoogleDrive, FaTwitter, FaFacebook, 
+  FaInstagram, FaLinkedin, FaYoutube, FaTiktok, FaArrowLeft, 
+  FaQuoteLeft, FaQuoteRight, FaStar, FaCheckCircle, FaAward, 
+  FaExternalLinkAlt, FaPlay, FaExpand, FaGlobe, FaEnvelope, 
+  FaPhone, FaMapMarkerAlt 
+} from "react-icons/fa";
 
 interface Member {
   _id: string;
@@ -34,6 +41,26 @@ interface Member {
     url: string;
   }>;
   language?: 'ar' | 'en';
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  skills?: string[];
+  skillsEn?: string[];
+  education?: Array<{
+    degree: string;
+    degreeEn?: string;
+    institution: string;
+    institutionEn?: string;
+    year: string;
+  }>;
+  experience?: Array<{
+    position: string;
+    positionEn?: string;
+    company: string;
+    companyEn?: string;
+    duration: string;
+  }>;
 }
 
 // تعريف واجهة ImageUrlBuilder
@@ -553,6 +580,153 @@ const MediaRenderer = ({ mediaElements }: { mediaElements: React.ReactNode[] }) 
   );
 };
 
+// مكون لعرض معلومات الاتصال
+const ContactInfo = ({ member, isRTL }: { member: Member; isRTL: boolean }) => {
+  const t = {
+    ar: {
+      contact: 'معلومات الاتصال',
+      email: 'البريد الإلكتروني',
+      phone: 'رقم الهاتف',
+      location: 'الموقع',
+      website: 'الموقع الإلكتروني',
+      skills: 'المهارات',
+      education: 'التعليم',
+      experience: 'الخبرة',
+      degree: 'الدرجة',
+      institution: 'المؤسسة',
+      year: 'السنة',
+      position: 'المنصب',
+      company: 'الشركة',
+      duration: 'المدة'
+    },
+    en: {
+      contact: 'Contact Information',
+      email: 'Email',
+      phone: 'Phone',
+      location: 'Location',
+      website: 'Website',
+      skills: 'Skills',
+      education: 'Education',
+      experience: 'Experience',
+      degree: 'Degree',
+      institution: 'Institution',
+      year: 'Year',
+      position: 'Position',
+      company: 'Company',
+      duration: 'Duration'
+    }
+  }[isRTL ? 'ar' : 'en'];
+  
+  const hasContactInfo = member.email || member.phone || member.location || member.website;
+  const hasSkills = member.skills && member.skills.length > 0;
+  const hasEducation = member.education && member.education.length > 0;
+  const hasExperience = member.experience && member.experience.length > 0;
+  
+  if (!hasContactInfo && !hasSkills && !hasEducation && !hasExperience) {
+    return null;
+  }
+  
+  return (
+    <div className="mt-8 space-y-6">
+      {/* معلومات الاتصال */}
+      {hasContactInfo && (
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <FaEnvelope className="text-blue-500" />
+            {t.contact}
+          </h3>
+          <div className="space-y-3">
+            {member.email && (
+              <div className="flex items-center gap-3">
+                <FaEnvelope className="text-gray-500" />
+                <a href={`mailto:${member.email}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                  {member.email}
+                </a>
+              </div>
+            )}
+            {member.phone && (
+              <div className="flex items-center gap-3">
+                <FaPhone className="text-gray-500" />
+                <a href={`tel:${member.phone}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                  {member.phone}
+                </a>
+              </div>
+            )}
+            {member.location && (
+              <div className="flex items-center gap-3">
+                <FaMapMarkerAlt className="text-gray-500" />
+                <span className="text-gray-700 dark:text-gray-300">{member.location}</span>
+              </div>
+            )}
+            {member.website && (
+              <div className="flex items-center gap-3">
+                <FaGlobe className="text-gray-500" />
+                <a href={member.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                  {member.website}
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* المهارات */}
+      {hasSkills && (
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t.skills}</h3>
+          <div className="flex flex-wrap gap-2">
+            {(isRTL ? member.skills : member.skillsEn || member.skills)?.map((skill, index) => (
+              <span key={index} className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* التعليم */}
+      {hasEducation && (
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t.education}</h3>
+          <div className="space-y-4">
+            {member.education?.map((edu, index) => (
+              <div key={index} className="border-l-4 border-blue-500 pl-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white">
+                  {getLocalizedText(edu.degree, edu.degreeEn, isRTL ? 'ar' : 'en')}
+                </h4>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {getLocalizedText(edu.institution, edu.institutionEn, isRTL ? 'ar' : 'en')}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">{edu.year}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* الخبرة */}
+      {hasExperience && (
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t.experience}</h3>
+          <div className="space-y-4">
+            {member.experience?.map((exp, index) => (
+              <div key={index} className="border-l-4 border-green-500 pl-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white">
+                  {getLocalizedText(exp.position, exp.positionEn, isRTL ? 'ar' : 'en')}
+                </h4>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {getLocalizedText(exp.company, exp.companyEn, isRTL ? 'ar' : 'en')}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">{exp.duration}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Page({ params }: { params: Promise<{ slug: string }> }) {
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
@@ -599,6 +773,26 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
         socialMedia[] {
           platform,
           url
+        },
+        email,
+        phone,
+        location,
+        website,
+        skills,
+        skillsEn,
+        education[] {
+          degree,
+          degreeEn,
+          institution,
+          institutionEn,
+          year
+        },
+        experience[] {
+          position,
+          positionEn,
+          company,
+          companyEn,
+          duration
         },
         language
       }`;
@@ -880,6 +1074,9 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                 {/* عرض عناصر الوسائط المستخرجة */}
                 <MediaRenderer mediaElements={mediaElements} />
               </div>
+              
+              {/* معلومات الاتصال الإضافية */}
+              <ContactInfo member={member} isRTL={isRTL} />
               
               {/* زر العودة */}
               <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
