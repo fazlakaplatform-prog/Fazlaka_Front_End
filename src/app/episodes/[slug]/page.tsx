@@ -8,6 +8,7 @@ import rehypeSanitize from "rehype-sanitize";
 import { useParams, useRouter } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
+import { UserResource } from "@clerk/types"; // Import the correct User type
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -20,7 +21,7 @@ import FavoriteButton from "@/components/FavoriteButton";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getLocalizedText } from "@/lib/sanity";
 
-import { FaPlay, FaShare, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive } from "react-icons/fa";
+import { FaPlay, FaShare, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive, FaReply, FaTrash } from "react-icons/fa";
 
 // تعريف الأنواع مباشرة في الملف مع دعم اللغة
 interface SanityImage {
@@ -69,10 +70,26 @@ interface Article {
 }
 
 interface Comment {
-  _id: string;
-  name: string;
-  content: string;
-  createdAt: string;
+  _id?: string;
+  _type?: string;
+  content?: string;
+  name?: string;
+  email?: string;
+  createdAt?: string | Date;
+  episode?: {
+    _ref: string;
+  };
+  article?: {
+    _ref: string;
+  };
+  parentComment?: {
+    _ref: string;
+  };
+  replies?: Comment[];
+  userId?: string;
+  userFirstName?: string;
+  userLastName?: string;
+  userImageUrl?: string;
 }
 
 interface SanityBlock {
@@ -128,7 +145,20 @@ const translations = {
     openImage: "فتح الصورة",
     noTitle: "بدون عنوان",
     noSeason: "بدون موسم",
-    readMore: "اقرأ المزيد..."
+    readMore: "اقرأ المزيد...",
+    reply: "رد",
+    delete: "حذف",
+    replyTo: "رد على",
+    cancel: "إلغاء",
+    confirmDelete: "هل أنت متأكد من حذف هذا التعليق؟",
+    deleteSuccess: "تم حذف التعليق بنجاح",
+    replySuccess: "تم إرسال الرد بنجاح",
+    writeReply: "اكتب ردك هنا...",
+    sendReply: "إرسال الرد",
+    replying: "جاري الرد...",
+    noReplies: "لا توجد ردود بعد",
+    showReplies: "عرض الردود",
+    hideReplies: "إخفاء الردود"
   },
   en: {
     loading: "Loading...",
@@ -166,7 +196,20 @@ const translations = {
     openImage: "Open Image",
     noTitle: "No Title",
     noSeason: "No Season",
-    readMore: "Read more..."
+    readMore: "Read more...",
+    reply: "Reply",
+    delete: "Delete",
+    replyTo: "Reply to",
+    cancel: "Cancel",
+    confirmDelete: "Are you sure you want to delete this comment?",
+    deleteSuccess: "Comment deleted successfully",
+    replySuccess: "Reply sent successfully",
+    writeReply: "Write your reply here...",
+    sendReply: "Send reply",
+    replying: "Replying...",
+    noReplies: "No replies yet",
+    showReplies: "Show replies",
+    hideReplies: "Hide replies"
   }
 };
 
@@ -278,6 +321,7 @@ function blocksToText(blocks: SanityBlock[]): string {
     .join('\n');
 }
 
+// دالة لتحويل روابط الفيديو إلى روابط مضمنة
 function toEmbed(url: string): string {
   if (!url) return "";
   try {
@@ -296,7 +340,266 @@ function toEmbed(url: string): string {
   }
 }
 
-// مكون التعليقات المدمج مع دعم اللغة
+// مكون التعليق الفردي
+function CommentItem({ 
+  comment, 
+  onReply, 
+  onDelete, 
+  isRTL,
+  language,
+  t,
+  user,
+  contentId,
+  type
+}: { 
+  comment: Comment; 
+  onReply: (parentId: string, content: string) => Promise<void>;
+  onDelete: (commentId: string) => Promise<void>;
+  isRTL: boolean;
+  language: 'ar' | 'en';
+  t: typeof translations.ar | typeof translations.en;
+  user: UserResource | null; // Fixed: Using UserResource from @clerk/types
+  contentId: string;
+  type: "article" | "episode";
+}) {
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
+  const [replying, setReplying] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  
+  const createdAt = comment.createdAt ? new Date(comment.createdAt) : new Date();
+  const isOwner = user && (comment.userId === user.id || comment.email === user.emailAddresses?.[0]?.emailAddress);
+  
+  // دالة للحصول على اسم العرض الكامل
+  const getDisplayName = () => {
+    if (comment.userFirstName && comment.userLastName) {
+      return `${comment.userFirstName} ${comment.userLastName}`;
+    }
+    return comment.name || "مستخدم";
+  };
+  
+  // دالة للحصول على صورة المستخدم مع التحقق من null
+  const getUserImage = (): string => {
+    if (comment.userImageUrl) {
+      return comment.userImageUrl;
+    }
+    // صورة افتراضية إذا لم توجد صورة
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName())}&background=8b5cf6&color=fff`;
+  };
+  
+  const handleReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+    
+    setReplying(true);
+    try {
+      await onReply(comment._id!, replyContent);
+      setReplyContent("");
+      setShowReplyForm(false);
+      // تحديث قائمة الردود
+      if (!showReplies) {
+        setShowReplies(true);
+      }
+    } catch (error) {
+      console.error("Error replying to comment:", error);
+    } finally {
+      setReplying(false);
+    }
+  };
+  
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await onDelete(comment._id!);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(false);
+    }
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-4 mb-4 border border-gray-100 dark:border-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}
+    >
+      <div className="flex items-start gap-3">
+        {/* صورة المستخدم */}
+        <div className="flex-shrink-0">
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-700">
+            <Image
+              src={getUserImage()}
+              alt={getDisplayName()}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+        
+        {/* محتوى التعليق */}
+        <div className="flex-grow">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{getDisplayName()}</h4>
+            <div className="flex items-center gap-2">
+              <time dateTime={createdAt.toISOString()} className="text-xs text-gray-500 dark:text-gray-400">
+                {createdAt.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </time>
+              {isOwner && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                    title={t.delete}
+                  >
+                    <FaTrash className="text-xs" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <p className="text-gray-700 dark:text-gray-300 mb-2">{comment.content}</p>
+          
+          {/* أزرار الرد */}
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={() => setShowReplyForm(!showReplyForm)}
+              className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+            >
+              <FaReply className="text-xs" />
+              {t.reply}
+            </button>
+            
+            {comment.replies && comment.replies.length > 0 && (
+              <button
+                onClick={() => setShowReplies(!showReplies)}
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                {showReplies ? t.hideReplies : t.showReplies} ({comment.replies.length})
+              </button>
+            )}
+          </div>
+          
+          {/* نموذج الرد */}
+          {showReplyForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+            >
+              <form onSubmit={handleReply}>
+                <textarea
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  rows={3}
+                  className="w-full border p-2 rounded mb-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm"
+                  placeholder={`${t.writeReply} ${getDisplayName()}...`}
+                  required
+                  disabled={replying}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowReplyForm(false)}
+                    className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={replying || !replyContent.trim()}
+                    className={`px-3 py-1 text-sm rounded text-white ${
+                      replying || !replyContent.trim()
+                        ? "bg-gray-400 dark:bg-gray-600"
+                        : "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600"
+                    } transition-colors`}
+                  >
+                    {replying ? t.replying : t.sendReply}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+          
+          {/* عرض الردود */}
+          {showReplies && comment.replies && comment.replies.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {comment.replies.map((reply) => (
+                <CommentItem
+                  key={reply._id}
+                  comment={reply}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  isRTL={isRTL}
+                  language={language}
+                  t={t}
+                  user={user}
+                  contentId={contentId}
+                  type={type}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* نافذة تأكيد الحذف */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 max-w-sm w-full shadow-xl"
+          >
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">
+              {t.confirmDelete}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+              {t.confirmDelete}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className={`px-3 py-1 text-sm rounded text-white ${
+                  deleting
+                    ? "bg-gray-400 dark:bg-gray-600"
+                    : "bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600"
+                } transition-colors`}
+              >
+                {deleting ? "جاري الحذف..." : t.delete}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// مكون التعليقات
 function CommentsClient({ 
   contentId, 
   type = "episode" 
@@ -304,29 +607,45 @@ function CommentsClient({
   contentId: string; 
   type?: "article" | "episode" 
 }) {
-  const { language } = useLanguage();
+  const { language, isRTL } = useLanguage();
   const t = translations[language];
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   
   const fetchComments = useCallback(async () => {
     try {
-      const query = `*[_type == "comment" && ${type}._ref == $contentId]{
+      const query = `*[_type == "comment" && ${type}._ref == $contentId && !defined(parentComment)]{
         _id,
         name,
+        email,
         content,
-        createdAt
+        createdAt,
+        userId,
+        userFirstName,
+        userLastName,
+        userImageUrl,
+        "replies": *[_type == "comment" && parentComment._ref == ^._id] | order(createdAt asc) {
+          _id,
+          name,
+          email,
+          content,
+          createdAt,
+          userId,
+          userFirstName,
+          userLastName,
+          userImageUrl
+        }
       } | order(createdAt desc)`;
       const comments = await client.fetch(query, { contentId });
       setComments(comments);
     } catch (err) {
       console.error("Error fetching comments:", err);
     }
-  }, [contentId, type]);
+  }, [type, contentId]);
   
   useEffect(() => {
     fetchComments();
@@ -340,14 +659,14 @@ function CommentsClient({
       setErrorMsg(t.writeCommentBeforeSend);
       return;
     }
-    if (!user) {
+    if (!isLoaded || !user) {
       setErrorMsg(t.signInToComment);
       return;
     }
     setLoading(true);
     
     try {
-      // محاولة استخدام API route أولاً
+      // استخدام API route فقط
       const apiResponse = await fetch('/api/comments', {
         method: 'POST',
         headers: {
@@ -355,8 +674,12 @@ function CommentsClient({
         },
         body: JSON.stringify({
           content,
-          name: user.firstName || (user.fullName as string) || "مستخدم",
+          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || user.fullName || "مستخدم"),
           email: user.emailAddresses?.[0]?.emailAddress || "",
+          userId: user.id,
+          userFirstName: user.firstName || "",
+          userLastName: user.lastName || "",
+          userImageUrl: user.imageUrl || "",
           [type]: contentId,
         }),
       });
@@ -367,34 +690,12 @@ function CommentsClient({
         setSuccessMsg(t.commentSent);
         setContent("");
         fetchComments();
-        setLoading(false);
-        return;
+      } else {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to create comment");
       }
-
-      // إذا فشلت API route، نحاول مباشرة مع Sanity
-      const newComment = {
-        _type: "comment",
-        name: user.firstName || (user.fullName as string) || "مستخدم",
-        email: user.emailAddresses?.[0]?.emailAddress || "",
-        content,
-        createdAt: new Date().toISOString(),
-        [type]: {
-          _type: "reference",
-          _ref: contentId
-        }
-      };
-      
-      console.log("Sending comment directly to Sanity:", newComment);
-      
-      // استخدام client.create مع التوكن الصحيح
-      const result = await client.create(newComment);
-      console.log("Comment created directly:", result);
-      
-      setSuccessMsg(t.commentSent);
-      setContent("");
-      fetchComments();
     } catch (err: unknown) {
-      console.error("خطأ غير متوقع في الإرسال:", err);
+      console.error("Error sending comment:", err);
       if (err instanceof Error) {
         if (err.message.includes("Insufficient permissions")) {
           setErrorMsg(t.noPermission);
@@ -409,68 +710,189 @@ function CommentsClient({
     }
   };
   
+  const handleReply = async (parentId: string, replyContent: string) => {
+    if (!isLoaded || !user) {
+      setErrorMsg(t.signInToComment);
+      return;
+    }
+    
+    try {
+      // استخدام API route فقط
+      const apiResponse = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: replyContent,
+          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || user.fullName || "مستخدم"),
+          email: user.emailAddresses?.[0]?.emailAddress || "",
+          userId: user.id,
+          userFirstName: user.firstName || "",
+          userLastName: user.lastName || "",
+          userImageUrl: user.imageUrl || "",
+          parentComment: parentId,
+          [type]: contentId,
+        }),
+      });
+
+      if (apiResponse.ok) {
+        setSuccessMsg(t.replySuccess);
+        fetchComments();
+      } else {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to create reply");
+      }
+    } catch (err: unknown) {
+      console.error("Error replying to comment:", err);
+      if (err instanceof Error) {
+        setErrorMsg(`${t.unexpectedError}: ${err.message}`);
+      } else {
+        setErrorMsg(t.unexpectedError);
+      }
+    }
+  };
+  
+  const handleDelete = async (commentId: string) => {
+    if (!isLoaded || !user) {
+      setErrorMsg(t.signInToComment);
+      return;
+    }
+    
+    try {
+      // استخدام API route فقط
+      const apiResponse = await fetch(`/api/comments?id=${commentId}`, {
+        method: 'DELETE',
+      });
+
+      if (apiResponse.ok) {
+        setSuccessMsg(t.deleteSuccess);
+        fetchComments();
+      } else {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to delete comment");
+      }
+    } catch (err: unknown) {
+      console.error("Error deleting comment:", err);
+      if (err instanceof Error) {
+        setErrorMsg(`${t.unexpectedError}: ${err.message}`);
+      } else {
+        setErrorMsg(t.unexpectedError);
+      }
+    }
+  };
+  
+  // دالة للحصول على صورة المستخدم الحالي مع التحقق من null
+  const getCurrentUserImage = (): string => {
+    if (user?.imageUrl) {
+      return user.imageUrl;
+    }
+    // صورة افتراضية إذا لم توجد صورة
+    const displayName = user?.firstName && user?.lastName 
+      ? `${user.firstName} ${user.lastName}` 
+      : (user?.firstName || user?.fullName || "مستخدم");
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=8b5cf6&color=fff`;
+  };
+  
+  // دالة للحصول على اسم العرض الكامل للمستخدم الحالي
+  const getCurrentUserDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user?.firstName || user?.fullName || "مستخدم";
+  };
+  
   return (
-    <div className="mt-6 border rounded p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
+    <div className="mt-6 rounded-xl overflow-hidden">
       <SignedOut>
-        <div className="mb-4">
-          <p className="mb-2">{t.signInToComment}</p>
+        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <p className="mb-2 text-blue-800 dark:text-blue-200">{t.signInToComment}</p>
           <Link
             href="/sign-in"
-            className="px-3 py-2 bg-blue-600 dark:bg-blue-500 hover:opacity-95 text-white rounded inline-block"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
             {t.signIn}
           </Link>
         </div>
       </SignedOut>
       <SignedIn>
-        <form onSubmit={handleSubmit} className="mb-4">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={4}
-            className="w-full border p-2 rounded mb-2 bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-            placeholder={t.writeComment}
-            required
-            disabled={loading}
-            aria-label="تعليق"
-          />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`px-4 py-2 rounded text-white ${
-                loading
-                  ? "bg-gray-400 dark:bg-gray-600"
-                  : "bg-blue-600 dark:bg-blue-500 hover:opacity-95"
-              }`}
-              aria-busy={loading}
-            >
-              {loading ? t.sending : t.sendComment}
-            </button>
-            {errorMsg && (
-              <p className="text-sm text-red-600 dark:text-red-400 break-words max-w-xl">{errorMsg}</p>
-            )}
-            {successMsg && (
-              <p className="text-sm text-green-600 dark:text-green-400 break-words max-w-xl">{successMsg}</p>
-            )}
+        <form onSubmit={handleSubmit} className="mb-6">
+          <div className="flex items-start gap-3">
+            {/* صورة المستخدم */}
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-700">
+                <Image
+                  src={getCurrentUserImage()}
+                  alt={getCurrentUserDisplayName()}
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            
+            {/* حقل إدخال التعليق */}
+            <div className="flex-grow">
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={4}
+                className="w-full border p-3 rounded-lg mb-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder={t.writeComment}
+                required
+                disabled={loading}
+                aria-label="تعليق"
+              />
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  {errorMsg && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>
+                  )}
+                  {successMsg && (
+                    <p className="text-sm text-green-600 dark:text-green-400">{successMsg}</p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !content.trim()}
+                  className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${
+                    loading || !content.trim()
+                      ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                      : "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 shadow-md hover:shadow-lg"
+                  }`}
+                  aria-busy={loading}
+                >
+                  {loading ? t.sending : t.sendComment}
+                </button>
+              </div>
+            </div>
           </div>
         </form>
       </SignedIn>
-      <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">{t.noComments}</p>}
-        {comments.map((c: Comment) => {
-          const createdAt = new Date(c.createdAt);
-          return (
-            <div key={c._id} className="py-3">
-              <p className="text-sm text-gray-700 dark:text-gray-200">{c.content}</p>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                <span>{c.name}</span>
-                <span> · </span>
-                <time dateTime={createdAt.toISOString()}>{createdAt.toLocaleString()}</time>
-              </div>
-            </div>
-          );
-        })}
+      
+      {/* قائمة التعليقات */}
+      <div className="space-y-4">
+        {comments.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <FaComment className="text-4xl mx-auto mb-2 opacity-50" />
+            <p>{t.noComments}</p>
+          </div>
+        ) : (
+          comments.map((comment) => (
+            <CommentItem
+              key={comment._id}
+              comment={comment}
+              onReply={handleReply}
+              onDelete={handleDelete}
+              isRTL={isRTL}
+              language={language}
+              t={t}
+              user={user || null} // Fixed: Convert undefined to null
+              contentId={contentId}
+              type={type}
+            />
+          ))
+        )}
       </div>
     </div>
   );
@@ -1066,14 +1488,22 @@ export default function EpisodeDetailPageClient() {
   
   const title = getLocalizedText(episode.title, episode.titleEn, language) || t.noTitle;
   
-  // Convert SanityBlock[] to string before passing to getLocalizedText
-  const description = typeof episode.description === 'string' 
-    ? getLocalizedText(episode.description, typeof episode.descriptionEn === 'string' ? episode.descriptionEn : undefined, language) || ""
-    : blocksToText(episode.description || []);
+  // تعديل طريقة تحويل المحتوى بناءً على اللغة
+  const description = language === 'ar' 
+    ? (typeof episode.description === 'string' 
+        ? episode.description || ""
+        : blocksToText(episode.description || []))
+    : (typeof episode.descriptionEn === 'string' 
+        ? episode.descriptionEn || ""
+        : blocksToText(episode.descriptionEn || []));
   
-  const content = typeof episode.content === 'string' 
-    ? getLocalizedText(episode.content, typeof episode.contentEn === 'string' ? episode.contentEn : undefined, language) || ""
-    : blocksToText(episode.content || []);
+  const content = language === 'ar' 
+    ? (typeof episode.content === 'string' 
+        ? episode.content || ""
+        : blocksToText(episode.content || []))
+    : (typeof episode.contentEn === 'string' 
+        ? episode.contentEn || ""
+        : blocksToText(episode.contentEn || []));
   
   const videoUrl = episode.videoUrl || "";
   const embedUrl = toEmbed(videoUrl);
@@ -1247,7 +1677,7 @@ export default function EpisodeDetailPageClient() {
                 <div className="flex-grow h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
               </div>
               
-              <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
+              <div className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`}>
                 <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-blue-100 dark:border-gray-700 backdrop-blur-md">
                   {processedDescription}
                 </div>
@@ -1274,7 +1704,7 @@ export default function EpisodeDetailPageClient() {
                   <div className="flex-grow h-px bg-gradient-to-r from-green-200 to-transparent"></div>
                 </div>
                 
-                <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
+                <div className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`}>
                   <div className="bg-gradient-to-br from-green-50/50 to-teal-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-green-100 dark:border-gray-700 backdrop-blur-md">
                     {processedContent}
                   </div>
@@ -1665,6 +2095,42 @@ export default function EpisodeDetailPageClient() {
         }
         .dark .prose img {
           box-shadow: none;
+        }
+        /* تعديل اتجاه النصوص بناءً على اللغة */
+        .prose p, .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6, .prose ul, .prose ol, .prose li {
+          text-align: inherit;
+        }
+        .prose ul, .prose ol {
+          padding-left: 1.5rem;
+        }
+        .prose[dir="rtl"] ul, .prose[dir="rtl"] ol {
+          padding-left: 0;
+          padding-right: 1.5rem;
+        }
+        .prose[dir="ltr"] ul, .prose[dir="ltr"] ol {
+          padding-left: 1.5rem;
+          padding-right: 0;
+        }
+        /* تعديل اتجاه القوائم */
+        .prose[dir="rtl"] li {
+          text-align: right;
+        }
+        .prose[dir="ltr"] li {
+          text-align: left;
+        }
+        /* تعديل اتجاه الفقرات */
+        .prose[dir="rtl"] p {
+          text-align: right;
+        }
+        .prose[dir="ltr"] p {
+          text-align: left;
+        }
+        /* تعديل اتجاه العناوين */
+        .prose[dir="rtl"] h1, .prose[dir="rtl"] h2, .prose[dir="rtl"] h3, .prose[dir="rtl"] h4, .prose[dir="rtl"] h5, .prose[dir="rtl"] h6 {
+          text-align: right;
+        }
+        .prose[dir="ltr"] h1, .prose[dir="ltr"] h2, .prose[dir="ltr"] h3, .prose[dir="ltr"] h4, .prose[dir="ltr"] h5, .prose[dir="ltr"] h6 {
+          text-align: left;
         }
       `}</style>
     </div>

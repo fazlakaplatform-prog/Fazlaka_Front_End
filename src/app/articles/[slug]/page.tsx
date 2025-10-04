@@ -1,24 +1,25 @@
+// app/articles/[slug]/page.tsx
 "use client";
-import React, { useEffect, useState, useCallback, JSX } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
-import Image from "next/image";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
-import { useLanguage } from "@/components/LanguageProvider";
-import { getLocalizedText } from "@/lib/sanity";
-// Icons
-import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo } from "react-icons/fa";
-// Sanity
-import { client, urlForImage } from "@/lib/sanity";
-// Components
-import FavoriteButton from "@/components/FavoriteButton";
+import React, { useEffect, useState, useCallback, JSX } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useUser, SignedIn, SignedOut } from '@clerk/nextjs';
+import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import { useLanguage } from '@/components/LanguageProvider';
+import { getLocalizedText } from '@/lib/sanity';
+// الأيقونات المستخدمة في الواجهة
+import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo, FaReply, FaTrash, FaUser } from 'react-icons/fa';
+// Sanity للتعامل مع قاعدة البيانات
+import { client, urlForImage } from '@/lib/sanity';
+// المكونات
+import FavoriteButton from '@/components/FavoriteButton';
 
-// تعريف واجهات البيانات مع دعم اللغة
+// تعريف واجهات البيانات المستخدمة في التطبيق
 interface Article {
   _id: string;
   _type: string;
@@ -111,6 +112,7 @@ interface Comment {
   _type?: string;
   content?: string;
   name?: string;
+  email?: string;
   createdAt?: string | Date;
   article?: {
     _ref: string;
@@ -118,9 +120,17 @@ interface Comment {
   episode?: {
     _ref: string;
   };
+  parentComment?: {
+    _ref: string;
+  };
+  replies?: Comment[];
+  userId?: string;
+  userFirstName?: string;
+  userLastName?: string;
+  userImageUrl?: string;
 }
 
-// تعريف أنواع Portable Text من Sanity
+// تعريف أنواع Portable Text المستخدمة في محتوى المقالات
 interface PortableTextBlock {
   _type: 'block';
   style?: 'normal' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'blockquote' | 'code';
@@ -143,7 +153,7 @@ interface MarkDef {
   href?: string;
 }
 
-// تعريف واجهة SanityImage
+// تعريف واجهة صورة Sanity
 interface SanityImage {
   _type: 'image';
   asset: {
@@ -164,7 +174,7 @@ interface SanityImage {
   };
 }
 
-// كائن الترجمات
+// كائن الترجمات للغتين العربية والإنجليزية
 const translations = {
   ar: {
     loading: "جارٍ التحميل...",
@@ -200,7 +210,20 @@ const translations = {
     openImage: "فتح الصورة",
     document: "مستند",
     video: "فيديو",
-    publishedAt: "تاريخ النشر"
+    publishedAt: "تاريخ النشر",
+    reply: "رد",
+    delete: "حذف",
+    replyTo: "رد على",
+    cancel: "إلغاء",
+    confirmDelete: "هل أنت متأكد من حذف هذا التعليق؟",
+    deleteSuccess: "تم حذف التعليق بنجاح",
+    replySuccess: "تم إرسال الرد بنجاح",
+    writeReply: "اكتب ردك هنا...",
+    sendReply: "إرسال الرد",
+    replying: "جاري الرد...",
+    noReplies: "لا توجد ردود بعد",
+    showReplies: "عرض الردود",
+    hideReplies: "إخفاء الردود"
   },
   en: {
     loading: "Loading...",
@@ -236,11 +259,24 @@ const translations = {
     openImage: "Open image",
     document: "Document",
     video: "Video",
-    publishedAt: "Published at"
+    publishedAt: "Published at",
+    reply: "Reply",
+    delete: "Delete",
+    replyTo: "Reply to",
+    cancel: "Cancel",
+    confirmDelete: "Are you sure you want to delete this comment?",
+    deleteSuccess: "Comment deleted successfully",
+    replySuccess: "Reply sent successfully",
+    writeReply: "Write your reply here...",
+    sendReply: "Send reply",
+    replying: "Replying...",
+    noReplies: "No replies yet",
+    showReplies: "Show replies",
+    hideReplies: "Hide replies"
   }
 };
 
-// دالة محسّنة لتحويل محتوى الكتل من Sanity إلى نص مع الحفاظ على جميع التنسيقات
+// دالة لتحويل كتل المحتوى من Sanity إلى نص
 function blocksToText(blocks: PortableTextBlock[]): string {
   if (!blocks || !Array.isArray(blocks)) {
     return '';
@@ -280,17 +316,17 @@ function blocksToText(blocks: PortableTextBlock[]): string {
         markdown += '> ';
       }
       
-      // معالجة الكود البرمجي
+      // معالجة كتل الكود
       if (block.style === 'code') {
         markdown += '```\n';
       }
       
-      // إضافة النص مع التنسيقات
+      // إضافة النص مع التنسيق
       markdown += block.children
         .map((child: PortableTextSpan) => {
           let text = child.text || '';
           
-          // إضافة تنسيقات النص
+          // إضافة تنسيق النص
           if (child.marks) {
             child.marks.forEach((mark: string) => {
               if (mark === 'strong') {
@@ -311,12 +347,12 @@ function blocksToText(blocks: PortableTextBlock[]): string {
         })
         .join('');
       
-      // إغلاق الكود البرمجي
+      // إغلاق كتل الكود
       if (block.style === 'code') {
         markdown += '\n```';
       }
       
-      // إضافة سطر جديد بعد الكتل
+      // إضافة سطر جديد بعد كل كتلة
       if (block.style !== 'code') {
         markdown += '\n';
       }
@@ -324,6 +360,280 @@ function blocksToText(blocks: PortableTextBlock[]): string {
       return markdown;
     })
     .join('\n');
+}
+
+// تعريف واجهة بيانات المستخدم لمعالجة مشكلة النوع
+interface UserData {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  imageUrl?: string;
+  emailAddresses?: Array<{ emailAddress: string }>;
+}
+
+// مكون التعليق الفردي
+function CommentItem({ 
+  comment, 
+  onReply, 
+  onDelete, 
+  isRTL,
+  language,
+  t,
+  user,
+  contentId,
+  type
+}: { 
+  comment: Comment; 
+  onReply: (parentId: string, content: string) => Promise<void>;
+  onDelete: (commentId: string) => Promise<void>;
+  isRTL: boolean;
+  language: 'ar' | 'en';
+  t: typeof translations.ar | typeof translations.en;
+  user: UserData | null; // تعديل النوع هنا لحل المشكلة
+  contentId: string;
+  type: "article" | "episode";
+}) {
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
+  const [replying, setReplying] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  
+  const createdAt = comment.createdAt ? new Date(comment.createdAt) : new Date();
+  const isOwner = user && (comment.userId === user.id || comment.email === user.emailAddresses?.[0]?.emailAddress);
+  
+  // دالة للحصول على اسم العرض للمستخدم
+  const getDisplayName = () => {
+    if (comment.userFirstName && comment.userLastName) {
+      return `${comment.userFirstName} ${comment.userLastName}`;
+    }
+    return comment.name || "مستخدم";
+  };
+  
+  // دالة للحصول على صورة المستخدم
+  const getUserImage = () => {
+    if (comment.userImageUrl) {
+      return comment.userImageUrl;
+    }
+    return null;
+  };
+  
+  const handleReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+    
+    setReplying(true);
+    try {
+      await onReply(comment._id!, replyContent);
+      setReplyContent("");
+      setShowReplyForm(false);
+      // تحديث قائمة الردود
+      if (!showReplies) {
+        setShowReplies(true);
+      }
+    } catch (error) {
+      console.error("Error replying to comment:", error);
+    } finally {
+      setReplying(false);
+    }
+  };
+  
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await onDelete(comment._id!);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(false);
+    }
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-4 mb-4 border border-gray-100 dark:border-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}
+    >
+      <div className="flex items-start gap-3">
+        {/* صورة المستخدم */}
+        <div className="flex-shrink-0">
+          {getUserImage() ? (
+            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-700">
+              <Image
+                src={getUserImage() || ''}
+                alt={getDisplayName()}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
+              <FaUser className="text-sm" />
+            </div>
+          )}
+        </div>
+        
+        {/* محتوى التعليق */}
+        <div className="flex-grow">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{getDisplayName()}</h4>
+            <div className="flex items-center gap-2">
+              <time dateTime={createdAt.toISOString()} className="text-xs text-gray-500 dark:text-gray-400">
+                {createdAt.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </time>
+              {isOwner && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                    title={t.delete}
+                  >
+                    <FaTrash className="text-xs" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <p className="text-gray-700 dark:text-gray-300 mb-2">{comment.content}</p>
+          
+          {/* زر الرد */}
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={() => setShowReplyForm(!showReplyForm)}
+              className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+            >
+              <FaReply className="text-xs" />
+              {t.reply}
+            </button>
+            
+            {comment.replies && comment.replies.length > 0 && (
+              <button
+                onClick={() => setShowReplies(!showReplies)}
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                {showReplies ? t.hideReplies : t.showReplies} ({comment.replies.length})
+              </button>
+            )}
+          </div>
+          
+          {/* نموذج الرد */}
+          {showReplyForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+            >
+              <form onSubmit={handleReply}>
+                <textarea
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  rows={3}
+                  className="w-full border p-2 rounded mb-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm"
+                  placeholder={`${t.writeReply} ${getDisplayName()}...`}
+                  required
+                  disabled={replying}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowReplyForm(false)}
+                    className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={replying || !replyContent.trim()}
+                    className={`px-3 py-1 text-sm rounded text-white ${
+                      replying || !replyContent.trim()
+                        ? "bg-gray-400 dark:bg-gray-600"
+                        : "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600"
+                    } transition-colors`}
+                  >
+                    {replying ? t.replying : t.sendReply}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+          
+          {/* عرض الردود */}
+          {showReplies && comment.replies && comment.replies.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {comment.replies.map((reply) => (
+                <CommentItem
+                  key={reply._id}
+                  comment={reply}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  isRTL={isRTL}
+                  language={language}
+                  t={t}
+                  user={user}
+                  contentId={contentId}
+                  type={type}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* نافذة تأكيد الحذف */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 max-w-sm w-full shadow-xl"
+          >
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">
+              {t.confirmDelete}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+              {t.confirmDelete}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className={`px-3 py-1 text-sm rounded text-white ${
+                  deleting
+                    ? "bg-gray-400 dark:bg-gray-600"
+                    : "bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600"
+                } transition-colors`}
+              >
+                {deleting ? "جاري الحذف..." : t.delete}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 // مكون التعليقات
@@ -334,22 +644,48 @@ function CommentsClient({
   contentId: string; 
   type?: "article" | "episode" 
 }) {
-  const { language } = useLanguage();
+  const { language, isRTL } = useLanguage();
   const t = translations[language];
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  
+  // تحويل بيانات المستخدم من Clerk إلى النوع المحدد
+  const userData: UserData | null = user ? {
+    id: user.id,
+    firstName: user.firstName || undefined,
+    lastName: user.lastName || undefined,
+    fullName: user.fullName || undefined,
+    imageUrl: user.imageUrl || undefined,
+    emailAddresses: user.emailAddresses?.map(email => ({ emailAddress: email.emailAddress })) || []
+  } : null;
   
   const fetchComments = useCallback(async () => {
     try {
-      const query = `*[_type == "comment" && ${type}._ref == $contentId]{
+      const query = `*[_type == "comment" && ${type}._ref == $contentId && !defined(parentComment)]{
         _id,
         name,
+        email,
         content,
-        createdAt
+        createdAt,
+        userId,
+        userFirstName,
+        userLastName,
+        userImageUrl,
+        "replies": *[_type == "comment" && parentComment._ref == ^._id] | order(createdAt asc) {
+          _id,
+          name,
+          email,
+          content,
+          createdAt,
+          userId,
+          userFirstName,
+          userLastName,
+          userImageUrl
+        }
       } | order(createdAt desc)`;
       const comments = await client.fetch(query, { contentId });
       setComments(comments);
@@ -370,14 +706,14 @@ function CommentsClient({
       setErrorMsg(t.writeCommentFirst);
       return;
     }
-    if (!user) {
+    if (!isLoaded || !userData) {
       setErrorMsg(t.signInRequired);
       return;
     }
     setLoading(true);
     
     try {
-      // محاولة استخدام API route أولاً
+      // استخدام API route فقط
       const apiResponse = await fetch('/api/comments', {
         method: 'POST',
         headers: {
@@ -385,8 +721,12 @@ function CommentsClient({
         },
         body: JSON.stringify({
           content,
-          name: user.firstName || (user.fullName as string) || "مستخدم",
-          email: user.emailAddresses?.[0]?.emailAddress || "",
+          name: userData.firstName && userData.lastName ? `${userData.firstName} ${userData.lastName}` : (userData.firstName || userData.fullName || "مستخدم"),
+          email: userData.emailAddresses?.[0]?.emailAddress || "",
+          userId: userData.id,
+          userFirstName: userData.firstName || "",
+          userLastName: userData.lastName || "",
+          userImageUrl: userData.imageUrl || "",
           [type]: contentId,
         }),
       });
@@ -397,110 +737,217 @@ function CommentsClient({
         setSuccessMsg(language === 'ar' ? "تم إرسال تعليقك بنجاح!" : "Your comment has been sent successfully!");
         setContent("");
         fetchComments();
-        setLoading(false);
-        return;
+      } else {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to create comment");
       }
-
-      // إذا فشلت API route، نحاول مباشرة مع Sanity
-      const newComment = {
-        _type: "comment",
-        name: user.firstName || (user.fullName as string) || "مستخدم",
-        email: user.emailAddresses?.[0]?.emailAddress || "",
-        content,
-        createdAt: new Date().toISOString(),
-        [type]: {
-          _type: "reference",
-          _ref: contentId
-        }
-      };
-      
-      console.log("Sending comment directly to Sanity:", newComment);
-      
-      // استخدام client.create مع التوكن الصحيح
-      const result = await client.create(newComment);
-      console.log("Comment created directly:", result);
-      
-      setSuccessMsg(language === 'ar' ? "تم إرسال تعليقك بنجاح!" : "Your comment has been sent successfully!");
-      setContent("");
-      fetchComments();
     } catch (err: unknown) {
-      console.error("خطأ غير متوقع في الإرسال:", err);
+      console.error("Error sending comment:", err);
       if (err instanceof Error) {
         if (err.message.includes("Insufficient permissions")) {
           setErrorMsg(language === 'ar' ? "ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة." : "You don't have permission to send comments. Please contact the administration.");
         } else {
-          setErrorMsg(language === 'ar' ? `حدث خطأ غير متوقع أثناء الإرسال: ${err.message}` : `An unexpected error occurred while sending: ${err.message}`);
+          setErrorMsg(language === 'ar' ? `حدث خطأ أثناء الإرسال: ${err.message}` : `An error occurred while sending: ${err.message}`);
         }
       } else {
-        setErrorMsg(language === 'ar' ? "حدث خطأ غير متوقع أثناء الإرسال." : "An unexpected error occurred while sending.");
+        setErrorMsg(language === 'ar' ? "حدث خطأ أثناء الإرسال." : "An error occurred while sending.");
       }
     } finally {
       setLoading(false);
     }
   };
   
+  const handleReply = async (parentId: string, replyContent: string) => {
+    if (!isLoaded || !userData) {
+      setErrorMsg(t.signInRequired);
+      return;
+    }
+    
+    try {
+      // استخدام API route فقط
+      const apiResponse = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: replyContent,
+          name: userData.firstName && userData.lastName ? `${userData.firstName} ${userData.lastName}` : (userData.firstName || userData.fullName || "مستخدم"),
+          email: userData.emailAddresses?.[0]?.emailAddress || "",
+          userId: userData.id,
+          userFirstName: userData.firstName || "",
+          userLastName: userData.lastName || "",
+          userImageUrl: userData.imageUrl || "",
+          parentComment: parentId,
+          [type]: contentId,
+        }),
+      });
+
+      if (apiResponse.ok) {
+        setSuccessMsg(t.replySuccess);
+        fetchComments();
+      } else {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to create reply");
+      }
+    } catch (err: unknown) {
+      console.error("Error replying to comment:", err);
+      if (err instanceof Error) {
+        setErrorMsg(language === 'ar' ? `حدث خطأ أثناء الرد: ${err.message}` : `An error occurred while replying: ${err.message}`);
+      } else {
+        setErrorMsg(language === 'ar' ? "حدث خطأ أثناء الرد." : "An error occurred while replying.");
+      }
+    }
+  };
+  
+  const handleDelete = async (commentId: string) => {
+    if (!isLoaded || !userData) {
+      setErrorMsg(t.signInRequired);
+      return;
+    }
+    
+    try {
+      // استخدام API route فقط
+      const apiResponse = await fetch(`/api/comments?id=${commentId}`, {
+        method: 'DELETE',
+      });
+
+      if (apiResponse.ok) {
+        setSuccessMsg(t.deleteSuccess);
+        fetchComments();
+      } else {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || "Failed to delete comment");
+      }
+    } catch (err: unknown) {
+      console.error("Error deleting comment:", err);
+      if (err instanceof Error) {
+        setErrorMsg(language === 'ar' ? `حدث خطأ أثناء الحذف: ${err.message}` : `An error occurred while deleting: ${err.message}`);
+      } else {
+        setErrorMsg(language === 'ar' ? "حدث خطأ أثناء الحذف." : "An error occurred while deleting.");
+      }
+    }
+  };
+  
+  // دالة للحصول على صورة المستخدم الحالي
+  const getCurrentUserImage = () => {
+    if (userData?.imageUrl) {
+      return userData.imageUrl;
+    }
+    return null;
+  };
+  
+  // دالة للحصول على اسم العرض للمستخدم الحالي
+  const getCurrentUserDisplayName = () => {
+    if (userData?.firstName && userData?.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
+    }
+    return userData?.firstName || userData?.fullName || "مستخدم";
+  };
+  
   return (
-    <div className="mt-6 border rounded p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
+    <div className="mt-6 rounded-xl overflow-hidden">
       <SignedOut>
-        <div className="mb-4">
-          <p className="mb-2">{t.signInToComment}</p>
+        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <p className="mb-2 text-blue-800 dark:text-blue-200">{t.signInToComment}</p>
           <Link
             href="/sign-in"
-            className="px-3 py-2 bg-blue-600 dark:bg-blue-500 hover:opacity-95 text-white rounded inline-block"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
             {t.signIn}
           </Link>
         </div>
       </SignedOut>
       <SignedIn>
-        <form onSubmit={handleSubmit} className="mb-4">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={4}
-            className="w-full border p-2 rounded mb-2 bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-            placeholder={t.commentPlaceholder}
-            required
-            disabled={loading}
-            aria-label="تعليق"
-          />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`px-4 py-2 rounded text-white ${
-                loading
-                  ? "bg-gray-400 dark:bg-gray-600"
-                  : "bg-blue-600 dark:bg-blue-500 hover:opacity-95"
-              }`}
-              aria-busy={loading}
-            >
-              {loading ? t.sending : t.sendComment}
-            </button>
-            {errorMsg && (
-              <p className="text-sm text-red-600 dark:text-red-400 break-words max-w-xl">{errorMsg}</p>
-            )}
-            {successMsg && (
-              <p className="text-sm text-green-600 dark:text-green-400 break-words max-w-xl">{successMsg}</p>
-            )}
+        <form onSubmit={handleSubmit} className="mb-6">
+          <div className="flex items-start gap-3">
+            {/* صورة المستخدم */}
+            <div className="flex-shrink-0">
+              {getCurrentUserImage() ? (
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-700">
+                  <Image
+                    src={getCurrentUserImage() || ''}
+                    alt={getCurrentUserDisplayName()}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
+                  {userData?.firstName ? (
+                    <span className="text-sm font-bold">
+                      {userData.firstName.charAt(0).toUpperCase()}
+                    </span>
+                  ) : (
+                    <FaUser className="text-sm" />
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* مربع إدخال التعليق */}
+            <div className="flex-grow">
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={4}
+                className="w-full border p-3 rounded-lg mb-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder={t.commentPlaceholder}
+                required
+                disabled={loading}
+                aria-label="تعليق"
+              />
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  {errorMsg && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>
+                  )}
+                  {successMsg && (
+                    <p className="text-sm text-green-600 dark:text-green-400">{successMsg}</p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !content.trim()}
+                  className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${
+                    loading || !content.trim()
+                      ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+                      : "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 shadow-md hover:shadow-lg"
+                  }`}
+                  aria-busy={loading}
+                >
+                  {loading ? t.sending : t.sendComment}
+                </button>
+              </div>
+            </div>
           </div>
         </form>
       </SignedIn>
-      <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {comments.length === 0 && <p className="text-gray-600 dark:text-gray-300">{t.noCommentsYet}</p>}
-        {comments.map((c: Comment) => {
-          const createdAt = c.createdAt ? new Date(c.createdAt) : new Date();
-          return (
-            <div key={c._id} className="py-3">
-              <p className="text-sm text-gray-700 dark:text-gray-200">{c.content}</p>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                <span>{c.name}</span>
-                <span> · </span>
-                <time dateTime={createdAt.toISOString()}>{createdAt.toLocaleString()}</time>
-              </div>
-            </div>
-          );
-        })}
+      
+      {/* قائمة التعليقات */}
+      <div className="space-y-4">
+        {comments.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <FaComment className="text-4xl mx-auto mb-2 opacity-50" />
+            <p>{t.noCommentsYet}</p>
+          </div>
+        ) : (
+          comments.map((comment) => (
+            <CommentItem
+              key={comment._id}
+              comment={comment}
+              onReply={handleReply}
+              onDelete={handleDelete}
+              isRTL={isRTL}
+              language={language}
+              t={t}
+              user={userData} // استخدام userData بدلاً من user
+              contentId={contentId}
+              type={type}
+            />
+          ))
+        )}
       </div>
     </div>
   );
@@ -518,7 +965,7 @@ export default function ArticleDetailPageClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Parallax for Hero
+  // تأثير Parallax للقسم الرئيسي
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 400], [0, 100]);
   
@@ -537,7 +984,7 @@ export default function ArticleDetailPageClient() {
           return;
         }
         
-        // جلب المقال من Sanity مع الحلقة والموسم المرتبطين مع دعم اللغة
+        // جلب المقال من Sanity مع الحلقات والمواسم المرتبطة، مع دعم اللغة
         const query = `*[_type == "article" && slug.current == $slug && language == $language][0] {
           _id,
           _type,
@@ -592,13 +1039,13 @@ export default function ArticleDetailPageClient() {
           throw new Error(t.notFound);
         }
         
-        // جلب الحلقات المرتبطة (إذا كانت هناك حلقة مرتبطة)
+        // جلب الحلقات المرتبطة (إن وجدت)
         let relatedEpisodes: EpisodeItem[] = [];
         if (art.episode) {
           relatedEpisodes = [art.episode];
         }
         
-        // جلب المواسم المرتبطة (إذا كان هناك موسم مرتبط)
+        // جلب المواسم المرتبطة (إن وجدت)
         let relatedSeasons: SeasonItem[] = [];
         if (art.season) {
           relatedSeasons = [art.season];
@@ -668,7 +1115,7 @@ export default function ArticleDetailPageClient() {
   const content = language === 'ar' ? article.content : article.contentEn || article.content;
   const publishedAt = article.publishedAt;
   
-  // دالة للحصول على رابط الصورة بشكل آمن
+  // دالة آمنة للحصول على رابط الصورة
   const getImageUrl = (image: { asset?: { _ref?: string; _id?: string; url?: string }; _ref?: string; url?: string } | undefined): string => {
     if (!image) {
       console.log("No image provided, using placeholder");
@@ -754,7 +1201,7 @@ export default function ArticleDetailPageClient() {
   const featuredImageUrl = getImageUrl(article.featuredImage);
   console.log("Final featuredImageUrl:", featuredImageUrl);
   
-  // دالة لتحديد ما إذا كان النص يحتوي على رابط فيديو
+  // دالة للتحقق مما إذا كان النص يحتوي على رابط فيديو
   const isVideoUrl = (text: string) => {
     const videoUrlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/|.*\.(?:mp4|webm|ogg))[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
     return videoUrlRegex.test(text);
@@ -767,7 +1214,7 @@ export default function ArticleDetailPageClient() {
     return match ? match[0] : null;
   };
 
-  // دالة لتحديد ما إذا كان النص يحتوي على رابط PDF
+  // دالة للتحقق مما إذا كان النص يحتوي على رابط PDF
   const isPdfUrl = (text: string) => {
     const pdfUrlRegex = /(https?:\/\/(?:www\.)?(?:drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+|.*\.pdf)[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
     return pdfUrlRegex.test(text);
@@ -780,7 +1227,7 @@ export default function ArticleDetailPageClient() {
     return match ? match[0] : null;
   };
 
-  // دالة لتحديد ما إذا كان النص يحتوي على رابط صورة
+  // دالة للتحقق مما إذا كان النص يحتوي على رابط صورة
   const isImageUrl = (text: string) => {
     const imageUrlRegex = /(https?:\/\/(?:www\.)?(?:.*\.(?:jpg|jpeg|png|gif|webp|svg))[\w\-._~:/?#[\]@!$&'()*+,;=]*)/i;
     return imageUrlRegex.test(text);
@@ -795,19 +1242,19 @@ export default function ArticleDetailPageClient() {
 
   // دالة لتحويل رابط Google Drive إلى رابط عرض مباشر
   const getDirectGoogleDriveLink = (url: string) => {
-    // تحويل روابط Google Drive إلى روابط عرض مباشر
+    // تحويل رابط Google Drive إلى رابط عرض مباشر
     const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (driveMatch) {
       const fileId = driveMatch[1];
       return `https://drive.google.com/file/d/${fileId}/preview`;
     }
     
-    // إذا كان الرابط ينتهي بـ .pdf، نرجعه كما هو
+    // إذا كان الرابط ينتهي بـ .pdf، أعده كما هو
     if (url.toLowerCase().endsWith('.pdf')) {
       return url;
     }
     
-    // إذا لم يكن أي من الأنواع المعروفة، نرجع الرابط الأصلي
+    // إذا لم يكن من أي نوع معروف، أعد الرابط الأصلي
     return url;
   };
 
@@ -874,7 +1321,7 @@ export default function ArticleDetailPageClient() {
       );
     }
     
-    // إذا لم يكن أي من الأنواع المعروفة، عرض رابط
+    // إذا لم يكن من أي نوع معروف، اعرض الرابط
     return (
       <a 
         href={url} 
@@ -958,26 +1405,26 @@ export default function ArticleDetailPageClient() {
     );
   };
 
-  // مكون مخصص لعرض الروابط في ReactMarkdown
+  // مكون عرض الروابط المخصصة في ReactMarkdown
   const LinkRenderer = ({ href, children, ...props }: { href?: string; children?: React.ReactNode }) => {
     if (!href) return <>{children}</>;
     
-    // التحقق إذا كان الرابط هو فيديو
+    // تحقق مما إذا كان الرابط هو فيديو
     if (isVideoUrl(href)) {
       return renderVideo(href);
     }
     
-    // التحقق إذا كان الرابط هو PDF
+    // تحقق مما إذا كان الرابط هو PDF
     if (isPdfUrl(href)) {
       return renderPdf(href);
     }
     
-    // التحقق إذا كان الرابط هو صورة
+    // تحقق مما إذا كان الرابط هو صورة
     if (isImageUrl(href)) {
       return renderImage(href);
     }
     
-    // إذا لم يكن أي من الأنواع، عرض الرابط كالمعتاد
+    // إذا لم يكن من أي نوع، اعرض الرابط بشكل طبيعي
     return (
       <a 
         href={href} 
@@ -991,14 +1438,14 @@ export default function ArticleDetailPageClient() {
     );
   };
 
-  // دالة لاستخراج كتل الكود البرمجي من النص
+  // دالة لاستخراج كتل الكود من النص
   const extractCodeBlocks = (text: string) => {
     const codeBlockRegex = /```([\s\S]*?)```/g;
     const codeBlocks: string[] = [];
     let match;
     let processedText = text;
     
-    // استخراج كتل الكود البرمجي
+    // استخراج كتل الكود
     while ((match = codeBlockRegex.exec(text)) !== null) {
       codeBlocks.push(match[1]);
       processedText = processedText.replace(match[0], `__CODE_BLOCK_${codeBlocks.length - 1}__`);
@@ -1007,14 +1454,14 @@ export default function ArticleDetailPageClient() {
     return { processedText, codeBlocks };
   };
 
-  // دالة لاستخراج كتل الاقتباسات من النص
+  // دالة لاستخراج كتل الاقتباس من النص
   const extractBlockQuotes = (text: string) => {
     const blockQuoteRegex = /^> (.+)$/gm;
     const blockQuotes: string[] = [];
     let match;
     let processedText = text;
     
-    // استخراج كتل الاقتباسات
+    // استخراج كتل الاقتباس
     while ((match = blockQuoteRegex.exec(text)) !== null) {
       blockQuotes.push(match[1]);
       processedText = processedText.replace(match[0], `__BLOCK_QUOTE_${blockQuotes.length - 1}__`);
@@ -1023,7 +1470,7 @@ export default function ArticleDetailPageClient() {
     return { processedText, blockQuotes };
   };
 
-  // دالة محسّنة لمعالجة المحتوى مع الحفاظ على جميع التنسيقات
+  // دالة لمعالجة المحتوى مع الحفاظ على جميع التنسيقات
   const processContent = (content: PortableTextBlock[]) => {
     if (!content || !Array.isArray(content)) {
       return [];
@@ -1032,13 +1479,13 @@ export default function ArticleDetailPageClient() {
     // تحويل الكتل إلى نص Markdown
     const markdownText = blocksToText(content);
     
-    // أولاً، استخراج كتل الكود البرمجي
+    // أولاً، استخراج كتل الكود
     const { processedText: textWithoutCode, codeBlocks } = extractCodeBlocks(markdownText);
     
-    // ثانياً، استخراج كتل الاقتباسات
+    // ثانياً، استخراج كتل الاقتباس
     const { processedText: textWithoutQuotes, blockQuotes } = extractBlockQuotes(textWithoutCode);
     
-    // ثالثاً، تقسيم المحتوى إلى أجزاء بناءً على الروابط الخاصة
+    // ثالثاً، تقسيم المحتوى بناءً على الروابط الخاصة
     const parts = textWithoutQuotes.split(/(\nhttps?:\/\/[^\s]+\n|\nhttps?:\/\/[^\s]+$|https?:\/\/[^\s]+\n|https?:\/\/[^\s]+$)/);
     
     const result: JSX.Element[] = [];
@@ -1046,7 +1493,7 @@ export default function ArticleDetailPageClient() {
     parts.forEach((part, index) => {
       if (!part.trim()) return;
       
-      // التحقق مما إذا كان الجزء يحتوي على رابط فيديو
+      // تحقق مما إذا كان الجزء يحتوي على رابط فيديو
       if (isVideoUrl(part)) {
         const videoUrl = extractVideoUrl(part);
         if (videoUrl) {
@@ -1055,7 +1502,7 @@ export default function ArticleDetailPageClient() {
         }
       }
       
-      // التحقق مما إذا كان الجزء يحتوي على رابط PDF
+      // تحقق مما إذا كان الجزء يحتوي على رابط PDF
       if (isPdfUrl(part)) {
         const pdfUrl = extractPdfUrl(part);
         if (pdfUrl) {
@@ -1064,7 +1511,7 @@ export default function ArticleDetailPageClient() {
         }
       }
       
-      // التحقق مما إذا كان الجزء يحتوي على رابط صورة
+      // تحقق مما إذا كان الجزء يحتوي على رابط صورة
       if (isImageUrl(part)) {
         const imageUrl = extractImageUrl(part);
         if (imageUrl) {
@@ -1073,10 +1520,10 @@ export default function ArticleDetailPageClient() {
         }
       }
       
-      // معالجة النص العادي مع استبدال العناصر المستخرجة
+      // معالجة النص العادي، مع استبدال العناصر المستخرجة
       let processedPart = part;
       
-      // استبدال كتل الاقتباسات
+      // استبدال كتل الاقتباس
       processedPart = processedPart.replace(/__BLOCK_QUOTE_(\d+)__/g, (match, indexStr) => {
         const index = parseInt(indexStr);
         if (blockQuotes[index]) {
@@ -1085,16 +1532,16 @@ export default function ArticleDetailPageClient() {
         return match;
       });
       
-      // عرض النص باستخدام ReactMarkdown
+      // استخدام ReactMarkdown لعرض النص
       result.push(
-        <div key={`markdown-${index}`} className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`}>
+        <div key={`markdown-${index}`} className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw, rehypeSanitize]}
             components={{
-              // تخصيص عرض الروابط
+              // عرض الروابط المخصصة
               a: LinkRenderer,
-              // تخصيص عرض الصور
+              // عرض الصور المخصصة
               img: ({ src, alt }) => {
                 if (typeof src !== 'string') {
                   return null;
@@ -1112,7 +1559,7 @@ export default function ArticleDetailPageClient() {
                   </div>
                 );
               },
-              // تخصيص عرض الجداول
+              // عرض الجداول المخصصة
               table: ({ children }) => (
                 <div className="overflow-x-auto my-4">
                   <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
@@ -1121,16 +1568,16 @@ export default function ArticleDetailPageClient() {
                 </div>
               ),
               th: ({ children }) => (
-                <th className="border border-gray-300 dark:border-gray-600 px-4 py-2 bg-gray-100 dark:bg-gray-700 font-bold text-right">
+                <th className={`border border-gray-300 dark:border-gray-600 px-4 py-2 bg-gray-100 dark:bg-gray-700 font-bold ${isRTL ? 'text-right' : 'text-left'}`}>
                   {children}
                 </th>
               ),
               td: ({ children }) => (
-                <td className="border border-gray-300 dark:border-gray-600 px-4 py-2 text-right">
+                <td className={`border border-gray-300 dark:border-gray-600 px-4 py-2 ${isRTL ? 'text-right' : 'text-left'}`}>
                   {children}
                 </td>
               ),
-              // تخصيص عرض الكود البرمجي المضمن
+              // عرض الكود المضمن المخصص
               code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) => {
                 if (inline) {
                   return (
@@ -1141,7 +1588,7 @@ export default function ArticleDetailPageClient() {
                 }
                 return null;
               },
-              // تخصيص عرض الاقتباسات
+              // عرض الاقتباس المخصص
               blockquote: ({ children }) => (
                 <div className="bg-blue-900 text-white p-4 rounded-lg my-4 italic border-l-4 border-blue-500">
                   <blockquote>
@@ -1156,7 +1603,7 @@ export default function ArticleDetailPageClient() {
         </div>
       );
       
-      // إضافة كتل الكود البرمجي المستخرجة
+      // إضافة كتل الكود المستخرجة
       codeBlocks.forEach((codeBlock, codeIndex) => {
         const match = /__CODE_BLOCK_(\d+)__/.exec(part);
         if (match && parseInt(match[1]) === codeIndex) {
@@ -1176,7 +1623,7 @@ export default function ArticleDetailPageClient() {
     return result;
   };
   
-  // Function to format date based on language
+  // دالة لتنسيق التاريخ بناءً على اللغة
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -1189,7 +1636,7 @@ export default function ArticleDetailPageClient() {
   
   return (
     <div className="bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 min-h-screen" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* HERO */}
+      {/* القسم الرئيسي */}
       <header className="relative w-full overflow-hidden shadow-2xl">
         <motion.div
           style={{ y }}
@@ -1240,11 +1687,11 @@ export default function ArticleDetailPageClient() {
         </motion.div>
       </header>
       
-      {/* MAIN CONTENT */}
+      {/* المحتوى الرئيسي */}
       <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8">
         <div className="max-w-6xl mx-auto">
         
-          {/* EXCERPT SECTION */}
+          {/* قسم المقدمة */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1261,14 +1708,14 @@ export default function ArticleDetailPageClient() {
                 </h2>
                 <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
                 
-                {/* Favorite Button in Excerpt Section */}
+                {/* زر المفضلة في قسم المقدمة */}
                 <div className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 bg-gradient-to-r from-pink-500/40 to-red-500/40 backdrop-blur-lg rounded-full text-white hover:from-pink-500/60 hover:to-red-500/60 transition-all duration-300 shadow-lg border border-white/10 hover:border-white/20">
                   <FavoriteButton contentId={article._id} contentType="article" />
                   <span className="font-medium text-sm md:text-base">{t.favorites}</span>
                 </div>
               </div>
               
-              <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
+              <div className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
                 <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-purple-100 dark:border-gray-700 backdrop-blur-md">
                   <p className="text-lg md:text-xl text-gray-700 dark:text-gray-200 leading-relaxed">
                     {excerpt}
@@ -1278,7 +1725,7 @@ export default function ArticleDetailPageClient() {
             </div>
           </motion.section>
           
-          {/* CONTENT SECTION */}
+          {/* قسم المحتوى */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1296,16 +1743,16 @@ export default function ArticleDetailPageClient() {
                 <div className="flex-grow h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
               </div>
               
-              <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none text-right">
+              <div className={`prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
                 <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-xl md:rounded-2xl shadow-xl p-4 md:p-6 border border-purple-100 dark:border-gray-700 backdrop-blur-md">
-                  {/* استخدام دالة processContent لعرض المحتوى مع الحفاظ على التنسيقات */}
+                  {/* استخدام دالة processContent لعرض المحتوى مع الحفاظ على التنسيق */}
                   {processContent(content)}
                 </div>
               </div>
             </div>
           </motion.section>
           
-          {/* SEASON SECTION */}
+          {/* قسم الموسم */}
           {seasons.length > 0 && (
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
@@ -1381,7 +1828,7 @@ export default function ArticleDetailPageClient() {
             </motion.section>
           )}
           
-          {/* EPISODE SECTION */}
+          {/* قسم الحلقة */}
           {episodes.length > 0 && (
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
@@ -1457,7 +1904,7 @@ export default function ArticleDetailPageClient() {
             </motion.section>
           )}
           
-          {/* COMMENTS SECTION */}
+          {/* قسم التعليقات */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1474,13 +1921,13 @@ export default function ArticleDetailPageClient() {
               <div className="flex-grow h-px bg-gradient-to-r from-yellow-200 to-transparent"></div>
             </div>
             
-            {/* استخدام _id بدل id */}
+            {/* استخدام _id بدلاً من id */}
             <CommentsClient contentId={article._id} type="article" />
           </motion.section>
         </div>
       </div>
       
-      {/* Swiper custom styles */}
+      {/* أنماط Swiper المخصصة */}
       <style jsx global>{`
         .swiper-pagination-bullet-custom {
           width: 10px;
@@ -1559,7 +2006,7 @@ export default function ArticleDetailPageClient() {
         .dark .group:hover {
           box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
         }
-        /* تنسيق الصور داخل قسم المحتوى */
+        /* تنسيق الصور في قسم المحتوى */
         .prose img {
           border-radius: 0;
           box-shadow: none;
@@ -1573,6 +2020,42 @@ export default function ArticleDetailPageClient() {
         }
         .dark .prose img {
           box-shadow: none;
+        }
+        /* تعديل اتجاه النص حسب اللغة */
+        .prose p, .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6, .prose ul, .prose ol, .prose li {
+          text-align: inherit;
+        }
+        .prose ul, .prose ol {
+          padding-left: 1.5rem;
+        }
+        .prose[dir="rtl"] ul, .prose[dir="rtl"] ol {
+          padding-left: 0;
+          padding-right: 1.5rem;
+        }
+        .prose[dir="ltr"] ul, .prose[dir="ltr"] ol {
+          padding-left: 1.5rem;
+          padding-right: 0;
+        }
+        /* تعديل اتجاه القوائم */
+        .prose[dir="rtl"] li {
+          text-align: right;
+        }
+        .prose[dir="ltr"] li {
+          text-align: left;
+        }
+        /* تعديل اتجاه الفقرات */
+        .prose[dir="rtl"] p {
+          text-align: right;
+        }
+        .prose[dir="ltr"] p {
+          text-align: left;
+        }
+        /* تعديل اتجاه العناوين */
+        .prose[dir="rtl"] h1, .prose[dir="rtl"] h2, .prose[dir="rtl"] h3, .prose[dir="rtl"] h4, .prose[dir="rtl"] h5, .prose[dir="rtl"] h6 {
+          text-align: right;
+        }
+        .prose[dir="ltr"] h1, .prose[dir="ltr"] h2, .prose[dir="ltr"] h3, .prose[dir="ltr"] h4, .prose[dir="ltr"] h5, .prose[dir="ltr"] h6 {
+          text-align: left;
         }
       `}</style>
     </div>

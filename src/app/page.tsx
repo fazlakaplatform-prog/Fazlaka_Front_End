@@ -1,3 +1,4 @@
+// src/app/page.tsx
 "use client";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
@@ -9,13 +10,13 @@ import { useRouter } from 'next/navigation';
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
-import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+// استيراد الأيقونات المستخدمة فقط
 import {
   FaYoutube,
   FaInstagram,
   FaFacebookF,
   FaTiktok,
-  FaTwitter,
   FaQuestionCircle,
   FaPlay,
   FaLightbulb,
@@ -40,21 +41,14 @@ import {
   FaGem,
   FaCrown,
   FaClock,
-  FaQuoteLeft,
-  FaQuoteRight,
   FaEye,
   FaShareAlt,
   FaDownload,
   FaHeadphones,
   FaGraduationCap,
   FaPause,
-  FaCheckCircle,
-  FaStar,
   FaHandshake,
-  FaBolt,
   FaShieldAlt,
-  FaGift,
-  FaMedal,
 } from 'react-icons/fa';
 import { fetchArrayFromSanity, SanityImage, fetchFromSanity, HeroSlider, getImageUrl, getVideoUrl } from '@/lib/sanity';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -704,7 +698,7 @@ const AnimatedQuestion = ({ question, questionEn, answer, answerEn, index }: {
   answerEn?: string; 
   index: number 
 }) => {
-  const { language, isRTL } = useLanguage();
+  const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const t = translations[language];
   
@@ -2137,7 +2131,6 @@ const AboutUsSection = () => {
   const t = translations[language];
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5, 1], [0, 1, 0]);
   
   return (
     <section className="relative py-20 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>

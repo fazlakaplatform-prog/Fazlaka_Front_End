@@ -118,6 +118,16 @@ export async function createComment(commentData: Omit<Comment, '_id' | '_type' |
   }
 }
 
+// دالة لحذف تعليق
+export async function deleteComment(commentId: string): Promise<void> {
+  try {
+    await client.delete(commentId);
+  } catch (error) {
+    console.error('Error deleting comment in Sanity:', error);
+    throw error;
+  }
+}
+
 // دالة لجلب قوائم التشغيل من Sanity (محدثة مع دعم اللغة)
 export async function fetchPlaylists(language: string = 'ar'): Promise<Playlist[]> {
   try {
@@ -592,7 +602,7 @@ export async function getDataTypes(language: string = 'ar'): Promise<PrivacyCont
 
 export async function getSecurityMeasures(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == 'securityMeasure' && language == $language] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == "securityMeasure" && language == $language] | order(title asc) {
       _id,
       title,
       titleEn,
@@ -840,6 +850,11 @@ export interface Comment {
   episode?: Episode
   article?: Article
   createdAt: string
+  userId?: string
+  parentComment?: {
+    _ref: string
+    _type: 'reference'
+  }
 }
 
 export interface Favorite {
