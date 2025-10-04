@@ -2978,25 +2978,35 @@ export default function Home() {
                 </div>
               </motion.div>
               
-              {/* قسم التسجيل والترحيب مع صورة الشخص */}
+              {/* قسم التسجيل والترحيب مع صورة الشخص - تم تعديله */}
               <motion.div 
                 variants={itemVariant}
                 className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 shadow-xl text-white relative overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-purple-700/20"></div>
                 <div className="relative z-10">
-                  <SignedOut>
-                    <div className="text-center">
-                      {/* صورة الشخص */}
+                  <div className="text-center">
+                    {/* صورة الشخص - تظهر فقط عند تسجيل الدخول */}
+                    <SignedIn>
                       <div className="flex justify-center mb-6">
                         <div className="relative">
-                          <Image 
-                            src="/ali.png" 
-                            alt="صورة شخصية" 
-                            width={120}
-                            height={120}
-                            className="w-32 h-32 rounded-full border-4 border-white/30 shadow-lg object-cover"
-                          />
+                          {user?.imageUrl ? (
+                            <Image 
+                              src={user.imageUrl} 
+                              alt={user.firstName || "المستخدم"} 
+                              width={120}
+                              height={120}
+                              className="w-32 h-32 rounded-full border-4 border-white/30 shadow-lg object-cover"
+                            />
+                          ) : (
+                            <Image 
+                              src="/ali.png" 
+                              alt="صورة شخصية" 
+                              width={120}
+                              height={120}
+                              className="w-32 h-32 rounded-full border-4 border-white/30 shadow-lg object-cover"
+                            />
+                          )}
                           <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center border-2 border-white">
                             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"></path>
@@ -3004,7 +3014,9 @@ export default function Home() {
                           </div>
                         </div>
                       </div>
-                      
+                    </SignedIn>
+                    
+                    <SignedOut>
                       <h3 className="text-2xl font-bold mb-4">{t.joinCommunity}</h3>
                       <p className="mb-8 text-indigo-100">
                         {t.joinMessage}
@@ -3027,34 +3039,9 @@ export default function Home() {
                           </Link>
                         </motion.div>
                       </div>
-                    </div>
-                  </SignedOut>
-                  
-                  <SignedIn>
-                    <div className="text-center">
-                      <div className="flex flex-col items-center mb-6">
-                        <div className="relative">
-                          {user?.imageUrl ? (
-                            <Image 
-                              src={user.imageUrl} 
-                              alt={user.firstName || "المستخدم"} 
-                              width={80}
-                              height={80}
-                              className="w-20 h-20 rounded-full border-4 border-white/30 shadow-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                              <FaUser className="text-3xl" />
-                            </div>
-                          )}
-                          <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center border-2 border-white">
-                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"></path>
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      
+                    </SignedOut>
+                    
+                    <SignedIn>
                       <h3 className="text-2xl font-bold mb-2">
                         {t.welcome} {user?.firstName || user?.username || t.noUser}!
                       </h3>
@@ -3081,8 +3068,8 @@ export default function Home() {
                           </Link>
                         </motion.div>
                       </div>
-                    </div>
-                  </SignedIn>
+                    </SignedIn>
+                  </div>
                 </div>
               </motion.div>
             </div>
