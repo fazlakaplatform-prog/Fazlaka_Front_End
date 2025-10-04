@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import {
   FaYoutube,
   FaInstagram,
@@ -48,6 +48,13 @@ import {
   FaHeadphones,
   FaGraduationCap,
   FaPause,
+  FaCheckCircle,
+  FaStar,
+  FaHandshake,
+  FaBolt,
+  FaShieldAlt,
+  FaGift,
+  FaMedal,
 } from 'react-icons/fa';
 import { fetchArrayFromSanity, SanityImage, fetchFromSanity, HeroSlider, getImageUrl, getVideoUrl } from '@/lib/sanity';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -330,14 +337,13 @@ const translations = {
     benefit3: "تحميل الفيديوهات للمشاهدة بدون إنترنت",
     benefit4: "وصول مبكر للمحتوى الجديد",
     benefit5: "دعم فني على مدار الساعة",
-    benefit6: "رسائل وتعليقات وتفاعل مباشر", // تمت إضافة هذه الخاصية
+    benefit6: "رسائل وتعليقات وتفاعل مباشر",
     communityTitle: "كن جزءاً من مجتمعنا",
     communitySubtitle: "انضم الي عالم العلم الممتع",
     communityFeatures: "مميزات المجتمع",
     communityFeature1: "منتديات نقاش تفاعلية",
     communityFeature2: "نقدر ارائك وتفاعلك",
     communityFeature3: "مشاركة المعرفة مع الآخرين",
-    testimonials: "آراء أعضائنا",
     testimonial1: "فذلَكة غيرت طريقة تعلمي تماماً، المحتوى مميز والشرح بسيط ومفهوم",
     testimonial2: "أفضل منصة تعليمية استخدمتها، أنصح بها بشدة لكل من يبحث عن المعرفة",
     testimonial3: "المجتمع هنا رائع، تعلمت الكثير وشاركت معرفة مع الآخرين",
@@ -378,6 +384,27 @@ const translations = {
     recognition: "التقدير",
     mediaKit: "حقيبة الإعلام",
     brandGuidelines: "إرشادات العلامة التجارية",
+    // إضافة ترجمات للقسم الموحد الجديد
+    joinKnowledgeWorld: "انضم إلى عالم المعرفة والمجتمع",
+    joinKnowledgeSubtitle: "اكتشف محتوى تعليمي مميز وتفاعل مع مجتمع متعلم",
+    exclusiveBenefits: "مميزات حصرية",
+    communityEngagement: "تفاعل مجتمعي",
+    whatOurMembersSay: "ماذا يقول أعضاؤنا",
+    startYourJourney: "ابدأ رحلتك الآن",
+    becomeMember: "كن عضواً",
+    alreadyMember: "عضو بالفعل؟",
+    signInAccount: "سجل دخولك",
+    unlockPremium: "فتح المحتوى المميز",
+    accessAllContent: "الوصول لكل المحتوى",
+    connectWithLearners: "تواصل مع المتعلمين",
+    shareYourKnowledge: "شارك معرفتك",
+    growTogether: "نمواً معاً",
+    exclusiveContent: "محتوى حصري",
+    earlyAccess: "وصول مبكر",
+    directSupport: "دعم مباشر",
+    interactiveForums: "منتديات تفاعلية",
+    expertSessions: "  محتوي تعليمي راقي ومسلي",
+    networking: "تواصل وبناء علاقات",
   },
   en: {
     home: "Home",
@@ -465,7 +492,7 @@ const translations = {
     viewProfile: "View Profile",
     myFavorites: "My Favorites",
     publishedAt: "Published Date",
-    subscribers: "YouTube Subscribers",
+    subscribers: " Subscribers",
     episodesCount: "Episodes",
     playlistsCount: "Playlists",
     seasonsCount: "Seasons",
@@ -500,14 +527,13 @@ const translations = {
     benefit3: "Download videos for offline viewing",
     benefit4: "Early access to new content",
     benefit5: "24/7 technical support",
-    benefit6: "Direct messages, comments and interaction", // تمت إضافة هذه الخاصية
+    benefit6: "Direct messages, comments and interaction",
     communityTitle: "Be Part of Our Community",
     communitySubtitle: "Join the exciting world of science",
     communityFeatures: "Community Features",
     communityFeature1: "Interactive discussion forums",
     communityFeature2: "We appreciate your opinions and interaction.",
     communityFeature3: "Share knowledge with others",
-    testimonials: "What Our Members Say",
     testimonial1: "Fazlaka completely changed the way I learn, the content is excellent and the explanation is simple and understandable",
     testimonial2: "The best educational platform I've used, I highly recommend it to anyone looking for knowledge",
     testimonial3: "The community here is amazing, I learned a lot and shared knowledge with others",
@@ -548,6 +574,27 @@ const translations = {
     recognition: "Recognition",
     mediaKit: "Media Kit",
     brandGuidelines: "Brand Guidelines",
+    // إضافة ترجمات للقسم الموحد الجديد
+    joinKnowledgeWorld: "Join the World of Knowledge and Community",
+    joinKnowledgeSubtitle: "Discover premium educational content and interact with a learning community",
+    exclusiveBenefits: "Exclusive Benefits",
+    communityEngagement: "Community Engagement",
+    whatOurMembersSay: "What Our Members Say",
+    startYourJourney: "Start Your Journey Now",
+    becomeMember: "Become a Member",
+    alreadyMember: "Already a member?",
+    signInAccount: "Sign in to your account",
+    unlockPremium: "Unlock Premium Content",
+    accessAllContent: "Access All Content",
+    connectWithLearners: "Connect with Learners",
+    shareYourKnowledge: "Share Your Knowledge",
+    growTogether: "Grow Together",
+    exclusiveContent: "Exclusive Content",
+    earlyAccess: "Early Access",
+    directSupport: "Direct Support",
+    interactiveForums: "Interactive Forums",
+    expertSessions: "High-quality and entertaining educational content",
+    networking: "Networking",
   }
 };
 
@@ -657,7 +704,7 @@ const AnimatedQuestion = ({ question, questionEn, answer, answerEn, index }: {
   answerEn?: string; 
   index: number 
 }) => {
-  const { language } = useLanguage();
+  const { language, isRTL } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const t = translations[language];
   
@@ -689,38 +736,44 @@ const AnimatedQuestion = ({ question, questionEn, answer, answerEn, index }: {
   return (
     <motion.div 
       variants={faqItemVariants}
-      className={`border-2 rounded-2xl p-6 bg-white dark:bg-gray-800 backdrop-blur-sm transition-all duration-300 ${colorScheme.border} ${colorScheme.hover} shadow-lg hover:shadow-xl dark:${colorScheme.shadow} hover:dark:shadow-2xl`}
+      className={`border-2 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 backdrop-blur-sm transition-all duration-300 ${colorScheme.border} ${colorScheme.hover} shadow-lg hover:shadow-xl dark:${colorScheme.shadow} hover:dark:shadow-2xl`}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
     >
+      {/* قسم السؤال */}
       <motion.div 
-        className="cursor-pointer font-bold text-lg flex items-center gap-4 list-none"
+        className={`p-6 cursor-pointer font-bold text-lg flex items-center gap-4 ${language === 'ar' ? 'justify-end' : 'justify-start'}`}
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
-        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${colorScheme.iconBg} transition-all duration-300`}>
-          <FaQuestionCircle className={`text-lg ${colorScheme.icon}`} />
+        <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${colorScheme.iconBg} transition-all duration-300`}>
+          <FaQuestionCircle className={`text-xl ${colorScheme.icon}`} />
         </div>
-        <span className="text-right flex-grow text-lg">
+        <span className={`text-lg ${language === 'ar' ? 'text-right' : 'text-left'} flex-grow`}>
           {localizedQuestion || t.noQuestion}
         </span>
         <motion.div 
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.3 }}
+          className={`flex-shrink-0 ${language === 'ar' ? 'mr-2' : 'ml-2'}`}
         >
-          <svg className="w-6 h-6 flex-shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </motion.div>
       </motion.div>
       
+      {/* فاصل بين السؤال والإجابة */}
+      <div className={`h-px ${colorScheme.bg} opacity-20`}></div>
+      
+      {/* قسم الإجابة */}
       <motion.div 
         variants={answerVariants}
         initial="closed"
         animate={isOpen ? "open" : "closed"}
         className="overflow-hidden"
       >
-        <div className="mt-6 text-gray-700 dark:text-gray-300 overflow-hidden pr-14 text-base leading-relaxed">
+        <div className={`p-6 text-gray-700 dark:text-gray-300 overflow-hidden ${language === 'ar' ? 'pr-16 pl-6' : 'pl-16 pr-6'} text-base leading-relaxed`}>
           {hasValidAnswer ? (
             hasHtml(localizedAnswer) ? (
               <div dangerouslySetInnerHTML={{ __html: localizedAnswer }} />
@@ -793,7 +846,6 @@ const ArticleCard = ({ article }: { article: ArticleData }) => {
                 display: "-webkit-box",
                 WebkitLineClamp: 3,
                 WebkitBoxOrient: "vertical",
-                overflow: "hidden",
               }}
             >
               {excerpt}
@@ -1964,8 +2016,6 @@ const FeaturedContentSlider = () => {
           </div>
         </div>
         
-        {/* نقاط التنقل - في المنتصف تحت السلايدر */}
-        <div className="featured-pagination flex justify-center mt-8 gap-2"></div>
       </div>
       
       <style jsx global>{`
@@ -2081,26 +2131,59 @@ const FeaturedContentSlider = () => {
   );
 };
 
-// مكون قسم "من نحن" المحسن
+// مكون قسم "من نحن" المحسن بشكل كامل
 const AboutUsSection = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
+  const { scrollYProgress } = useScroll();
+  const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5, 1], [0, 1, 0]);
   
   return (
     <section className="relative py-20 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
-      {/* خلفية متدرجة متحركة */}
+      {/* خلفية متدرجة متحركة مع تأثيرات متقدمة */}
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900/20 z-0"></div>
       
-      {/* عناصر زخرفية متحركة - تقليلها على الموبايل */}
-      <div className="hidden md:block absolute top-20 left-10 w-72 h-72 bg-indigo-200/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="hidden md:block absolute bottom-20 right-10 w-96 h-96 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+      {/* عناصر زخرفية متحركة مع أنيميشن متقدم */}
+      <motion.div 
+        className="absolute top-20 left-10 w-72 h-72 bg-indigo-200/20 dark:bg-indigo-500/10 rounded-full blur-3xl"
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.2, 0.3, 0.2],
+          x: [0, 20, 0],
+          y: [0, -20, 0]
+        }}
+        transition={{ 
+          duration: 8, 
+          repeat: Infinity, 
+          ease: "easeInOut" 
+        }}
+      />
+      <motion.div 
+        className="absolute bottom-20 right-10 w-96 h-96 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl"
+        animate={{ 
+          scale: [1, 1.3, 1],
+          opacity: [0.2, 0.4, 0.2],
+          x: [0, -30, 0],
+          y: [0, 30, 0]
+        }}
+        transition={{ 
+          duration: 10, 
+          repeat: Infinity, 
+          ease: "easeInOut",
+          delay: 1
+        }}
+      />
       
-      {/* شبكة علمية - تقليلها على الموبايل */}
-      <div className="hidden md:block absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjODA4MGZmIiBvcGFjaXR5PSIwLjE1IiAvPgo8L3N2Zz4=')] opacity-20 dark:opacity-10"></div>
+      {/* شبكة علمية متحركة */}
+      <motion.div 
+        className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjODA4MGZmIiBvcGFjaXR5PSIwLjE1IiAvPgo8L3N2Zz4=')] opacity-20 dark:opacity-10"
+        style={{ y }}
+      />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-6xl mx-auto">
-          {/* عنوان القسم */}
+          {/* عنوان القسم مع أنيميشن متقدم */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -2108,17 +2191,36 @@ const AboutUsSection = () => {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-full mb-6 shadow-lg">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-full mb-6 shadow-lg"
+              whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.5)" }}
+            >
               <FaRocket className="text-xl" />
               <span className="text-lg font-bold">{t.ourStory}</span>
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4"
+            >
               {t.ourStorySubtitle}
-            </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 mx-auto rounded-full"></div>
+            </motion.h2>
+            <motion.div 
+              className="w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 mx-auto rounded-full"
+              initial={{ width: 0 }}
+              whileInView={{ width: "6rem" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            />
           </motion.div>
           
-          {/* محتوى القسم */}
+          {/* محتوى القسم مع أنيميشن متقدم */}
           <div className="grid lg:grid-cols-3 gap-8 mb-16">
             {/* مهمتنا */}
             <motion.div
@@ -2127,15 +2229,37 @@ const AboutUsSection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.1 }}
               className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 relative overflow-hidden group"
-              whileHover={{ y: -10, boxShadow: "0 20px 40px -10px rgba(99, 102, 241, 0.3), 0 10px 10px -5px rgba(99, 102, 241, 0.2)" }}
+              whileHover={{ 
+                y: -10, 
+                boxShadow: "0 20px 40px -10px rgba(99, 102, 241, 0.3), 0 10px 10px -5px rgba(99, 102, 241, 0.2)",
+                transition: { duration: 0.3 }
+              }}
             >
-              {/* خلفية زخرفية */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 dark:bg-indigo-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+              {/* خلفية زخرفية متحركة */}
+              <motion.div 
+                className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 dark:bg-indigo-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"
+                animate={{ 
+                  scale: [1, 1.5, 1],
+                  opacity: [0.2, 0.3, 0.2],
+                }}
+                transition={{ 
+                  duration: 4, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+              />
               
               <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <motion.div 
+                  className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg"
+                  whileHover={{ 
+                    scale: 1.1, 
+                    rotate: [0, 10, -10, 0],
+                    transition: { duration: 0.5 }
+                  }}
+                >
                   <FaGraduationCap className="text-2xl" />
-                </div>
+                </motion.div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t.ourMission}</h3>
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{t.ourMissionDesc}</p>
               </div>
@@ -2148,15 +2272,38 @@ const AboutUsSection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
               className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 relative overflow-hidden group"
-              whileHover={{ y: -10, boxShadow: "0 20px 40px -10px rgba(147, 51, 234, 0.3), 0 10px 10px -5px rgba(147, 51, 234, 0.2)" }}
+              whileHover={{ 
+                y: -10, 
+                boxShadow: "0 20px 40px -10px rgba(147, 51, 234, 0.3), 0 10px 10px -5px rgba(147, 51, 234, 0.2)",
+                transition: { duration: 0.3 }
+              }}
             >
-              {/* خلفية زخرفية */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100 dark:bg-purple-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+              {/* خلفية زخرفية متحركة */}
+              <motion.div 
+                className="absolute top-0 right-0 w-32 h-32 bg-purple-100 dark:bg-purple-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"
+                animate={{ 
+                  scale: [1, 1.5, 1],
+                  opacity: [0.2, 0.3, 0.2],
+                }}
+                transition={{ 
+                  duration: 5, 
+                  repeat: Infinity, 
+                  ease: "easeInOut",
+                  delay: 1
+                }}
+              />
               
               <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <motion.div 
+                  className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg"
+                  whileHover={{ 
+                    scale: 1.1, 
+                    rotate: [0, 10, -10, 0],
+                    transition: { duration: 0.5 }
+                  }}
+                >
                   <FaEye className="text-2xl" />
-                </div>
+                </motion.div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t.ourVision}</h3>
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{t.ourVisionDesc}</p>
               </div>
@@ -2169,64 +2316,148 @@ const AboutUsSection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.3 }}
               className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 relative overflow-hidden group"
-              whileHover={{ y: -10, boxShadow: "0 20px 40px -10px rgba(236, 72, 153, 0.3), 0 10px 10px -5px rgba(236, 72, 153, 0.2)" }}
+              whileHover={{ 
+                y: -10, 
+                boxShadow: "0 20px 40px -10px rgba(236, 72, 153, 0.3), 0 10px 10px -5px rgba(236, 72, 153, 0.2)",
+                transition: { duration: 0.3 }
+              }}
             >
-              {/* خلفية زخرفية */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-pink-100 dark:bg-pink-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+              {/* خلفية زخرفية متحركة */}
+              <motion.div 
+                className="absolute top-0 right-0 w-32 h-32 bg-pink-100 dark:bg-pink-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"
+                animate={{ 
+                  scale: [1, 1.5, 1],
+                  opacity: [0.2, 0.3, 0.2],
+                }}
+                transition={{ 
+                  duration: 6, 
+                  repeat: Infinity, 
+                  ease: "easeInOut",
+                  delay: 2
+                }}
+              />
               
               <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-r from-pink-500 to-red-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <motion.div 
+                  className="w-16 h-16 bg-gradient-to-r from-pink-500 to-red-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg"
+                  whileHover={{ 
+                    scale: 1.1, 
+                    rotate: [0, 10, -10, 0],
+                    transition: { duration: 0.5 }
+                  }}
+                >
                   <FaHeart className="text-2xl" />
-                </div>
+                </motion.div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t.ourValues}</h3>
                 <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{t.communityDesc}</p>
               </div>
             </motion.div>
           </div>
           
-          {/* قيمنا بالتفصيل */}
+          {/* قيمنا بالتفصيل مع أنيميشن متقدم */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.4 }}
             className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-1 shadow-2xl"
+            whileHover={{ 
+              scale: 1.02,
+              boxShadow: "0 25px 50px -12px rgba(99, 102, 241, 0.5)",
+              transition: { duration: 0.3 }
+            }}
           >
             <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 md:p-12">
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">{t.ourValues}</h3>
+              <motion.h3 
+                className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                {t.ourValues}
+              </motion.h3>
               
               <div className="grid md:grid-cols-3 gap-8">
                 {/* الجودة */}
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
+                <motion.div 
+                  className="text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  whileHover={{ 
+                    scale: 1.05,
+                    transition: { duration: 0.2 }
+                  }}
+                >
+                  <motion.div 
+                    className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg"
+                    whileHover={{ 
+                      rotate: [0, 10, -10, 0],
+                      transition: { duration: 0.5 }
+                    }}
+                  >
                     <FaAward className="text-3xl" />
-                  </div>
+                  </motion.div>
                   <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.quality}</h4>
                   <p className="text-gray-600 dark:text-gray-300">{t.qualityDesc}</p>
-                </div>
+                </motion.div>
                 
                 {/* الابتكار */}
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
+                <motion.div 
+                  className="text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  whileHover={{ 
+                    scale: 1.05,
+                    transition: { duration: 0.2 }
+                  }}
+                >
+                  <motion.div 
+                    className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg"
+                    whileHover={{ 
+                      rotate: [0, 10, -10, 0],
+                      transition: { duration: 0.5 }
+                    }}
+                  >
                     <FaLightbulb className="text-3xl" />
-                  </div>
+                  </motion.div>
                   <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.innovation}</h4>
                   <p className="text-gray-600 dark:text-gray-300">{t.innovationDesc}</p>
-                </div>
+                </motion.div>
                 
                 {/* المجتمع */}
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-r from-pink-500 to-red-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
+                <motion.div 
+                  className="text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  whileHover={{ 
+                    scale: 1.05,
+                    transition: { duration: 0.2 }
+                  }}
+                >
+                  <motion.div 
+                    className="w-20 h-20 bg-gradient-to-r from-pink-500 to-red-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg"
+                    whileHover={{ 
+                      rotate: [0, 10, -10, 0],
+                      transition: { duration: 0.5 }
+                    }}
+                  >
                     <FaUsers className="text-3xl" />
-                  </div>
+                  </motion.div>
                   <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.community}</h4>
                   <p className="text-gray-600 dark:text-gray-300">{t.communityDesc}</p>
-                </div>
+                </motion.div>
               </div>
             </div>
           </motion.div>
           
-          {/* زر المعرفة */}
+          {/* زر المعرفة مع أنيميشن متقدم */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -2236,7 +2467,11 @@ const AboutUsSection = () => {
           >
             <Link href="/about">
               <motion.button
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ 
+                  scale: 1.05, 
+                  boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.5)",
+                  transition: { duration: 0.2 }
+                }}
                 whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center gap-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
               >
@@ -2251,12 +2486,17 @@ const AboutUsSection = () => {
   );
 };
 
-// مكون قسم "لماذا تشترك في فذلَكة؟" المحسن مع دعم كامل للغتين
-const SubscribeSection = () => {
+// مكون القسم الموحد الجديد - يجمع بين الاشتراك والمجتمع مع تحسينات شاملة
+const UnifiedMembershipSection = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
+  const { user } = useUser();
+  const { scrollYProgress } = useScroll();
+  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.8, 1, 0.8]);
+  const borderRadius = useTransform(scrollYProgress, [0, 0.5, 1], ["2rem", "1.5rem", "2rem"]);
   
-  const benefits = [
+  // مميزات الاشتراك
+  const subscriptionBenefits = [
     {
       icon: <FaVideo className="text-2xl" />,
       title: t.benefit1,
@@ -2292,127 +2532,23 @@ const SubscribeSection = () => {
         ? "دعم فني متخصص على مدار الساعة لمساعدتك في أي استفسار"
         : "Specialized technical support available 24/7 to help with any inquiries"
     },
-        {
+    {
       icon: <FaComments className="text-2xl" />,
       title: t.benefit6,
       description: language === 'ar' 
-        ? "امكانيه ارسال تعليقات ورسائل خاصه علي البريد في اي وقت ويتم الرد بسرعه عليك"
+        ? "امكانيه ارسال تعليقات ورسائل  علي البريد في اي وقت ويتم الرد بسرعه عليك"
         : "The ability to send comments and private messages via email at any time and you will be responded to quickly."
     }
   ];
   
-  return (
-    <section className="relative py-20 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
-      {/* خلفية متدرجة متحركة */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900/20 z-0"></div>
-      
-      {/* عناصر زخرفية متحركة - تقليلها على الموبايل */}
-      <div className="hidden md:block absolute top-20 right-10 w-72 h-72 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="hidden md:block absolute bottom-20 left-10 w-96 h-96 bg-indigo-200/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
-      
-      {/* شبكة علمية - تقليلها على الموبايل */}
-      <div className="hidden md:block absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjODA4MGZmIiBvcGFjaXR5PSIwLjE1IiAvPgo8L3N2Zz4=')] opacity-20 dark:opacity-10"></div>
-      
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-6xl mx-auto">
-          {/* عنوان القسم */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-full mb-6 shadow-lg">
-              <FaCrown className="text-xl" />
-              <span className="text-lg font-bold">{t.subscribeTitle}</span>
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              {t.subscribeSubtitle}
-            </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-pink-600 mx-auto rounded-full"></div>
-          </motion.div>
-          
-          {/* المميزات */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            {benefits.map((benefit, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 group"
-                whileHover={{ y: -10, boxShadow: "0 20px 40px -10px rgba(147, 51, 234, 0.3), 0 10px 10px -5px rgba(147, 51, 234, 0.2)" }}
-              >
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  {benefit.icon}
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{benefit.title}</h3>
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{benefit.description}</p>
-              </motion.div>
-            ))}
-          </div>
-          
-          {/* الأزرار */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="flex flex-col sm:flex-row gap-6 justify-center"
-          >
-            <Link href="/sign-up">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
-              >
-                {t.joinNow}
-                <FaRocket />
-              </motion.button>
-            </Link>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// مكون قسم "انضم إلى مجتمعنا" المحسن مع تعديل مكان الصورة
-const CommunitySection = () => {
-  const { language, isRTL } = useLanguage();
-  const t = translations[language];
-  const { user } = useUser();
-  
-  const testimonials = [
-    {
-      name: language === 'ar' ? "أحمد محمد" : "Ahmed Mohamed",
-      role: language === 'ar' ? "طالب جامعي" : "University Student",
-      content: t.testimonial1,
-      avatar: "/testimonial1.jpg"
-    },
-    {
-      name: language === 'ar' ? "سارة أحمد" : "Sarah Ahmed",
-      role: language === 'ar' ? "مصممة جرافيك" : "Graphic Designer",
-      content: t.testimonial2,
-      avatar: "/testimonial2.jpg"
-    },
-    {
-      name: language === 'ar' ? "خالد العلي" : "Khaled Al-Ali",
-      role: language === 'ar' ? "مطور برمجيات" : "Software Developer",
-      content: t.testimonial3,
-      avatar: "/testimonial3.jpg"
-    }
-  ];
-  
-  const features = [
+  // مميزات المجتمع
+  const communityFeatures = [
     {
       icon: <FaComments className="text-2xl" />,
       title: t.communityFeature1,
       description: language === 'ar' 
         ? "شارك في نقاشات علمية وثقافية مع أعضاء المجتمع"
-        : "Participate in scientific and cultural discussions with community members"
+        : "Participate in scientific and cultural discussions with the community"
     },
     {
       icon: <FaUsers className="text-2xl" />,
@@ -2427,24 +2563,75 @@ const CommunitySection = () => {
       description: language === 'ar' 
         ? "تبادل المعرفة والخبرات مع الآخرين في بيئة تفاعلية"
         : "Exchange knowledge and experiences with others in an interactive environment"
+    },
+    {
+      icon: <FaHandshake className="text-2xl" />,
+      title: t.networking,
+      description: language === 'ar' 
+        ? "بناء علاقات مهنية واجتماعية مع متعلمين من مختلف المجالات"
+        : "Building social relationships with learners from different fields"
+    },
+    {
+      icon: <FaGraduationCap className="text-2xl" />,
+      title: t.expertSessions,
+      description: language === 'ar' 
+        ? "نحاول تقديم محتوي راقي ومتميز ومسلي "
+        : "We strive to provide high-quality, distinctive, and entertaining content."
+    },
+    {
+      icon: <FaShieldAlt className="text-2xl" />,
+      title: t.directSupport,
+      description: language === 'ar' 
+        ? "دعم مباشر من فريق العمل والمجتمع لمساعدتك في رحلتك التعليمية"
+        : "Live support from the team to help you on your educational journey."
     }
   ];
   
   return (
     <section className="relative py-20 overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
-      {/* خلفية متدرجة متحركة */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900/20 z-0"></div>
+      {/* خلفية متدرجة متحركة مع تأثيرات متقدمة */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900/20 z-0"></div>
       
-      {/* عناصر زخرفية متحركة - تقليلها على الموبايل */}
-      <div className="hidden md:block absolute top-20 left-10 w-72 h-72 bg-indigo-200/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="hidden md:block absolute bottom-20 right-10 w-96 h-96 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+      {/* عناصر زخرفية متحركة مع أنيميشن متقدم */}
+      <motion.div 
+        className="absolute top-20 right-10 w-72 h-72 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl"
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.2, 0.3, 0.2],
+          x: [0, -20, 0],
+          y: [0, 20, 0]
+        }}
+        transition={{ 
+          duration: 8, 
+          repeat: Infinity, 
+          ease: "easeInOut" 
+        }}
+      />
+      <motion.div 
+        className="absolute bottom-20 left-10 w-96 h-96 bg-indigo-200/20 dark:bg-indigo-500/10 rounded-full blur-3xl"
+        animate={{ 
+          scale: [1, 1.3, 1],
+          opacity: [0.2, 0.4, 0.2],
+          x: [0, 30, 0],
+          y: [0, -30, 0]
+        }}
+        transition={{ 
+          duration: 10, 
+          repeat: Infinity, 
+          ease: "easeInOut",
+          delay: 1
+        }}
+      />
       
-      {/* شبكة علمية - تقليلها على الموبايل */}
-      <div className="hidden md:block absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjODA4MGZmIiBvcGFjaXR5PSIwLjE1IiAvPgo8L3N2Zz4=')] opacity-20 dark:opacity-10"></div>
+      {/* شبكة علمية متحركة */}
+      <motion.div 
+        className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+CiAgPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMC41IiBmaWxsPSIjODA4MGZmIiBvcGFjaXR5PSIwLjE1IiAvPgo8L3N2Zz4=')] opacity-20 dark:opacity-10"
+        style={{ scale }}
+      />
       
       <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-6xl mx-auto">
-          {/* عنوان القسم */}
+        <div className="max-w-7xl mx-auto">
+          {/* عنوان القسم الرئيسي مع أنيميشن متقدم */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -2452,17 +2639,40 @@ const CommunitySection = () => {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-full mb-6 shadow-lg">
-              <FaUsers className="text-xl" />
-              <span className="text-lg font-bold">{t.communityTitle}</span>
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              {t.communitySubtitle}
-            </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 mx-auto rounded-full"></div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-full mb-6 shadow-lg"
+              whileHover={{ 
+                scale: 1.05, 
+                boxShadow: "0 10px 25px -5px rgba(147, 51, 234, 0.5)",
+                transition: { duration: 0.2 }
+              }}
+            >
+              <FaCrown className="text-xl" />
+              <span className="text-lg font-bold">{t.joinKnowledgeWorld}</span>
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4"
+            >
+              {t.joinKnowledgeSubtitle}
+            </motion.h2>
+            <motion.div 
+              className="w-24 h-1 bg-gradient-to-r from-purple-500 to-indigo-600 mx-auto rounded-full"
+              initial={{ width: 0 }}
+              whileInView={{ width: "6rem" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            />
           </motion.div>
           
-          {/* قسم المستخدم المسجل */}
+          {/* قسم المستخدم المسجل/غير المسجل مع أنيميشن متقدم */}
           <SignedIn>
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -2470,21 +2680,44 @@ const CommunitySection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
               className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-1 shadow-2xl mb-16"
+              style={{ borderRadius }}
+              whileHover={{ 
+                scale: 1.02,
+                boxShadow: "0 25px 50px -12px rgba(99, 102, 241, 0.5)",
+                transition: { duration: 0.3 }
+              }}
             >
               <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 md:p-12">
                 <div className="flex flex-col items-center gap-8">
                   {/* نص الترحيب */}
-                  <div className="text-center">
+                  <motion.div 
+                    className="text-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                  >
                     <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                       {t.welcome} {user?.firstName || user?.username || t.noUser}!
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto">
                       {t.welcomeMessage}
                     </p>
-                  </div>
+                  </motion.div>
                   
                   {/* الصورة تحت نص الترحيب */}
-                  <div className="flex-shrink-0">
+                  <motion.div 
+                    className="flex-shrink-0"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    whileHover={{ 
+                      scale: 1.1,
+                      rotate: [0, 5, -5, 0],
+                      transition: { duration: 0.5 }
+                    }}
+                  >
                     {user?.imageUrl ? (
                       <Image 
                         src={user.imageUrl} 
@@ -2498,13 +2731,23 @@ const CommunitySection = () => {
                         {user?.firstName?.[0] || user?.username?.[0] || "U"}
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                   
                   {/* الأزرار */}
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <motion.div 
+                    className="flex flex-col sm:flex-row gap-4 justify-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  >
                     <Link href="/profile">
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
+                        whileHover={{ 
+                          scale: 1.05, 
+                          boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.5)",
+                          transition: { duration: 0.2 }
+                        }}
                         whileTap={{ scale: 0.95 }}
                         className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:shadow-xl transition-all duration-300"
                       >
@@ -2514,7 +2757,11 @@ const CommunitySection = () => {
                     </Link>
                     <Link href="/favorites">
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
+                        whileHover={{ 
+                          scale: 1.05, 
+                          boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.3)",
+                          transition: { duration: 0.2 }
+                        }}
                         whileTap={{ scale: 0.95 }}
                         className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 px-6 py-3 rounded-full font-bold shadow-lg border-2 border-indigo-500 hover:shadow-xl transition-all duration-300"
                       >
@@ -2522,13 +2769,12 @@ const CommunitySection = () => {
                         <FaBookmark />
                       </motion.button>
                     </Link>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
           </SignedIn>
           
-          {/* قسم المستخدم غير المسجل */}
           <SignedOut>
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -2536,119 +2782,238 @@ const CommunitySection = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
               className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-1 shadow-2xl mb-16"
+              style={{ borderRadius }}
+              whileHover={{ 
+                scale: 1.02,
+                boxShadow: "0 25px 50px -12px rgba(99, 102, 241, 0.5)",
+                transition: { duration: 0.3 }
+              }}
             >
               <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 md:p-12">
-                <div className="text-center">
+                <motion.div 
+                  className="text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                >
                   <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
                     {t.joinCommunity}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
                     {t.joinMessage}
                   </p>
-                  
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link href="/sign-up">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        {t.signUp}
-                        <FaRocket />
-                      </motion.button>
-                    </Link>
-                    <Link href="/sign-in">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 px-8 py-4 rounded-full font-bold text-lg shadow-lg border-2 border-indigo-500 hover:shadow-xl transition-all duration-300"
-                      >
-                        {t.signIn}
-                        <FaUser />
-                      </motion.button>
-                    </Link>
-                  </div>
-                </div>
+                </motion.div>
+                
+                <motion.div 
+                  className="flex flex-col sm:flex-row gap-4 justify-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Link href="/sign-up">
+                    <motion.button
+                      whileHover={{ 
+                        scale: 1.05, 
+                        boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.5)",
+                        transition: { duration: 0.2 }
+                      }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      {t.signUp}
+                      <FaRocket />
+                    </motion.button>
+                  </Link>
+                  <Link href="/sign-in">
+                    <motion.button
+                      whileHover={{ 
+                        scale: 1.05, 
+                        boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.3)",
+                        transition: { duration: 0.2 }
+                      }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 px-8 py-4 rounded-full font-bold text-lg shadow-lg border-2 border-indigo-500 hover:shadow-xl transition-all duration-300"
+                    >
+                      {t.signIn}
+                      <FaUser />
+                    </motion.button>
+                  </Link>
+                </motion.div>
               </div>
             </motion.div>
           </SignedOut>
           
-          {/* مميزات المجتمع */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mb-16"
-          >
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">{t.communityFeatures}</h3>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: 0.1 + index * 0.1 }}
-                  className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 group"
-                  whileHover={{ y: -10, boxShadow: "0 20px 40px -10px rgba(99, 102, 241, 0.3), 0 10px 10px -5px rgba(99, 102, 241, 0.2)" }}
-                >
-                  <div className="w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    {feature.icon}
-                  </div>
-                  <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{feature.title}</h4>
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{feature.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-          
-          {/* آراء الأعضاء */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
-            <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">{t.testimonials}</h3>
-            
-            <div className="grid md:grid-cols-3 gap-8">
-              {testimonials.map((testimonial, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: 0.1 + index * 0.1 }}
-                  className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-700 relative"
-                  whileHover={{ y: -10, boxShadow: "0 20px 40px -10px rgba(99, 102, 241, 0.3), 0 10px 10px -5px rgba(99, 102, 241, 0.2)" }}
-                >
-                  <div className="absolute top-4 right-4 text-indigo-500 dark:text-indigo-400">
-                    <FaQuoteLeft className="text-2xl opacity-20" />
-                  </div>
-                  
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-                      {testimonial.name[0]}
-                    </div>
+          {/* قسم المميزات - تصميم عصري مع أنيميشن متقدم */}
+          <div className="grid lg:grid-cols-2 gap-12 mb-16">
+            {/* مميزات الاشتراك */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <motion.div 
+                className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 relative overflow-hidden"
+                whileHover={{ 
+                  y: -10, 
+                  boxShadow: "0 20px 40px -10px rgba(147, 51, 234, 0.3), 0 10px 10px -5px rgba(147, 51, 234, 0.2)",
+                  transition: { duration: 0.3 }
+                }}
+              >
+                {/* خلفية زخرفية متحركة */}
+                <motion.div 
+                  className="absolute top-0 right-0 w-32 h-32 bg-purple-100 dark:bg-purple-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"
+                  animate={{ 
+                    scale: [1, 1.5, 1],
+                    opacity: [0.2, 0.3, 0.2],
+                  }}
+                  transition={{ 
+                    duration: 4, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                />
+                
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <motion.div 
+                      className="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"
+                      whileHover={{ 
+                        scale: 1.1, 
+                        rotate: [0, 10, -10, 0],
+                        transition: { duration: 0.5 }
+                      }}
+                    >
+                      <FaCrown className="text-2xl" />
+                    </motion.div>
                     <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white">{testimonial.name}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{testimonial.role}</p>
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.exclusiveBenefits}</h3>
+                      <p className="text-gray-600 dark:text-gray-400">{t.unlockPremium}</p>
                     </div>
                   </div>
                   
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed italic">
-                    {testimonial.content}
-                  </p>
-                  
-                  <div className="absolute bottom-4 left-4 text-indigo-500 dark:text-indigo-400">
-                    <FaQuoteRight className="text-2xl opacity-20" />
+                  <div className="space-y-4">
+                    {subscriptionBenefits.map((benefit, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.1 * index }}
+                        className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300"
+                        whileHover={{ 
+                          scale: 1.02,
+                          x: 5,
+                          transition: { duration: 0.2 }
+                        }}
+                      >
+                        <motion.div 
+                          className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"
+                          whileHover={{ 
+                            scale: 1.1,
+                            rotate: [0, 10, -10, 0],
+                            transition: { duration: 0.5 }
+                          }}
+                        >
+                          {benefit.icon}
+                        </motion.div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white mb-1">{benefit.title}</h4>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm">{benefit.description}</p>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+                </div>
+              </motion.div>
+            </motion.div>
+            
+            {/* مميزات المجتمع */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <motion.div 
+                className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 relative overflow-hidden"
+                whileHover={{ 
+                  y: -10, 
+                  boxShadow: "0 20px 40px -10px rgba(99, 102, 241, 0.3), 0 10px 10px -5px rgba(99, 102, 241, 0.2)",
+                  transition: { duration: 0.3 }
+                }}
+              >
+                {/* خلفية زخرفية متحركة */}
+                <motion.div 
+                  className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 dark:bg-indigo-900/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"
+                  animate={{ 
+                    scale: [1, 1.5, 1],
+                    opacity: [0.2, 0.3, 0.2],
+                  }}
+                  transition={{ 
+                    duration: 5, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 1
+                  }}
+                />
+                
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <motion.div 
+                      className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg"
+                      whileHover={{ 
+                        scale: 1.1, 
+                        rotate: [0, 10, -10, 0],
+                        transition: { duration: 0.5 }
+                      }}
+                    >
+                      <FaUsers className="text-2xl" />
+                    </motion.div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.communityEngagement}</h3>
+                      <p className="text-gray-600 dark:text-gray-400">{t.connectWithLearners}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {communityFeatures.map((feature, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.1 * index }}
+                        className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300"
+                        whileHover={{ 
+                          scale: 1.02,
+                          x: 5,
+                          transition: { duration: 0.2 }
+                        }}
+                      >
+                        <motion.div 
+                          className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"
+                          whileHover={{ 
+                            scale: 1.1,
+                            rotate: [0, 10, -10, 0],
+                            transition: { duration: 0.5 }
+                          }}
+                        >
+                          {feature.icon}
+                        </motion.div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white mb-1">{feature.title}</h4>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm">{feature.description}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
         </div>
       </div>
     </section>
@@ -2681,7 +3046,7 @@ export default function Home() {
     { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: t.instagram },
     { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: t.facebook },
     { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: t.tiktok },
-    { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: t.twitter },
+   { href: "https://x.com/FazlakaPlatform", icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>, label: t.twitter },
   ], [t.youtube, t.instagram, t.facebook, t.tiktok, t.twitter]);
 
   // التأكد من أننا في بيئة العميل
@@ -3523,22 +3888,25 @@ export default function Home() {
       {/* ====== قسم "من نحن" المحسن ====== */}
       <AboutUsSection />
       
-      {/* ====== قسم "لماذا تشترك في فذلَكة؟" المحسن ====== */}
-      <SubscribeSection />
-      
-      {/* ====== قسم "انضم إلى مجتمعنا" المحسن ====== */}
-      <CommunitySection />
+      {/* ====== القسم الموحد الجديد - يجمع بين الاشتراك والمجتمع ====== */}
+      <UnifiedMembershipSection />
       
       {/* ====== تواصل + FAQ مع تحسينات ====== */}
       <section
         className="container mx-auto py-16 px-4 relative z-10"
       >
         <div className="text-center mb-12">
-          <h2 
-            className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-full mb-6 shadow-lg"
           >
-            {t.contactUsTitle}
-          </h2>
+            <FaComments className="text-xl" />
+            <span className="text-lg font-bold">{t.contactUsTitle}</span>
+          </motion.div>
+
           <p 
             className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl mx-auto"
           >
@@ -3576,7 +3944,7 @@ export default function Home() {
           <div className="flex flex-col lg:flex-row">
             {/* قسم التواصل والشبكات الاجتماعية */}
             <div 
-              className="lg:w-1/3 p-8 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden"
+              className="lg:w-1/3 p-8 bg-gradient-to-br from-blue-900 to-purple-900 text-white relative overflow-hidden"
             >
               {/* خلفية متحركة - تقليلها على الموبايل */}
               <div className="hidden md:block absolute inset-0 opacity-20">
@@ -3584,21 +3952,18 @@ export default function Home() {
               </div>
               
               <div className="relative z-10 flex flex-col h-full">
-                <div 
-                  className="mb-4"
-                >
+                <div className="mb-8">
                   <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
                     <FaComments className="text-yellow-300" />
                     {t.contactUs}
                   </h3>
                   
                   <div className="text-center">
-                    <p className="mb-4 text-blue-100 text-lg">{t.contactUsMessage}</p>
-                    <div 
-                    >
+                    <p className="mb-6 text-blue-100 text-lg">{t.contactUsMessage}</p>
+                    <div>
                       <Link
                         href="/contact"
-                        className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-full font-semibold shadow-lg hover:bg-blue-50 transition-all duration-300"
+                        className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-full font-semibold shadow-lg hover:bg-blue-50 transition-all duration-300 hover:scale-105"
                       >
                         <FaPaperPlane />
                         {t.send}
@@ -3607,9 +3972,7 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div 
-                  className="mt-4"
-                >
+                <div className="mt-auto">
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <FaUsers className="text-yellow-300" />
                     {t.followUs}
@@ -3627,7 +3990,7 @@ export default function Home() {
                           flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg
                           transition-all duration-300 transform focus:outline-none focus:ring-2 focus:ring-white/30
                           bg-white/20 backdrop-blur-sm text-white
-                          hover:bg-white hover:text-blue-600 hover:shadow-xl
+                          hover:bg-white hover:text-blue-600 hover:shadow-xl hover:scale-105
                         `}
                       >
                         <span className="text-xl">{s.icon}</span>
@@ -3654,8 +4017,7 @@ export default function Home() {
                     {t.commonQuestions}
                   </h3>
                   
-                  <div 
-                  >
+                  <div>
                     <Link
                       href="/faq"
                       className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-2.5 rounded-full font-medium shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105"
@@ -3670,9 +4032,7 @@ export default function Home() {
                 
                 {faqLoading ? (
                   <div className="flex justify-center items-center py-12">
-                    <div 
-                      className="w-12 h-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"
-                    />
+                    <div className="w-12 h-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
                   </div>
                 ) : faqs.length === 0 ? (
                   <div className="text-center py-8">
@@ -3688,7 +4048,7 @@ export default function Home() {
                     initial="hidden"
                     whileInView="visible"
                     viewport={{ once: true, amount: 0.1 }}
-                    className="space-y-8"
+                    className="space-y-6"
                   >
                     {faqs.map((f, index) => (
                       <AnimatedQuestion 
