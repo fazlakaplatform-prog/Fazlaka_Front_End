@@ -1,4 +1,3 @@
-// app/about/page.tsx
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -54,7 +53,9 @@ const socialLinks = [
 // APIs - تعريف جميع الدوال هنا
 async function getMembers(language: string = 'ar'): Promise<Member[]> {
   try {
+    console.log("Fetching team members with language:", language);
     const members = await fetchTeamMembers(language);
+    console.log("Fetched team members:", members);
     // تصفية الأعضاء الذين لديهم _id فقط
     return members.filter(member => member._id !== undefined) || [];
   } catch (error) {
@@ -830,34 +831,58 @@ function AboutContent() {
   const [subscribers, setSubscribers] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRTL, setIsRTL] = useState(true);
+  const [language, setLanguage] = useState('ar');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     // التحقق من تفضيل اللغة المحفوظ في localStorage
     const savedLanguage = localStorage.getItem('language');
+    let detectedLanguage = 'ar'; // default to Arabic
+    
     if (savedLanguage !== null) {
-      setIsRTL(savedLanguage === 'ar');
+      detectedLanguage = savedLanguage;
     } else {
       // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
-      const browserLang = navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage;
-      setIsRTL(browserLang.includes('ar'));
+      const browserLang = navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage || '';
+      detectedLanguage = browserLang.includes('ar') ? 'ar' : 'en';
     }
     
+    setLanguage(detectedLanguage);
+    setIsRTL(detectedLanguage === 'ar');
+    
     // تطبيق اتجاه الصفحة بناءً على اللغة
-    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-    document.documentElement.lang = isRTL ? 'ar' : 'en';
-  }, [isRTL]);
+    document.documentElement.dir = detectedLanguage === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = detectedLanguage;
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    
     const fetchData = async () => {
       try {
-        const language = isRTL ? 'ar' : 'en';
+        setLoading(true);
+        console.log("Fetching team members for language:", language);
         
-        const [membersData, subscribersData] = await Promise.all([
-          getMembers(language),
-          getSubscribers(),
-        ]);
+        // جرب أولاً باللغة المحددة
+        let membersData = await getMembers(language);
         
+        // إذا لم يتم العثور على بيانات باللغة المحددة وكانت اللغة الإنجليزية، جرب بالعربية
+        if (membersData.length === 0 && language === 'en') {
+          console.log("No English team members found, trying Arabic");
+          membersData = await getMembers('ar');
+        }
+        // إذا لم يتم العثور على بيانات باللغة المحددة وكانت اللغة العربية، جرب بالإنجليزية
+        else if (membersData.length === 0 && language === 'ar') {
+          console.log("No Arabic team members found, trying English");
+          membersData = await getMembers('en');
+        }
+        
+        console.log("Team members data:", membersData);
         setMembers(membersData);
+        
+        const subscribersData = await getSubscribers();
         setSubscribers(subscribersData);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -867,7 +892,7 @@ function AboutContent() {
     };
 
     fetchData();
-  }, [isRTL]);
+  }, [language, mounted]);
 
   if (loading) {
     return (

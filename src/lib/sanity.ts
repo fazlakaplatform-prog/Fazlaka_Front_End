@@ -1,3 +1,4 @@
+// lib/sanity.ts
 import { createClient } from 'next-sanity'
 import imageUrlBuilder from '@sanity/image-url'
 
@@ -969,7 +970,7 @@ export function getImageUrl(slider: HeroSlider): string | null {
   return null;
 }
 
-// دالة لجلب كل الإشعارات مع دعم اللغة
+// دالة لجلب كل الإشعارات مع دعم اللغة - تم إصلاح الخطأ
 export async function getAllNotifications(language: string = 'ar'): Promise<NotificationItem[]> {
   try {
     const lang = language || 'ar';
@@ -1004,8 +1005,8 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
     }`;
     const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; imageUrl?: string }>(articlesQuery, { lang });
 
-    // جلب قوائم التشغيل مع فلترة حسب اللغة
-    const playlistsQuery = `*[_type == "playlist" && language == $lang] | order(_createdAt desc) {
+    // جلب قوائم التشغيل مع فلترة حسب اللغة - تم إصلاح الخطأ هنا
+    const playlistsQuery = `*[_type == "playlist" && language == $language] | order(_createdAt desc) {
       _id,
       title,
       titleEn,
@@ -1016,7 +1017,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       "slug": slug.current,
       "type": "playlist"
     }`;
-    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery);
+    const playlists = await fetchArrayFromSanity<Playlist & { type: string; slug: string; imageUrl?: string }>(playlistsQuery, { language: lang });
 
     // جلب الأسئلة الشائعة مع فلترة حسب اللغة
     const faqsQuery = `*[_type == "faq" && language == $lang] | order(_createdAt desc) {

@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { 
   FaEnvelope, FaUsers, FaMedal, FaLightbulb, FaHeart,
   FaFlask, FaLandmark, FaChartLine, FaBalanceScale, FaBook, FaAtom
-} from "react-icons/fa";
+} from 'react-icons/fa';
 import { urlFor, fetchTeamMembers, getLocalizedText } from '@/lib/sanity';
 
 // Import the base TeamMember type from sanity
@@ -21,7 +21,9 @@ interface TeamMember extends SanityTeamMember {
 // جلب بيانات أعضاء الفريق حسب اللغة
 async function getTeamMembersData(language: string = 'ar'): Promise<TeamMember[]> {
   try {
+    console.log("Fetching team members with language:", language);
     const members = await fetchTeamMembers(language);
+    console.log("Fetched team members:", members);
     return members || [];
   } catch (error) {
     console.error("Error fetching team members:", error);
@@ -554,31 +556,55 @@ function TeamContent() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRTL, setIsRTL] = useState(true);
+  const [language, setLanguage] = useState('ar');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     // التحقق من تفضيل اللغة المحفوظ في localStorage
     const savedLanguage = localStorage.getItem('language');
+    let detectedLanguage = 'ar'; // default to Arabic
+    
     if (savedLanguage !== null) {
-      setIsRTL(savedLanguage === 'ar');
+      detectedLanguage = savedLanguage;
     } else {
       // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
-      const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage;
-      // Add a check to ensure browserLang is not undefined
-      setIsRTL(browserLang ? browserLang.includes('ar') : false);
+      const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage || '';
+      detectedLanguage = browserLang.includes('ar') ? 'ar' : 'en';
     }
     
+    setLanguage(detectedLanguage);
+    setIsRTL(detectedLanguage === 'ar');
+    
     // تطبيق اتجاه الصفحة بناءً على اللغة
-    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-    document.documentElement.lang = isRTL ? 'ar' : 'en';
-  }, [isRTL]);
+    document.documentElement.dir = detectedLanguage === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = detectedLanguage;
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    
     const fetchData = async () => {
       try {
-        const language = isRTL ? 'ar' : 'en';
+        setLoading(true);
+        console.log("Fetching team members for language:", language);
         
-        const membersData = await getTeamMembersData(language);
+        // جرب أولاً باللغة المحددة
+        let membersData = await getTeamMembersData(language);
         
+        // إذا لم يتم العثور على بيانات باللغة المحددة وكانت اللغة الإنجليزية، جرب بالعربية
+        if (membersData.length === 0 && language === 'en') {
+          console.log("No English team members found, trying Arabic");
+          membersData = await getTeamMembersData('ar');
+        }
+        // إذا لم يتم العثور على بيانات باللغة المحددة وكانت اللغة العربية، جرب بالإنجليزية
+        else if (membersData.length === 0 && language === 'ar') {
+          console.log("No Arabic team members found, trying English");
+          membersData = await getTeamMembersData('en');
+        }
+        
+        console.log("Team members data:", membersData);
         setMembers(membersData);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -588,7 +614,7 @@ function TeamContent() {
     };
 
     fetchData();
-  }, [isRTL]);
+  }, [language, mounted]);
 
   if (loading) {
     return (
