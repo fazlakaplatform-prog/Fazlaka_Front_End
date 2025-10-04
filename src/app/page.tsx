@@ -836,7 +836,7 @@ const HeroSearchBar = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   
   // نصوص التطبيق حسب اللغة
-  const searchTexts = {
+  const searchTranslations = {
     ar: {
       searchPlaceholder: "ابحث عن حلقات، مقالات، قوائم تشغيل...",
       searchInPlatform: "ابحث هنا في كل ارجاء المنصه",
@@ -877,7 +877,7 @@ const HeroSearchBar = () => {
     }
   };
   
-  const searchT = searchTexts[language];
+  const searchT = searchTranslations[language];
   
   // إغلاق النتائج عند النقر خارجها
   useEffect(() => {
@@ -1770,211 +1770,225 @@ const FeaturedContentSlider = () => {
           </motion.p>
         </motion.div>
         
-        {/* السلايدر المحسن */}
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-          <Swiper
-            modules={[Autoplay, Pagination, Navigation]}
-            spaceBetween={0}
-            slidesPerView={1}
-            autoplay={{
-              delay: 5000,
-              disableOnInteraction: false,
-              pauseOnMouseEnter: true,
-            }}
-            pagination={{
-              clickable: true,
-              dynamicBullets: true,
-              el: '.featured-pagination',
-            }}
-            navigation={{
-              nextEl: '.featured-button-next',
-              prevEl: '.featured-button-prev',
-            }}
-            onSlideChange={(swiper) => setActiveSlide(swiper.activeIndex)}
-            onAutoplayPause={() => setIsPaused(true)}
-            onAutoplayResume={() => setIsPaused(false)}
-            className="featured-slider rounded-3xl overflow-hidden"
-            style={{
-              height: '0',
-              paddingBottom: '56.25%', // نسبة 16:9
-              maxHeight: '600px',
-            }}
-          >
-            {sliders.map((slider, index) => (
-              <SwiperSlide key={slider._id} className="relative pb-[56.25%]">
-                <div className="absolute inset-0 w-full h-full">
-                  {/* الخلفية - تظهر دائماً */}
-                  {slider.mediaType === 'image' && slider.image && (
-                    <Image
-                      src={getImageUrl(slider) || '/placeholder.png'}
-                      alt={getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
-                      fill
-                      className="object-cover"
-                      priority={index === 0}
-                    />
-                  )}
-                  
-                  {slider.mediaType === 'video' && (
-                    <div className="absolute inset-0 w-full h-full overflow-hidden">
-                      {slider.videoUrl ? (
-                        <>
-                          {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
-                            <iframe
-                              src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&fs=0&playsinline=1`}
-                              className="absolute inset-0 w-full h-full"
-                              frameBorder="0"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          ) : slider.videoUrl.includes('vimeo.com') ? (
-                            <iframe
-                              src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0&background=1`}
-                              className="absolute inset-0 w-full h-full"
-                              frameBorder="0"
-                              allow="autoplay; fullscreen; picture-in-picture"
-                              allowFullScreen
-                            />
-                          ) : (
-                            <video
-                              src={slider.videoUrl}
-                              className="absolute inset-0 w-full h-full object-cover"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                            />
-                          )}
-                        </>
-                      ) : slider.video && (
-                        <video
-                          src={getVideoUrl(slider) || ''}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
-                        />
+        {/* السلايدر المحسن مع الظل */}
+        <div className="relative">
+          {/* الظل الأزرق والبنفسجي تحت السلايدر */}
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl h-12 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-indigo-500/20 blur-2xl rounded-full"></div>
+          <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-5xl h-8 bg-gradient-to-r from-blue-400/15 via-purple-400/15 to-indigo-400/15 blur-xl rounded-full"></div>
+          
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+            <Swiper
+              modules={[Autoplay, Pagination, Navigation]}
+              spaceBetween={0}
+              slidesPerView={1}
+              autoplay={{
+                delay: 5000,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+              }}
+              pagination={{
+                clickable: true,
+                dynamicBullets: true,
+                el: '.featured-pagination',
+              }}
+              navigation={{
+                nextEl: '.featured-button-next',
+                prevEl: '.featured-button-prev',
+              }}
+              onSlideChange={(swiper) => setActiveSlide(swiper.activeIndex)}
+              onAutoplayPause={() => setIsPaused(true)}
+              onAutoplayResume={() => setIsPaused(false)}
+              className="featured-slider overflow-hidden"
+              style={{
+                height: '0',
+                paddingBottom: '56.25%', // نسبة 16:9
+                maxHeight: '600px',
+              }}
+            >
+              {sliders.map((slider, index) => (
+                <SwiperSlide key={slider._id} className="relative pb-[56.25%]">
+                  <div className="absolute inset-0 w-full h-full">
+                    {/* الخلفية - تظهر دائماً */}
+                    {slider.mediaType === 'image' && slider.image && (
+                      <Image
+                        src={getImageUrl(slider) || '/placeholder.png'}
+                        alt={getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
+                        fill
+                        className="object-cover"
+                        priority={index === 0}
+                      />
+                    )}
+                    
+                    {slider.mediaType === 'video' && (
+                      <div className="absolute inset-0 w-full h-full overflow-hidden">
+                        {slider.videoUrl ? (
+                          <>
+                            {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
+                              <iframe
+                                src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&fs=0&playsinline=1`}
+                                className="absolute inset-0 w-full h-full"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            ) : slider.videoUrl.includes('vimeo.com') ? (
+                              <iframe
+                                src={`https://player.vimeo.com/video/${extractVideoId(slider.videoUrl)}?autoplay=1&muted=1&loop=1&controls=0&background=1`}
+                                className="absolute inset-0 w-full h-full"
+                                frameBorder="0"
+                                allow="autoplay; fullscreen; picture-in-picture"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <video
+                                src={slider.videoUrl}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                              />
+                            )}
+                          </>
+                        ) : slider.video && (
+                          <video
+                            src={getVideoUrl(slider) || ''}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* طبقة التعتيم المحسنة */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                    
+                    {/* المحتوى - يظهر فقط للشريحة النشطة */}
+                    <AnimatePresence>
+                      {activeSlide === index && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 30 }}
+                          transition={{ duration: 0.7 }}
+                          className="absolute inset-0 flex items-center justify-center p-6 md:p-10"
+                        >
+                          <div className="w-full max-w-4xl text-center">
+                            <motion.h2 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: 0.2 }}
+                              className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-4 md:mb-6 drop-shadow-lg"
+                            >
+                              {getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
+                            </motion.h2>
+                            
+                            <motion.p 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: 0.3 }}
+                              className="text-base md:text-lg lg:text-xl text-white/90 mb-6 md:mb-8 max-w-3xl mx-auto drop-shadow-md"
+                            >
+                              {getLocalizedTextEnhanced(slider.description, slider.descriptionEn, language)}
+                            </motion.p>
+                            
+                            <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: 0.4 }}
+                              className="flex flex-wrap gap-4 justify-center"
+                            >
+                              {slider.link?.url && slider.link?.text && (
+                                <motion.div
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <Link
+                                    href={slider.link.url}
+                                    className="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 md:px-8 md:py-4 rounded-full font-bold shadow-lg hover:bg-indigo-50 transition-all duration-300 text-base md:text-lg"
+                                  >
+                                    {getLocalizedTextEnhanced(slider.link.text, slider.link.textEn, language)}
+                                    <FaArrowLeft className="transform rotate-180" />
+                                  </Link>
+                                </motion.div>
+                              )}
+                            </motion.div>
+                          </div>
+                        </motion.div>
                       )}
-                    </div>
-                  )}
-                  
-                  {/* طبقة التعتيم المحسنة */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-                  
-                  {/* المحتوى - يظهر فقط للشريحة النشطة */}
-                  <AnimatePresence>
+                    </AnimatePresence>
+                    
+                    {/* مؤشر الشرائح - يظهر فقط للشريحة النشطة */}
                     {activeSlide === index && (
                       <motion.div 
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 30 }}
-                        transition={{ duration: 0.7 }}
-                        className="absolute inset-0 flex items-center justify-center p-6 md:p-10"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.5 }}
+                        className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm text-white text-sm px-3 py-1 rounded-full"
                       >
-                        <div className="w-full max-w-4xl text-center">
-                          <motion.h2 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                            className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-4 md:mb-6 drop-shadow-lg"
-                          >
-                            {getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
-                          </motion.h2>
-                          
-                          <motion.p 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.3 }}
-                            className="text-base md:text-lg lg:text-xl text-white/90 mb-6 md:mb-8 max-w-3xl mx-auto drop-shadow-md"
-                          >
-                            {getLocalizedTextEnhanced(slider.description, slider.descriptionEn, language)}
-                          </motion.p>
-                          
-                          <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.4 }}
-                            className="flex flex-wrap gap-4 justify-center"
-                          >
-                            {slider.link?.url && slider.link?.text && (
-                              <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <Link
-                                  href={slider.link.url}
-                                  className="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 md:px-8 md:py-4 rounded-full font-bold shadow-lg hover:bg-indigo-50 transition-all duration-300 text-base md:text-lg"
-                                >
-                                  {getLocalizedTextEnhanced(slider.link.text, slider.link.textEn, language)}
-                                  <FaArrowLeft className="transform rotate-180" />
-                                </Link>
-                              </motion.div>
-                            )}
-                          </motion.div>
-                        </div>
+                        {index + 1} / {sliders.length}
                       </motion.div>
                     )}
-                  </AnimatePresence>
-                  
-                  {/* مؤشر الشرائح - يظهر فقط للشريحة النشطة */}
-                  {activeSlide === index && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.5, delay: 0.5 }}
-                      className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm text-white text-sm px-3 py-1 rounded-full"
-                    >
-                      {index + 1} / {sliders.length}
-                    </motion.div>
-                  )}
-                  
-                  {/* أيقونة التشغيل/الإيقاف */}
-                  {slider.mediaType === 'video' && (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5, delay: 0.6 }}
-                      className="absolute bottom-4 right-4 bg-black/30 backdrop-blur-sm text-white p-3 rounded-full cursor-pointer"
-                      onClick={() => setIsPaused(!isPaused)}
-                    >
-                      {isPaused ? <FaPlay className="text-lg" /> : <FaPause className="text-lg" />}
-                    </motion.div>
-                  )}
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-          
-          {/* أزرار التنقل المخصصة */}
-          <div className="featured-button-next absolute top-1/2 right-4 z-20 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-white/30 transition-all duration-300 transform -translate-y-1/2">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+                    
+                    {/* أيقونة التشغيل/الإيقاف */}
+                    {slider.mediaType === 'video' && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.6 }}
+                        className="absolute bottom-4 right-4 bg-black/30 backdrop-blur-sm text-white p-3 rounded-full cursor-pointer"
+                        onClick={() => setIsPaused(!isPaused)}
+                      >
+                        {isPaused ? <FaPlay className="text-lg" /> : <FaPause className="text-lg" />}
+                      </motion.div>
+                    )}
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+            
+            {/* أزرار التنقل المخصصة */}
+            <div className="featured-button-next absolute top-1/2 right-4 z-20 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-white/30 transition-all duration-300 transform -translate-y-1/2">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <div className="featured-button-prev absolute top-1/2 left-4 z-20 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-white/30 transition-all duration-300 transform -translate-y-1/2">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </div>
           </div>
-          <div className="featured-button-prev absolute top-1/2 left-4 z-20 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-white/30 transition-all duration-300 transform -translate-y-1/2">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </div>
-          
-          {/* نقاط التنقل */}
-          <div className="featured-pagination flex justify-center mt-6 gap-2"></div>
         </div>
+        
+        {/* نقاط التنقل - في المنتصف تحت السلايدر */}
+        <div className="featured-pagination flex justify-center mt-8 gap-2"></div>
       </div>
       
       <style jsx global>{`
         .featured-slider .swiper-pagination-bullet {
-          background-color: rgba(255, 255, 255, 0.5);
+          background-color: rgba(99, 102, 241, 0.5);
           width: 12px;
           height: 12px;
           opacity: 0.7;
           transition: all 0.3s ease;
         }
         .featured-slider .swiper-pagination-bullet-active {
-          background-color: white;
+          background: linear-gradient(to right, #3b82f6, #8b5cf6);
           width: 30px;
           border-radius: 6px;
           opacity: 1;
+        }
+        
+        /* في الوضع الليلي */
+        .dark .featured-slider .swiper-pagination-bullet {
+          background-color: rgba(139, 92, 246, 0.5);
+        }
+        .dark .featured-slider .swiper-pagination-bullet-active {
+          background: linear-gradient(to right, #60a5fa, #a78bfa);
         }
         
         @media (max-width: 768px) {
@@ -1995,6 +2009,71 @@ const FeaturedContentSlider = () => {
           
           .featured-button-prev {
             left: 10px;
+          }
+          
+          /* تحسين العناوين والأيقونات في الموبايل */
+          .featured-slider .text-2xl {
+            font-size: 1.5rem;
+          }
+          
+          .featured-slider .text-4xl {
+            font-size: 2rem;
+          }
+          
+          .featured-slider .text-5xl {
+            font-size: 2.5rem;
+          }
+          
+          .featured-slider .text-base {
+            font-size: 0.9rem;
+          }
+          
+          .featured-slider .text-lg {
+            font-size: 1rem;
+          }
+          
+          .featured-slider .text-xl {
+            font-size: 1.1rem;
+          }
+          
+          .featured-slider .px-6 {
+            padding-left: 1rem;
+            padding-right: 1rem;
+          }
+          
+          .featured-slider .py-3 {
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+          }
+          
+          .featured-slider .px-8 {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+          }
+          
+          .featured-slider .py-4 {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+          }
+          
+          .featured-slider .text-lg {
+            font-size: 1rem;
+          }
+          
+          .featured-slider .text-xl {
+            font-size: 1.1rem;
+          }
+          
+          .featured-slider .text-2xl {
+            font-size: 1.5rem;
+          }
+          
+          .featured-slider .text-4xl {
+            font-size: 2rem;
+          }
+          
+          .featured-slider .text-5xl {
+            font-size: 2.5rem;
           }
         }
       `}</style>
