@@ -99,7 +99,7 @@ export default function SignUpPage() {
       termsOfService: "Terms of Service",
       haveAccount: "Already have an account?",
       signIn: "Sign In",
-      platformName: "Falthaka",
+      platformName: "fazlaka",
       platformDesc: "A leading educational platform offering distinctive and interactive scientific content"
     }
   };

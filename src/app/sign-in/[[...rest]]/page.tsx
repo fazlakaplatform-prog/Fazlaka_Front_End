@@ -90,7 +90,7 @@ export default function SignInPage() {
       resourceLibrary: "Access to a huge library of educational resources",
       noAccount: "Don't have an account yet?",
       createAccount: "Create a new account",
-      platformName: "Falthaka",
+      platformName: "fazlaka",
       platformDesc: "A leading educational platform offering distinctive and interactive scientific content"
     }
   };
