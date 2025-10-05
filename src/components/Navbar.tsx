@@ -1330,11 +1330,13 @@ const MobileLanguageSwitch = ({ isRTL, toggleLanguage }: { isRTL: boolean; toggl
 const NotificationButton = ({ 
   showNotifications, 
   setShowNotifications,
-  isRTL
+  isRTL,
+  isMobile = false
 }: { 
   showNotifications: boolean; 
   setShowNotifications: (show: boolean) => void;
   isRTL: boolean;
+  isMobile?: boolean;
 }) => {
   const router = useRouter();
   const [hasNewNotifications, setHasNewNotifications] = useState(true);
@@ -1423,6 +1425,207 @@ const NotificationButton = ({
     }
   };
 
+  // في الموبايل، سنعرض الإشعارات كشريط من الأعلى بدلاً من القائمة المنسدلة
+  if (isMobile) {
+    return (
+      <>
+        <motion.button
+          onClick={() => setShowNotifications(!showNotifications)}
+          className="relative p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {/* أيقونة الجرس */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          
+          {/* مؤشر الإشعارات الجديدة */}
+          {hasNewNotifications && (
+            <motion.span 
+              className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 500, 
+                damping: 30,
+                delay: 0.2
+              }}
+            />
+          )}
+          
+          {/* حركة تموج عند وجود إشعارات جديدة */}
+          {hasNewNotifications && (
+            <motion.span 
+              className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full opacity-70"
+              animate={{ 
+                scale: [1, 1.5, 2],
+                opacity: [0.7, 0.4, 0]
+              }}
+              transition={{ 
+                duration: 1.5,
+                repeat: Infinity,
+                repeatDelay: 0.5
+              }}
+            />
+          )}
+        </motion.button>
+        
+        {/* قائمة الإشعارات من الأعلى للموبايل - مع تحسينات في التصميم والانحناءات */}
+        <AnimatePresence>
+          {showNotifications && (
+            <>
+              {/* طبقة التعتيم بدون تأثير الضبابية */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/20 z-40"
+                onClick={() => setShowNotifications(false)}
+              />
+              
+              {/* قائمة الإشعارات من الأعلى مع تحسينات */}
+              <motion.div
+                initial={{ y: "-100%", opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ 
+                  y: "-100%", 
+                  opacity: 0,
+                  transition: {
+                    duration: 0.4,
+                    ease: [0.4, 0, 0.2, 1]
+                  }
+                }}
+                transition={{ 
+                  type: "spring", 
+                  damping: 25, 
+                  stiffness: 300,
+                  mass: 0.8,
+                  duration: 0.5
+                }}
+                className="fixed top-20 left-4 right-4 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl z-50 max-h-[70vh] overflow-hidden"
+                style={{
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 0 rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                {/* مقبض السحب المحسن */}
+                <div className="flex justify-center py-3 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
+                  <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                </div>
+                
+                {/* رأس الإشعارات المحسن */}
+                <div className="px-5 pb-4 pt-2 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span className="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        {hasNewNotifications && (
+                          <motion.span 
+                            className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"
+                            animate={{ 
+                              scale: [1, 1.2, 1],
+                              opacity: [1, 0.7, 1]
+                            }}
+                            transition={{ 
+                              duration: 2,
+                              repeat: Infinity
+                            }}
+                          />
+                        )}
+                      </span>
+                      {t.notifications}
+                    </h3>
+                    <button
+                      onClick={() => router.push("/notifications")}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium flex items-center gap-1 px-3 py-1 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                    >
+                      {t.viewAll}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* قائمة الإشعارات المحسنة */}
+                <div className="overflow-y-auto max-h-[50vh] px-5 pb-5">
+                  {loading ? (
+                    <div className="p-8 text-center">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                      <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">{t.loading}</p>
+                    </div>
+                  ) : notifications.length > 0 ? (
+                    <div className="space-y-3 py-4">
+                      {notifications.map((notification, index) => (
+                        <motion.div
+                          key={`${notification.type}-${notification.id}`}
+                          initial={{ opacity: 0, y: -20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all duration-200 cursor-pointer"
+                          onClick={() => handleNotificationClick(notification)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl flex items-center justify-center text-2xl shadow-sm">
+                              {getTypeIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-medium text-gray-900 dark:text-white mb-1">
+                                {notification.title}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                </svg>
+                                {formatDate(notification.date)}
+                              </p>
+                              {notification.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                                  {notification.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center">
+                      <div className="text-6xl mb-4">📭</div>
+                      <p className="text-base text-gray-500 dark:text-gray-400">{t.noNotifications}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* شريط سفيف مع انحناءات */}
+                <div className="px-5 pb-5 pt-2 bg-gradient-to-t from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
+                  <motion.button
+                    onClick={() => setShowNotifications(false)}
+                    className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    {isRTL ? 'إغلاق' : 'Close'}
+                  </motion.button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  // للكمبيوتر، نستخدم القائمة المنسدلة الأصلية
   return (
     <div className="relative notification-dropdown" ref={notificationRef}>
       <motion.button
@@ -1476,7 +1679,7 @@ const NotificationButton = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className={`absolute z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto ${
+            className={`absolute z-50 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto ${
               isRTL ? 'left-0' : 'right-0'
             } mt-2 w-80`}
           >
@@ -2001,11 +2204,12 @@ export default function Navbar() {
                 )}
               </button>
               
-              {/* زر الإشعارات بجنب زر الحساب في الموبايل */}
+              {/* زر الإشعارات بجنب زر الحساب في الموبايل - مع تمرير isMobile=true */}
               <NotificationButton 
                 showNotifications={showNotifications} 
                 setShowNotifications={setShowNotifications}
                 isRTL={isRTL}
+                isMobile={true}
               />
             </SignedIn>
             
@@ -2066,7 +2270,7 @@ export default function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
               onClick={(e) => {
                 // تجاهل النقر إذا كان على زر القائمة
                 if ((e.target as Element).closest('#mobile-menu-button')) return;
