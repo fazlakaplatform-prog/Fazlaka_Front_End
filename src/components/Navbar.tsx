@@ -90,6 +90,7 @@ const translations = {
     articles: "المقالات",
     about: "تعرف علينا",
     whoWeAre: "من نحن",
+    platforms: "تجدنا على",
     team: "الفريق",
     contact: "التواصل",
     contactUs: "تواصل معنا",
@@ -131,6 +132,7 @@ const translations = {
     articles: "Articles",
     about: "About",
     whoWeAre: "Who We Are",
+    platforms: "Find us on",
     team: "Team",
     contact: "Contact",
     contactUs: "Contact Us",
@@ -2024,6 +2026,15 @@ export default function Navbar() {
                         </svg>
                         <span className="text-sm font-medium">{t.whoWeAre}</span>
                       </Link>
+                      
+                      <Link href="/follow-us" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
+                        {/* أيقونة الشبكة الجديدة باللون الأحمر */}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M3.75 5.25A.75.75 0 014.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V5.25zm0 9A.75.75 0 014.5 13.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75v-5.25zm9-9A.75.75 0 0113.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75V5.25zm0 9a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75v-5.25z" />
+                        </svg>
+                        <span className="text-sm font-medium">{t.platforms}</span>
+                      </Link>
+                      
                       <Link href="/team" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
@@ -2342,6 +2353,7 @@ export default function Navbar() {
                       { href: "/seasons", icon: "calendar", label: t.seasons, color: "from-yellow-500 to-orange-500" },
                       { href: "/articles", icon: "article", label: t.articles, color: "from-red-500 to-rose-500" },
                       { href: "/about", icon: "info", label: t.whoWeAre, color: "from-indigo-500 to-blue-500" },
+                      { href: "/follow-us", icon: "grid", label: t.platforms, color: "from-indigo-500 to-blue-500" },
                       { href: "/team", icon: "team", label: t.team, color: "from-pink-500 to-rose-500" },
                       { href: "/contact", icon: "mail", label: t.contactUs, color: "from-cyan-500 to-blue-500" },
                       { href: "/faq", icon: "question", label: t.faq, color: "from-teal-500 to-green-500" }

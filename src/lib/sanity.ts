@@ -1315,5 +1315,59 @@ export function getLocalizedText(arText?: string, enText?: string, language: str
   return language === 'ar' ? (arText || '') : (enText || '');
 }
 
+// واجهة للروابط الاجتماعية
+export interface SocialLink {
+  _id: string
+  _type: 'socialLinks'
+  platform: string
+  url: string
+}
+
+// واجهة للمستند الذي يحتوي على الروابط الاجتماعية
+export interface SocialLinksDocument {
+  _id: string
+  _type: 'socialLinks'
+  links: {
+    platform: string
+    url: string
+  }[]
+}
+
+// دالة لجلب الروابط الاجتماعية - تم إصلاح الخطأ
+export async function fetchSocialLinks(): Promise<SocialLink[]> {
+  try {
+    const query = `*[_type == "socialLinks"]{
+      _id,
+      _type,
+      links[]{
+        platform,
+        url
+      }
+    }`;
+    
+    const result = await fetchArrayFromSanity<SocialLinksDocument>(query);
+    
+    // استخراج الروابط من المستندات
+    const links: SocialLink[] = [];
+    result.forEach(doc => {
+      if (doc.links && Array.isArray(doc.links)) {
+        doc.links.forEach((link, index) => {
+          links.push({
+            _id: `${doc._id}-${index}`,
+            _type: 'socialLinks',
+            platform: link.platform,
+            url: link.url
+          });
+        });
+      }
+    });
+    
+    return links;
+  } catch (error) {
+    console.error('Error fetching social links from Sanity:', error);
+    return [];
+  }
+}
+
 // إضافة هذا السطر لتجنب المشاكل مع الـ Dynamic Server Usage
 export const dynamic = 'force-dynamic';
