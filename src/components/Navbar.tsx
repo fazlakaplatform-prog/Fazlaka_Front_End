@@ -121,7 +121,9 @@ const translations = {
     privacyItem: "سياسة الخصوصية",
     darkMode: "تبديل الوضع الليلي",
     language: "تبديل اللغة",
-    copyright: "© {year} فذلكة"
+    copyright: "© {year} فذلكة",
+    PlatformMame: "فذلكة"
+
   },
   en: {
     home: "Home",
@@ -163,7 +165,8 @@ const translations = {
     privacyItem: "Privacy Policy",
     darkMode: "Toggle Dark Mode",
     language: "Toggle Language",
-    copyright: "© {year} Falthaka"
+    copyright: "© {year} Fazlaka",
+    PlatformMame: "Fazlaka",
   }
 };
 
@@ -1418,6 +1421,7 @@ const NotificationButton = ({
     switch (type) {
       case 'episode': return '🎬';
       case 'article': return '📝';
+
       case 'playlist': return '📋';
       case 'faq': return '❓';
       case 'terms': return '📜';
@@ -2301,8 +2305,10 @@ export default function Navbar() {
                 {/* رأس القائمة */}
                 <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-bold">فذلكة</h2>
-                    <button
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {t.PlatformMame.replace('{year}', new Date().getFullYear().toString())}
+                      </div>
+                      <button
                       onClick={() => setMobileMenuOpen(false)}
                       className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
                     >
@@ -2418,6 +2424,11 @@ export default function Navbar() {
                                 <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                               </svg>
                             )}
+                            {item.icon === "grid" && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3.75 5.25A.75.75 0 014.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V5.25zm0 9A.75.75 0 014.5 13.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75v-5.25zm9-9A.75.75 0 0113.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75V5.25zm0 9a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75v-5.25z" />
+                              </svg>
+                            )}
                           </div>
                           <div className="flex-1">
                             <span className="text-lg font-medium text-gray-900 dark:text-white">{item.label}</span>
@@ -2426,7 +2437,6 @@ export default function Navbar() {
                         </Link>
                       </motion.div>
                     ))}
-                    
                     {/* إضافة زر تبديل اللغة في قائمة الموبايل */}
                     <MobileLanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
                     
