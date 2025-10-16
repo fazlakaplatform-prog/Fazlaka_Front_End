@@ -1,15 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // إعدادات خاصة بمكون <Image> في Next.js
   images: {
-    // تم استبدال قائمة domains بـ remotePatterns للسماح بأي مصدر خارجي
+    // استخدام remotePatterns هو الطريقة الحديثة والمرنة للسماح بالصور الخارجية
     remotePatterns: [
       {
+        // 1. البروتوكول: السماح فقط بالروابط الآمنة (HTTPS)
         protocol: 'https',
-        hostname: '**', // <-- السماح بأي نطاق
-        pathname: '/**', // <-- السماح بأي مسار للملف
+        
+        // 2. اسم النطاق: علامة ** تعني "أي نطاق" (مثلاً: google.com, my-site.io, إلخ)
+        hostname: '**',
+        
+        // 3. مسار الملف: علامة ** تعني "أي مسار" على النطاق (مثلاً: /image.png, /assets/img/logo.jpg)
+        pathname: '/**',
       },
     ],
   },
 };
 
+// تصدير إعدادات Next.js لكي يستخدمها المشروع
 module.exports = nextConfig;

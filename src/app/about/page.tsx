@@ -12,15 +12,15 @@ import {
   FaArrowRight, FaCheck, FaQuoteRight,
   FaPlay, FaBook, FaChartLine,
   FaChalkboardTeacher, FaMedal, FaGlobe,
-  FaEnvelope, FaPaperPlane, FaTwitter, // Changed from FaX to FaTwitter
+  FaEnvelope, FaPaperPlane, FaTwitter,
   FaFlask, FaAtom, FaLandmark, 
-  FaBalanceScale, FaFileAlt
+  FaBalanceScale, FaFileAlt, FaShareAlt
 } from 'react-icons/fa';
 import { urlFor, fetchFromSanity, fetchTeamMembers, getLocalizedText } from '@/lib/sanity';
 
 // Interfaces
 interface Member {
-  _id?: string; // تعديل: جعل _id اختيارية
+  _id?: string;
   name: string;
   nameEn?: string;
   role?: string;
@@ -41,22 +41,21 @@ interface Member {
   language: 'ar' | 'en';
 }
 
-// Social links
+// Social links - تم تحديثها مع أيقونة X الجديدة
 const socialLinks = [
-  { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: "يوتيوب" },
-  { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انستجرام" },
-  { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيس بوك" },
-  { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: "تيك توك" },
-  { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: "اكس" }, // Changed from FaX to FaTwitter
+  { href: "https://www.youtube.com/channel/UCWftbKWXqj0wt-UHMLAcsJA", icon: <FaYoutube />, label: "يوتيوب", color: "from-red-500 to-red-600" },
+  { href: "https://www.instagram.com/fazlaka_platform/", icon: <FaInstagram />, label: "انستجرام", color: "from-pink-500 to-purple-500" },
+  { href: "https://www.facebook.com/profile.php?id=61579582675453", icon: <FaFacebookF />, label: "فيس بوك", color: "from-blue-500 to-blue-600" },
+  { href: "https://www.tiktok.com/@fazlaka_platform", icon: <FaTiktok />, label: "تيك توك", color: "from-gray-800 to-black" },
+  { href: "https://x.com/FazlakaPlatform", icon: <FaTwitter />, label: "X", color: "from-sky-400 to-sky-600" },
 ];
 
-// APIs - تعريف جميع الدوال هنا
+// APIs
 async function getMembers(language: string = 'ar'): Promise<Member[]> {
   try {
     console.log("Fetching team members with language:", language);
     const members = await fetchTeamMembers(language);
     console.log("Fetched team members:", members);
-    // تصفية الأعضاء الذين لديهم _id فقط
     return members.filter(member => member._id !== undefined) || [];
   } catch (error) {
     console.error("Error fetching team members:", error);
@@ -77,7 +76,7 @@ async function getSubscribers(): Promise<number | null> {
   } catch { return null; }
 }
 
-// مكون قسم الإحصائيات - مع إصلاح مشكلة جلب البيانات
+// مكون قسم الإحصائيات
 interface StatisticsSectionProps {
   isRTL: boolean;
 }
@@ -94,7 +93,6 @@ const StatisticsSection = ({ isRTL }: StatisticsSectionProps) => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // استخدام نفس الطريقة المستخدمة في الصفحة الرئيسية
         const [articlesCount, episodesCount, playlistsCount, seasonsCount] = await Promise.all([
           fetchFromSanity<number>(`count(*[_type == "article"])`),
           fetchFromSanity<number>(`count(*[_type == "episode"])`),
@@ -118,7 +116,6 @@ const StatisticsSection = ({ isRTL }: StatisticsSectionProps) => {
     fetchStats();
   }, [isRTL]);
 
-  // الترجمات
   const translations = {
     ar: {
       title: "إحصائيات <span class='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600'>فذلكة</span>",
@@ -219,7 +216,7 @@ const StatisticsSection = ({ isRTL }: StatisticsSectionProps) => {
         
         {/* بطاقة المواسم */}
         <div className="group relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-700 dark:to-orange-800 rounded-2xl shadow-lg transform -rotate-1 group-hover:-rotate-2 transition-all duration-300"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-700 dark:to-orange-800 rounded-2xl shadow-lg transform -rotate-1 group-hover:rotate-2 transition-all duration-300"></div>
           <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg border border-orange-100 dark:border-orange-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
             <div className="flex flex-col items-center justify-center">
               <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-full mb-3">
@@ -259,21 +256,17 @@ const StatisticsSection = ({ isRTL }: StatisticsSectionProps) => {
   );
 };
 
-// مكون بطاقة المشتركين المميزة مع تحسينات كبيرة
+// مكون بطاقة المشتركين المميزة
 interface YouTubeSubscribersCardProps {
   subscribers: number;
   isRTL: boolean;
 }
 
 const YouTubeSubscribersCard = ({ subscribers, isRTL }: YouTubeSubscribersCardProps) => {
-  // تنسيق الرقم بالإنجليزية مع فواصل
   const formattedSubscribers = subscribers.toLocaleString('en-US');
-  
-  // حساب النسبة المئوية نحو 100 ألف مشترك - لا تظهر صفر أبداً
   const target = 100000;
   const percentage = subscribers === 0 ? 0 : Math.max(1, Math.min(100, Math.round((subscribers / target) * 100)));
   
-  // الترجمات
   const translations = {
     ar: {
       title: "مشتركين يوتيوب",
@@ -367,7 +360,7 @@ const YouTubeSubscribersCard = ({ subscribers, isRTL }: YouTubeSubscribersCardPr
               <div className="absolute -bottom-3 -left-3 w-6 h-6 sm:w-8 sm:h-8 bg-red-400 rounded-full animate-pulse-slow opacity-70"></div>
             </div>
             
-            {/* شريط التقدم مع النسبة المئوية - مع تحسينات */}
+            {/* شريط التقدم مع النسبة المئوية */}
             <div className="w-full max-w-xs">
               <div className="flex justify-between text-white text-opacity-80 text-xs sm:text-sm mb-1">
                 <span>{t.progress}</span>
@@ -542,7 +535,7 @@ const HeroSection = ({ isRTL }: { isRTL: boolean }) => {
   );
 };
 
-// مكون قسم "هل لديك استفسار" المحسن بشكل أكبر - بدون النقاط الثلاث
+// مكون قسم "هل لديك استفسار" المحسن
 const ContactSection = ({ isRTL }: { isRTL: boolean }) => {
   const translations = {
     ar: {
@@ -642,77 +635,182 @@ const ContactSection = ({ isRTL }: { isRTL: boolean }) => {
   );
 };
 
-// مكون أيقونات التواصل الاجتماعي المحسن
+// مكون قسم أيقونات التواصل الاجتماعي المحسن
 const SocialMediaSection = () => {
+  const [isRTL, setIsRTL] = useState(true);
+  
+  useEffect(() => {
+    // التحقق من تفضيل اللغة المحفوظ في localStorage
+    const savedLanguage = localStorage.getItem('language');
+    let detectedLanguage = 'ar'; // default to Arabic
+    
+    if (savedLanguage !== null) {
+      detectedLanguage = savedLanguage;
+    } else {
+      // إذا لم يكن هناك تفضيل محفوظ، استخدم لغة المتصفح
+      const browserLang = navigator.language || (navigator as unknown as { userLanguage: string }).userLanguage || '';
+      detectedLanguage = browserLang.includes('ar') ? 'ar' : 'en';
+    }
+    
+    setIsRTL(detectedLanguage === 'ar');
+  }, []);
+
+  const translations = {
+    ar: {
+      title: "تواصل معنا عبر منصاتنا",
+      subtitle: "انضم إلى مجتمعنا المتنامي وتابع آخر المحتوى التعليمي والتحديثات",
+      community: "كن جزءاً من مجتمعنا",
+      followUs: "تابعنا الآن"
+    },
+    en: {
+      title: "Connect With Us On Our Platforms",
+      subtitle: "Join our growing community and follow the latest educational content and updates",
+      community: "Be part of our community",
+      followUs: "Follow Us Now"
+    }
+  };
+  
+  const t = translations[isRTL ? 'ar' : 'en'];
+
   return (
-    <div className="flex justify-center flex-wrap gap-3 sm:gap-4 md:gap-6 mb-12 sm:mb-16">
-      {socialLinks.map((social, index) => {
-        // تحديد لون كل أيقونة حسب منصتها
-        let colorClass = "";
-        let hoverColorClass = "";
+    <section className="mb-12 sm:mb-16">
+      <div className="text-center mb-8 sm:mb-12">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          {t.title}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm sm:text-base">
+          {t.subtitle}
+        </p>
+        <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full mt-4"></div>
+      </div>
+      
+      <div className="relative">
+        {/* الخلفية الرئيسية للكارت */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl"></div>
         
-        switch(social.label) {
-          case "يوتيوب":
-            colorClass = "from-red-500 to-red-600";
-            hoverColorClass = "hover:from-red-600 hover:to-red-700";
-            break;
-          case "انستجرام":
-            colorClass = "from-pink-500 to-purple-500";
-            hoverColorClass = "hover:from-pink-600 hover:to-purple-600";
-            break;
-          case "فيس بوك":
-            colorClass = "from-blue-500 to-blue-600";
-            hoverColorClass = "hover:from-blue-600 hover:to-blue-700";
-            break;
-          case "تيك توك":
-            colorClass = "from-gray-800 to-black";
-            hoverColorClass = "hover:from-gray-900 hover:to-black";
-            break;
-          case "اكس":
-            colorClass = "from-gray-700 to-gray-900";
-            hoverColorClass = "hover:from-gray-800 hover:to-black";
-            break;
-          default:
-            colorClass = "from-blue-500 to-indigo-600";
-            hoverColorClass = "hover:from-blue-600 hover:to-indigo-700";
-        }
+        {/* طبقة الظل العلوية */}
+        <div className="absolute inset-x-0 -top-2 h-4 bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent rounded-t-3xl opacity-50"></div>
         
-        return (
-          <a 
-            key={index}
-            href={social.href} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            aria-label={social.label} 
-            title={social.label}
-            className="group relative w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-700 transform hover:scale-105 animate-bounce overflow-hidden"
-            style={{ animationDelay: `${index * 0.15}s` }}
-          >
-            {/* الخلفية المتدرجة */}
-            <div className={`absolute inset-0 bg-gradient-to-r ${colorClass} ${hoverColorClass} transition-all duration-700`}></div>
-            
-            {/* تأثير التوهج */}
-            <div className="absolute inset-0 rounded-full opacity-0 transition-opacity duration-700 group-hover:opacity-100 bg-white/20 blur-md"></div>
-            
-            {/* تأثير الحركة الدائرية */}
-            <div className="absolute inset-0 rounded-full border-2 border-white/30 transition-all duration-700 group-hover:border-white/60 animate-spin-slow"></div>
-            
-            {/* الأيقونة */}
-            <div className="relative z-10 text-white text-base sm:text-lg md:text-xl transition-transform duration-700 group-hover:scale-110">
-              {social.icon}
+        {/* طبقة الظل الجانبية */}
+        <div className="absolute inset-y-0 -left-2 w-4 bg-gradient-to-b from-transparent via-gray-200 dark:via-gray-700 to-transparent rounded-l-3xl opacity-50"></div>
+        <div className="absolute inset-y-0 -right-2 w-4 bg-gradient-to-b from-transparent via-gray-200 dark:via-gray-700 to-transparent rounded-r-3xl opacity-50"></div>
+        
+        {/* طبقة الظل السفلية */}
+        <div className="absolute inset-x-0 -bottom-2 h-4 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent rounded-b-3xl opacity-50"></div>
+        
+        {/* الحاوية الرئيسية */}
+        <div className="relative z-10 bg-white dark:bg-gray-800 rounded-3xl p-8 sm:p-10 md:p-12 shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {/* طبقة الخلفية الزخرفية */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-transparent to-purple-50/50 dark:from-blue-900/10 dark:via-transparent dark:to-purple-900/10"></div>
+          
+          {/* شبكة زخرفية خفيفة */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+CjxyZWN0IHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0ibm9uZSIvPgo8Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDIiLz4KPC9zdmc+')] opacity-30"></div>
+          
+          <div className="relative z-20">
+            {/* الأيقونة الرئيسية */}
+            <div className="flex justify-center mb-8">
+              <div className="relative">
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4 rounded-2xl shadow-lg">
+                  <FaShareAlt className="text-white text-3xl" />
+                </div>
+                {/* ظل خلف الأيقونة */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl blur-xl opacity-30 transform translate-y-2"></div>
+              </div>
             </div>
             
-            {/* تسمية المنصة */}
-            <div className="absolute -bottom-5 sm:-bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 transition-opacity duration-700 group-hover:opacity-100 whitespace-nowrap">
-              {social.label}
+            {/* عنوان مميز للقسم */}
+            <div className="text-center mb-10">
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  {t.community}
+                </span>
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-base max-w-xl mx-auto">
+                {t.followUs}
+              </p>
             </div>
             
-            {/* تأثير اللمعان - تم تعديل سرعة الأنيميشن */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent transform -translate-x-full transition-transform duration-1000 group-hover:translate-x-full"></div>
-          </a>
-        );
-      })}
-    </div>
+            {/* أيقونات التواصل الاجتماعي المربعة */}
+            <div className="flex justify-center flex-wrap gap-6 sm:gap-8">
+              {socialLinks.map((social, index) => {
+                // تحديد أيقونة X وتغيير خلفيتها للون الأسود
+                const isTwitter = social.label === "X";
+                const icon = isTwitter ? (
+                  // أيقونة X مخصصة
+                  <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                ) : social.icon;
+                
+                // تغيير لون الخلفية لـ X إلى الأسود
+                const bgColor = isTwitter ? "from-black to-gray-900" : social.color;
+                
+                return (
+                  <div 
+                    key={index}
+                    className="group relative"
+                  >
+                    {/* الطبقة الأولى - الظل العميق */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 rounded-xl transform translate-x-1 translate-y-1"></div>
+                    
+                    {/* الطبقة الثانية - الظل المتوسط */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-xl transform translate-x-0.5 translate-y-0.5"></div>
+                    
+                    {/* الطبقة الرئيسية - الكارت */}
+                    <a 
+                      href={social.href} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      aria-label={social.label} 
+                      title={social.label}
+                      className="relative block w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-xl overflow-hidden transition-all duration-300 hover:transform hover:-translate-y-1 hover:-translate-x-1"
+                    >
+                      {/* الخلفية المتدرجة */}
+                      <div className={`absolute inset-0 bg-gradient-to-br ${bgColor}`}></div>
+                      
+                      {/* طبقة التوهج الخفيفة */}
+                      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      
+                      {/* شبكة زخرفية داخل الأيقونة */}
+                      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSJub25lIi8+CjxjaXJjbGUgY3g9IjQiIGN5PSI0IiByPSIwLjUiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+Cjwvc3ZnPg==')] opacity-20"></div>
+                      
+                      {/* الأيقونة */}
+                      <div className="relative z-10 h-full flex items-center justify-center">
+                        <div className="text-white">
+                          {icon}
+                        </div>
+                      </div>
+                      
+                      {/* تأثير اللمعان الدقيق */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                    </a>
+                    
+                    {/* تسمية المنصة */}
+                    <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-700 text-white text-xs px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap shadow-lg">
+                      {social.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* نص إضافي */}
+            <div className="text-center mt-14">
+              <p className="text-gray-600 dark:text-gray-400 text-base">
+                {isRTL ? 'انضم إلينا اليوم وكن جزءاً من رحلتنا التعليمية' : 'Join us today and be part of our educational journey'}
+              </p>
+              <div className="mt-6 flex justify-center">
+                <div className="inline-flex items-center bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 px-6 py-3 rounded-full shadow-md">
+                  <span className="text-blue-700 dark:text-blue-300 font-medium text-base">
+                    {isRTL ? 'تابع جديدنا يومياً' : 'Follow our daily updates'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -975,7 +1073,7 @@ function AboutContent() {
           <YouTubeSubscribersCard subscribers={subscribers} isRTL={isRTL} />
         )}
         
-        {/* قسم الإحصائيات الجديد - مع إصلاح مشكلة جلب البيانات */}
+        {/* قسم الإحصائيات الجديد */}
         <StatisticsSection isRTL={isRTL} />
         
         {/* Philosophy - مع تدرجات ملونة */}
@@ -1005,7 +1103,7 @@ function AboutContent() {
                   </div>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1023,7 +1121,7 @@ function AboutContent() {
                   </div>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1041,7 +1139,7 @@ function AboutContent() {
                   </div>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1070,7 +1168,7 @@ function AboutContent() {
                   <p className="text-blue-100 dark:text-blue-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.visionDesc}</p>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1086,7 +1184,7 @@ function AboutContent() {
                   <p className="text-green-100 dark:text-green-200 text-sm sm:text-base transition-colors duration-700 group-hover:text-white">{t.missionDesc}</p>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1121,7 +1219,7 @@ function AboutContent() {
                   </div>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1143,7 +1241,7 @@ function AboutContent() {
                   </div>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
@@ -1165,7 +1263,7 @@ function AboutContent() {
                   </div>
                 </div>
                 
-                {/* تأثير اللمعان عند التمرير - تم تعديل سرعة الأنيميشن */}
+                {/* تأثير اللمعان عند التمرير */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </div>
