@@ -230,10 +230,7 @@ export default function EpisodesPageClient() {
         // تنظيم الحلقات حسب الموسم
         const grouped: Record<string, Episode[]> = {};
         
-        // إضافة قسم "جميع الحلقات"
-        grouped[t.allEpisodes] = episodesData;
-        
-        // تنظيم الحلقات حسب الموسم
+        // تنظيم الحلقات حسب الموسم أولاً
         seasonsData.forEach((season: Season) => {
           const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
           if (!grouped[seasonTitle]) grouped[seasonTitle] = [];
@@ -249,10 +246,13 @@ export default function EpisodesPageClient() {
           grouped[t.episodesWithoutSeason] = episodesWithoutSeason;
         }
         
+        // إضافة قسم "جميع الحلقات" في النهاية
+        grouped[t.allEpisodes] = episodesData;
+        
         setEpisodesBySeason(grouped);
-        // فتح أول موسم بشكل افتراضي
+        // فتح أول موسم بشكل افتراضي (وليس قسم "جميع الحلقات")
         const first = Object.keys(grouped)[0];
-        if (first) setOpenSeasons({ [first]: true });
+        if (first && first !== t.allEpisodes) setOpenSeasons({ [first]: true });
       } catch (err: unknown) {
         console.error(err);
         setError(t.error);
@@ -272,7 +272,12 @@ export default function EpisodesPageClient() {
     if (!searchTerm.trim()) return episodesBySeason;
     const q = searchTerm.trim().toLowerCase();
     const out: Record<string, Episode[]> = {};
+    
+    // عند البحث، لا نعرض قسم "جميع الحلقات" لتجنب التكرار
     Object.entries(episodesBySeason).forEach(([season, episodes]) => {
+      // تخطي قسم "جميع الحلقات" عند البحث
+      if (season === t.allEpisodes) return;
+      
       const matches = episodes.filter((episode: Episode) => {
         const title = getLocalizedText(episode.title, episode.titleEn, language).toLowerCase();
         const description = getLocalizedText(episode.description, episode.descriptionEn, language).toLowerCase();
@@ -281,11 +286,16 @@ export default function EpisodesPageClient() {
       if (matches.length > 0) out[season] = matches;
     });
     return out;
-  }, [episodesBySeason, searchTerm, language]);
+  }, [episodesBySeason, searchTerm, language, t.allEpisodes]);
 
+  // تم تعديل هذه الدالة لتجاهل قسم "جميع الحلقات" عند العد
   const totalResults = useMemo(
-    () => Object.values(filteredBySeason).reduce((s, arr) => s + arr.length, 0),
-    [filteredBySeason]
+    () => Object.entries(filteredBySeason).reduce((s, [seasonTitle, arr]) => {
+      // تجاهل قسم "جميع الحلقات" عند حساب العدد الإجمالي لتجنب العد المزدوج
+      if (seasonTitle === t.allEpisodes) return s;
+      return s + arr.length;
+    }, 0),
+    [filteredBySeason, t.allEpisodes]
   );
 
   const seasonEntries = Object.entries(filteredBySeason);

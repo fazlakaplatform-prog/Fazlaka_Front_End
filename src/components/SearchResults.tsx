@@ -470,7 +470,7 @@ export default function SearchResults() {
       noResults: "We couldn't find any results",
       tryDifferentKeywords: "Try different keywords or remove filters.",
       clearSearch: "Clear Search",
-      startSearching: "Start searching in Falakha",
+      startSearching: "Start searching in fazlaka",
       searchInstructions: "Type keywords in the search box to find episodes, articles, playlists, FAQs, seasons, team members, terms & conditions, or privacy policy.",
       showMore: "Show More",
       episodes: "Episodes",
@@ -495,7 +495,7 @@ export default function SearchResults() {
       loadingSearchPage: "Loading search page...",
       gridView: "Grid View",
       listView: "List View",
-      brandName: "Falakha" // اسم العلامة التجارية بالإنجليزية
+      brandName: "fazlaka" // اسم العلامة التجارية بالإنجليزية
     }
   };
 

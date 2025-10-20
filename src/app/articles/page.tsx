@@ -239,10 +239,7 @@ export default function ArticlesPageClient() {
         // تنظيم المقالات حسب الموسم
         const grouped: Record<string, Article[]> = {};
         
-        // إضافة قسم "جميع المقالات"
-        grouped[t.allArticles] = articlesData;
-        
-        // تنظيم المقالات حسب الموسم
+        // تنظيم المقالات حسب الموسم أولاً
         seasonsData.forEach((season: Season) => {
           const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
           if (!grouped[seasonTitle]) grouped[seasonTitle] = [];
@@ -258,10 +255,13 @@ export default function ArticlesPageClient() {
           grouped[t.articlesWithoutSeason] = articlesWithoutSeason;
         }
         
+        // إضافة قسم "جميع المقالات" في النهاية
+        grouped[t.allArticles] = articlesData;
+        
         setArticlesBySeason(grouped);
-        // فتح أول موسم بشكل افتراضي
+        // فتح أول موسم بشكل افتراضي (وليس قسم "جميع المقالات")
         const first = Object.keys(grouped)[0];
-        if (first) setOpenSeasons({ [first]: true });
+        if (first && first !== t.allArticles) setOpenSeasons({ [first]: true });
       } catch (err: unknown) {
         console.error(err);
         setError(t.error);
@@ -281,7 +281,12 @@ export default function ArticlesPageClient() {
     if (!searchTerm.trim()) return articlesBySeason;
     const q = searchTerm.trim().toLowerCase();
     const out: Record<string, Article[]> = {};
+    
+    // عند البحث، لا نعرض قسم "جميع المقالات" لتجنب التكرار
     Object.entries(articlesBySeason).forEach(([season, articles]) => {
+      // تخطي قسم "جميع المقالات" عند البحث
+      if (season === t.allArticles) return;
+      
       const matches = articles.filter((article: Article) => {
         const title = getLocalizedText(article.title, article.titleEn, language).toLowerCase();
         const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language).toLowerCase();
@@ -290,11 +295,16 @@ export default function ArticlesPageClient() {
       if (matches.length > 0) out[season] = matches;
     });
     return out;
-  }, [articlesBySeason, searchTerm, language]);
+  }, [articlesBySeason, searchTerm, language, t.allArticles]);
 
+  // تم تعديل هذه الدالة لتجاهل قسم "جميع المقالات" عند العد
   const totalResults = useMemo(
-    () => Object.values(filteredBySeason).reduce((s, arr) => s + arr.length, 0),
-    [filteredBySeason]
+    () => Object.entries(filteredBySeason).reduce((s, [seasonTitle, arr]) => {
+      // تجاهل قسم "جميع المقالات" عند حساب العدد الإجمالي لتجنب العد المزدوج
+      if (seasonTitle === t.allArticles) return s;
+      return s + arr.length;
+    }, 0),
+    [filteredBySeason, t.allArticles]
   );
 
   const seasonEntries = Object.entries(filteredBySeason);
