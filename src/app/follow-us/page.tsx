@@ -630,8 +630,8 @@ const AppsSection = ({ socialLinks, isRTL, language }: { socialLinks: SocialLink
     ar: {
       title: "تطبيقاتنا",
       subtitle: "حمل تطبيقاتنا الآن واستمتع بتجربة أفضل على جميع الأجهزة",
-      mobileApps: "تطبيقات الموبايل",
-      desktopApps: "تطبيقات الكمبيوتر",
+      mobileApps: "تطبيق الموبايل",
+      desktopApps: "تطبيق الكمبيوتر",
       download: "تحميل",
       features: "المميزات",
       available: "متاح الآن",
@@ -640,10 +640,10 @@ const AppsSection = ({ socialLinks, isRTL, language }: { socialLinks: SocialLink
       free: "مجاني"
     },
     en: {
-      title: "Our Apps",
-      subtitle: "Download our apps now and enjoy a better experience on all devices",
-      mobileApps: "Mobile Apps",
-      desktopApps: "Desktop Apps",
+      title: "Our Applications",
+      subtitle: "Download our app now and enjoy a better experience on all devices",
+      mobileApps: "Mobile App",
+      desktopApps: "Desktop App",
       download: "Download",
       features: "Features",
       available: "Available Now",
