@@ -526,53 +526,116 @@ export default function ContactPage() {
   // Enhanced Social Media Section
   const SocialMediaSection = () => {
     return (
-      <section id="social-media" className="mb-16">
-        <div className="text-center mb-12 px-4">
-          <h2 className={`text-2xl md:text-3xl lg:text-4xl font-bold mb-4 text-gray-900 dark:text-white ${isRTL ? '' : 'font-sans'}`}>
-            {t.followUsOn} <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">{t.socialMediaHighlight}</span>
-          </h2>
-          <p className={`text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto ${isRTL ? '' : 'font-sans'}`}>
-            {t.socialMediaSubtitle}
-          </p>
+      <section id="social-media" className="mb-16 relative">
+        {/* خلفية فاخرة للقسم */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 dark:from-purple-900/20 dark:via-pink-900/20 dark:to-indigo-900/20 rounded-3xl overflow-hidden"></div>
+        
+        {/* عناصر زخرفية في الخلفية */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-purple-300 dark:bg-purple-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow"></div>
+          <div className="absolute top-20 right-20 w-40 h-40 bg-pink-300 dark:bg-pink-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-10 left-1/3 w-36 h-36 bg-indigo-300 dark:bg-indigo-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute bottom-20 right-1/4 w-28 h-28 bg-blue-300 dark:bg-blue-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
+          
+          {/* خطوط زخرفية */}
+          <div className="absolute top-0 left-0 w-full h-full">
+            <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(147, 51, 234, 0.05)" strokeWidth="1" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+          </div>
         </div>
         
-        <div className="flex justify-center flex-wrap gap-4 md:gap-6 px-4">
-          {socialLinks.map((social, index) => (
-            <a 
-              key={index}
-              href={social.href} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              aria-label={social.label} 
-              title={social.label}
-              className="group relative w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-full flex items-center justify-center shadow-lg transition-all duration-700 transform hover:scale-105 animate-bounce overflow-hidden"
-              style={{ animationDelay: `${index * 0.1}s` }}
+        {/* المحتوى الرئيسي */}
+        <div className="relative z-10 p-8 md:p-12">
+          <div className="text-center mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-block mb-6"
             >
-              {/* الخلفية المتدرجة */}
-              <div className={`absolute inset-0 bg-gradient-to-r ${social.color} ${social.hover} transition-all duration-700`}></div>
-              
-              {/* تأثير التوهج */}
-              <div className="absolute inset-0 rounded-full opacity-0 transition-opacity duration-700 group-hover:opacity-100 bg-white/20 blur-md"></div>
-              
-              {/* تأثير الحركة الدائرية */}
-              <div className="absolute inset-0 rounded-full border-2 border-white/30 transition-all duration-700 group-hover:border-white/60 animate-spin-slow"></div>
-              
-              {/* الأيقونة */}
-              <div className="relative z-10 text-white text-xl md:text-2xl lg:text-3xl transition-transform duration-700 group-hover:scale-110">
-                {social.icon}
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full text-sm font-medium shadow-lg">
+                {t.followUsOn}
               </div>
-              
-              {/* تسمية المنصة */}
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 transition-opacity duration-700 group-hover:opacity-100 whitespace-nowrap">
-                <span className={isRTL ? '' : 'font-sans'}>
-                  {social.label}
-                </span>
+            </motion.div>
+            
+            <h2 className={`text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-gray-900 dark:text-white ${isRTL ? '' : 'font-sans'}`}>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600">
+                {t.socialMediaHighlight}
+              </span>
+            </h2>
+            
+            <p className={`text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto ${isRTL ? '' : 'font-sans'}`}>
+              {t.socialMediaSubtitle}
+            </p>
+          </div>
+          
+          {/* أيقونات وسائل التواصل الاجتماعي المحسنة - مربعة */}
+          <div className="flex justify-center flex-wrap gap-6 md:gap-8">
+            {socialLinks.map((social, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: 0.1 * index, duration: 0.5, type: "spring" }}
+                whileHover={{ y: -10 }}
+                className="relative group"
+              >
+                {/* الأيقونة الرئيسية - مربعة */}
+                <a 
+                  href={social.href} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  aria-label={social.label} 
+                  title={social.label}
+                  className={`relative w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-500 transform hover:scale-110 overflow-hidden bg-gradient-to-r ${social.color} ${social.hover}`}
+                >
+                  {/* الأيقونة */}
+                  <div className="relative z-10 text-white text-2xl md:text-3xl lg:text-4xl transition-transform duration-500 group-hover:scale-110">
+                    {social.icon}
+                  </div>
+                </a>
+                
+                {/* تسمية المنصة */}
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-gray-700 text-white text-sm px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 whitespace-nowrap shadow-lg">
+                  <span className={isRTL ? '' : 'font-sans'}>
+                    {social.label}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          
+          {/* قسم إضافي للنص */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="mt-16 text-center"
+          >
+            <div className="inline-flex items-center justify-center p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-purple-200 dark:border-purple-800 max-w-2xl">
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <div className="text-center md:text-right">
+                  <h3 className={`text-xl font-bold text-gray-900 dark:text-white mb-2 ${isRTL ? '' : 'font-sans'}`}>
+                    {isRTL ? "تواصل معنا" : "Connect With Us"}
+                  </h3>
+                  <p className={`text-gray-600 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>
+                    {isRTL ? "نحن هنا للاستماع إليك والإجابة على جميع استفساراتك" : "We're here to listen and answer all your inquiries"}
+                  </p>
+                </div>
               </div>
-              
-              {/* تأثير اللمعان */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/30 to-transparent transform -translate-x-full transition-transform duration-1000 group-hover:translate-x-full"></div>
-            </a>
-          ))}
+            </div>
+          </motion.div>
         </div>
       </section>
     );
