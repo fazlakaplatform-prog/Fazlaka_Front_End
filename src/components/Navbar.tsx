@@ -1557,61 +1557,158 @@ const MobileSettingsDropdown = ({
   );
 };
 
-// مكون تبديل اللغة للقائمة الجانبية في الموبايل
-const MobileLanguageSwitch = ({ isRTL, toggleLanguage }: { isRTL: boolean; toggleLanguage: () => void }) => {
+// مكون قائمة الإعدادات المنزلقة من الأعلى للموبايل
+const MobileSettingsMenu = ({ 
+  showSettings, 
+  setShowSettings,
+  isDark, 
+  toggleDarkMode, 
+  isRTL, 
+  toggleLanguage,
+  fontSize,
+  setFontSize
+}: { 
+  showSettings: boolean; 
+  setShowSettings: (show: boolean) => void;
+  isDark: boolean; 
+  toggleDarkMode: () => void;
+  isRTL: boolean;
+  toggleLanguage: () => void;
+  fontSize: string;
+  setFontSize: (size: string) => void;
+}) => {
+  const t = translations[isRTL ? 'ar' : 'en'];
+
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.25 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <button
-        onClick={() => {
-          toggleLanguage();
-        }}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
-      >
-        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${
-          isRTL 
-            ? 'from-emerald-500 via-teal-500 to-cyan-500' 
-            : 'from-blue-500 via-indigo-500 to-purple-500'
-        } flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg`}>
-          <div className="relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 11-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
-            </svg>
-            {/* مؤشر اللغة الحالية */}
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
-              <span className="text-xs font-bold text-gray-800">
-                {isRTL ? 'ع' : 'E'}
-              </span>
+    <AnimatePresence>
+      {showSettings && (
+        <>
+          {/* طبقة التعتيم */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/20 z-40 md:hidden"
+            onClick={() => setShowSettings(false)}
+          />
+          
+          {/* قائمة الإعدادات من الأعلى */}
+          <motion.div
+            initial={{ y: "-100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ 
+              y: "-100%", 
+              opacity: 0,
+              transition: {
+                duration: 0.4,
+                ease: [0.4, 0, 0.2, 1]
+              }
+            }}
+            transition={{ 
+              type: "spring", 
+              damping: 25, 
+              stiffness: 300,
+              mass: 0.8,
+              duration: 0.5
+            }}
+            className="fixed top-20 left-4 right-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg rounded-3xl shadow-2xl z-50 max-h-[70vh] overflow-hidden"
+            style={{
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            {/* مقبض السحب */}
+            <div className="flex justify-center py-3 bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-900/80 dark:to-gray-800/80">
+              <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
             </div>
-          </div>
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-medium text-gray-900 dark:text-white">
-              {isRTL ? 'اللغة العربية' : 'English Language'}
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {isRTL ? 'English' : 'العربية'}
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
+            
+            {/* رأس الإعدادات */}
+            <div className="px-5 pb-4 pt-2 bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-900/80 dark:to-gray-800/80 border-b border-gray-200/50 dark:border-gray-700/50">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {t.settings}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {isRTL ? 'تخصيص تجربتك' : 'Customize your experience'}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className={`h-0.5 w-0 bg-gradient-to-r ${
-            isRTL 
-              ? 'from-emerald-500 to-cyan-500' 
-              : 'from-blue-500 to-purple-500'
-          } group-hover:w-full transition-all duration-300`}></div>
-        </div>
-      </button>
-    </motion.div>
+            
+            {/* خيارات الإعدادات */}
+            <div className="overflow-y-auto max-h-[50vh] px-5 pb-5">
+              <div className="space-y-4 py-4">
+                {/* الوضع الداكن */}
+                <div className="flex items-center justify-between p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-700/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path d={isDark ? "M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" : "M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"} />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="text-lg font-medium text-gray-900 dark:text-white">
+                        {t.darkMode}
+                      </span>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {isRTL ? 'تغيير مظهر التطبيق' : 'Change app appearance'}
+                      </p>
+                    </div>
+                  </div>
+                  <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
+                </div>
+
+                {/* اللغة */}
+                <div className="flex items-center justify-between p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-700/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 11-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="text-lg font-medium text-gray-900 dark:text-white">
+                        {t.language}
+                      </span>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {isRTL ? 'تغيير لغة الواجهة' : 'Change interface language'}
+                      </p>
+                    </div>
+                  </div>
+                  <LanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
+                </div>
+
+                {/* حجم الخط */}
+                <div className="p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-700/50">
+                  <FontSizeSwitch fontSize={fontSize} setFontSize={setFontSize} isRTL={isRTL} />
+                </div>
+              </div>
+            </div>
+            
+            {/* شريط سفلي */}
+            <div className="px-5 pb-5 pt-2 bg-gradient-to-t from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-900/80">
+              <motion.button
+                onClick={() => setShowSettings(false)}
+                className="w-full py-3 px-4 bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200/80 dark:hover:bg-gray-700/80 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                {isRTL ? 'إغلاق' : 'Close'}
+              </motion.button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -1705,7 +1802,6 @@ const NotificationButton = ({
     switch (type) {
       case 'episode': return '🎬';
       case 'article': return '📝';
-
       case 'playlist': return '📋';
       case 'faq': return '❓';
       case 'terms': return '📜';
@@ -1762,11 +1858,11 @@ const NotificationButton = ({
           )}
         </motion.button>
         
-        {/* قائمة الإشعارات من الأعلى للموبايل - مع تحسينات في التصميم والانحناءات */}
+        {/* قائمة الإشعارات من الأعلى للموبايل */}
         <AnimatePresence>
           {showNotifications && (
             <>
-              {/* طبقة التعتيم بدون تأثير الضبابية */}
+              {/* طبقة التعتيم */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1776,7 +1872,7 @@ const NotificationButton = ({
                 onClick={() => setShowNotifications(false)}
               />
               
-              {/* قائمة الإشعارات من الأعلى مع تحسينات */}
+              {/* قائمة الإشعارات من الأعلى */}
               <motion.div
                 initial={{ y: "-100%", opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -1800,12 +1896,12 @@ const NotificationButton = ({
                   boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 0 rgba(255, 255, 255, 0.1)'
                 }}
               >
-                {/* مقبض السحب المحسن */}
+                {/* مقبض السحب */}
                 <div className="flex justify-center py-3 bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-900/80 dark:to-gray-800/80">
                   <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                 </div>
                 
-                {/* رأس الإشعارات المحسن */}
+                {/* رأس الإشعارات */}
                 <div className="px-5 pb-4 pt-2 bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-900/80 dark:to-gray-800/80 border-b border-gray-200/50 dark:border-gray-700/50">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1841,7 +1937,7 @@ const NotificationButton = ({
                   </div>
                 </div>
                 
-                {/* قائمة الإشعارات المحسنة */}
+                {/* قائمة الإشعارات */}
                 <div className="overflow-y-auto max-h-[50vh] px-5 pb-5">
                   {loading ? (
                     <div className="p-8 text-center">
@@ -1893,7 +1989,7 @@ const NotificationButton = ({
                   )}
                 </div>
                 
-                {/* شريط سفيف مع انحناءات */}
+                {/* شريط سفلي */}
                 <div className="px-5 pb-5 pt-2 bg-gradient-to-t from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-900/80">
                   <motion.button
                     onClick={() => setShowNotifications(false)}
@@ -1902,7 +1998,7 @@ const NotificationButton = ({
                     whileTap={{ scale: 0.98 }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                     {isRTL ? 'إغلاق' : 'Close'}
                   </motion.button>
@@ -2046,6 +2142,7 @@ export default function Navbar() {
   const [contactOpen, setContactOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSettings, setShowSettings] = useState(false); // حالة قائمة الإعدادات للموبايل
   
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -2219,6 +2316,7 @@ export default function Navbar() {
         setAboutOpen(false);
         setContactOpen(false);
         setShowNotifications(false);
+        setShowSettings(false);
         if (mobileMenuOpen) setMobileMenuOpen(false);
       }
     }
@@ -2229,7 +2327,7 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEsc);
     };
-  }, [contentOpen, mobileMenuOpen, aboutOpen, contactOpen, showNotifications]);
+  }, [contentOpen, mobileMenuOpen, aboutOpen, contactOpen, showNotifications, showSettings]);
   
   if (!mounted) return null;
   
@@ -2238,7 +2336,7 @@ export default function Navbar() {
   
   return (
     <>
-      {/* النافبار الرئيسي للكمبيوتر - تم تكبير العرض */}
+      {/* النافبار الرئيسي للكمبيوتر */}
       <nav className="hidden md:flex fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-6xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-xl rounded-2xl border border-white/20 dark:border-gray-700/30 py-1.5 px-4 transition-all duration-300">
         <div className="flex justify-between items-center w-full">
           {/* القسم الأيسر - الشعار والروابط */}
@@ -2559,7 +2657,7 @@ export default function Navbar() {
                 )}
               </button>
               
-              {/* زر الإشعارات بجنب زر الحساب في الموبايل - مع تمرير isMobile=true */}
+              {/* زر الإشعارات بجنب زر الحساب في الموبايل */}
               <NotificationButton 
                 showNotifications={showNotifications} 
                 setShowNotifications={setShowNotifications}
@@ -2597,17 +2695,20 @@ export default function Navbar() {
             </Link>
           </div>
           
-          {/* القسم الأيمن - الأزرار (تم إضافة زر الإعدادات) */}
+          {/* القسم الأيمن - الأزرار */}
           <div className="flex items-center space-x-2">
-            {/* زر الإعدادات الجديد بدلاً من زر الوضع الداكن */}
-            <SettingsDropdown 
-              isDark={isDark}
-              toggleDarkMode={toggleDarkMode}
-              isRTL={isRTL}
-              toggleLanguage={toggleLanguage}
-              fontSize={fontSize}
-              setFontSize={setFontSize}
-            />
+            {/* زر الإعدادات للموبايل - يفتح القائمة المنزلقة من الأعلى */}
+            <motion.button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label={t.settings}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+              </svg>
+            </motion.button>
             
             {/* زر القائمة */}
             <button
@@ -2623,7 +2724,19 @@ export default function Navbar() {
         </div>
       </nav>
       
-      {/* القائمة الجانبية للموبايل - تعديل اتجاه الظهور حسب اللغة */}
+      {/* قائمة الإعدادات المنزلقة من الأعلى للموبايل */}
+      <MobileSettingsMenu 
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        isDark={isDark}
+        toggleDarkMode={toggleDarkMode}
+        isRTL={isRTL}
+        toggleLanguage={toggleLanguage}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
+      />
+      
+      {/* القائمة الجانبية للموبايل */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
@@ -2640,7 +2753,7 @@ export default function Navbar() {
               }}
             />
             
-            {/* القائمة الجانبية - تعديل اتجاه الظهور حسب اللغة */}
+            {/* القائمة الجانبية */}
             <motion.div
               initial={{ x: isRTL ? "-100%" : "100%" }}
               animate={{ x: 0 }}
@@ -2752,12 +2865,12 @@ export default function Navbar() {
                             )}
                             {item.icon === "question" && (
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
                               </svg>
                             )}
                             {item.icon === "info" && (
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
                               </svg>
                             )}
                             {item.icon === "team" && (
