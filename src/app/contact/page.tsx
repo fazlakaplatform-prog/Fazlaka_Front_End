@@ -5,11 +5,13 @@ import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import { 
-  FaEnvelope, FaPaperPlane, FaUsers, FaLightbulb,
-  FaStar, FaHandshake, FaBook, FaChartLine,
-  FaGlobe, FaHeart, FaComments, FaHeadset,
-  FaFlask, FaAtom, FaLandmark, FaBalanceScale,
-  FaYoutube, FaInstagram, FaFacebookF, FaTiktok
+  FaEnvelope, FaStar, FaHandshake, FaComments, FaHeadset,
+  FaYoutube, FaInstagram, FaFacebookF, FaTiktok,
+  FaPhone, FaMapMarkerAlt, FaClock,
+  FaDiscord, FaArrowRight, FaCheckCircle, FaTimesCircle,
+  FaFilePdf, FaFileWord, FaFileImage, FaFileArchive,
+  FaDownload, FaEye, FaTrash, FaTimes,
+  FaShieldAlt, FaRocket, FaAward, FaBolt
 } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 
@@ -26,6 +28,7 @@ export default function ContactPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(true);
+  const [pdfError, setPdfError] = useState(false);
   const reduceMotion = useReducedMotion();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -123,7 +126,6 @@ export default function ContactPage() {
       followUsOn: "تابعنا على",
       socialMediaHighlight: "وسائل التواصل",
       socialMediaSubtitle: "كن على اطلاع دائم بأحدث الأخبار والعروض من خلال متابعتنا على منصات التواصل الاجتماعي",
-      viewFAQ: "عرض الأسئلة الشائعة",
       youtube: "يوتيوب",
       instagram: "انستجرام",
       facebook: "فيس بوك",
@@ -140,7 +142,26 @@ export default function ContactPage() {
       fileNotImage: "الملف مش صورة",
       fileSizeError: "حجم الصورة أكبر من 5 ميجا",
       tryAgain: "حاول مرةً أخرى أو بلغ الإدارة",
-      platformName: "فذلكه"
+      platformName: "فذلكه",
+      // New messages for enhanced sign-in prompt
+      unlockFeatures: "فتح جميع الميزات",
+      signInPrompt: "سجل دخولك الآن لإرسال رسالة والاستفادة من جميع ميزات منصة فذلكه",
+      createAccount: "انشاء حساب",
+      exclusiveAccess: "وصول حصري",
+      personalizedExperience: "تجربة مخصصة لك",
+      // New messages for direct contact section
+      directContact: "تواصل مباشر",
+      contactUsDirectly: "تواصل معنا مباشرة",
+      directContactSubtitle: "يمكنك التواصل معنا مباشرة عبر دسكورد أو البريد الإلكتروني للحصول على إجابات سريعة",
+      discord: "دسكورد",
+      discordDesc: "انضم إلى سيرفر دسكورد الخاص بنا للمشاركة في المجتمع والحصول على دعم فوري",
+      emailAddress: "البريد الإلكتروني",
+      emailDesc: "أرسل لنا بريداً إلكترونياً وستصلك إجابتك قريباً",
+      openGmail: " تواصل مباشر ",
+      weAreHereToHelp: "نحن هنا لمساعدتك",
+      supportTeamAvailable: "فريق الدعم متاح للإجابة على جميع استفساراتك",
+      pdfPreviewError: "لا يمكن عرض ملف PDF في هذا المتصفح. يرجى تحميل الملف لعرضه.",
+      downloadPdf: "تحميل ملف PDF"
     },
     en: {
       pageTitle: "Contact Us",
@@ -177,7 +198,6 @@ export default function ContactPage() {
       followUsOn: "Follow us on",
       socialMediaHighlight: "Social Media",
       socialMediaSubtitle: "Stay up to date with the latest news and offers by following us on social media platforms",
-      viewFAQ: "View FAQ",
       youtube: "YouTube",
       instagram: "Instagram",
       facebook: "Facebook",
@@ -194,7 +214,26 @@ export default function ContactPage() {
       fileNotImage: "File is not an image",
       fileSizeError: "Image size is larger than 5 MB",
       tryAgain: "Try again or contact support",
-      platformName: "Falthaka"
+      platformName: "Falthaka",
+      // New messages for enhanced sign-in prompt
+      unlockFeatures: "Unlock All Features",
+      signInPrompt: "Sign in now to send a message and take advantage of all features of the Falthaka platform",
+      createAccount: "Create Account",
+      exclusiveAccess: "Exclusive Access",
+      personalizedExperience: "A personalized experience for you",
+      // New messages for direct contact section
+      directContact: "Direct Contact",
+      contactUsDirectly: "Contact Us Directly",
+      directContactSubtitle: "You can contact us directly via Discord or email for quick responses",
+      discord: "Discord",
+      discordDesc: "Join our Discord server to participate in the community and get instant support",
+      emailAddress: "Email",
+      emailDesc: "Send us an email and we'll get back to you soon",
+      openGmail: "Direct communication",
+      weAreHereToHelp: "We're Here to Help",
+      supportTeamAvailable: "Our support team is available to answer all your inquiries",
+      pdfPreviewError: "Cannot display PDF file in this browser. Please download the file to view it.",
+      downloadPdf: "Download PDF File"
     }
   };
   
@@ -225,7 +264,11 @@ export default function ContactPage() {
   
   const handlePreview = (file: File) => {
     setPreviewFile(file);
+    setPdfError(false);
     if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else if (file.type === 'application/pdf') {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     } else {
@@ -239,6 +282,7 @@ export default function ContactPage() {
     }
     setPreviewFile(null);
     setPreviewUrl(null);
+    setPdfError(false);
   };
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -285,29 +329,15 @@ export default function ContactPage() {
   
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
-      return (
-        <svg className="w-6 h-6 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      );
+      return <FaFileImage className="text-3xl text-indigo-500 dark:text-indigo-400" />;
     } else if (fileType === 'application/pdf') {
-      return (
-        <svg className="w-6 h-6 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      );
+      return <FaFilePdf className="text-3xl text-red-500 dark:text-red-400" />;
     } else if (fileType.includes('word')) {
-      return (
-        <svg className="w-6 h-6 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      );
+      return <FaFileWord className="text-3xl text-blue-500 dark:text-blue-400" />;
+    } else if (fileType.includes('zip')) {
+      return <FaFileArchive className="text-3xl text-yellow-500 dark:text-yellow-400" />;
     } else {
-      return (
-        <svg className="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      );
+      return <FaFileArchive className="text-3xl text-gray-500 dark:text-gray-400" />;
     }
   };
   
@@ -326,35 +356,43 @@ export default function ContactPage() {
     { href: "https://x.com/FazlakaPlatform", icon: <FaXTwitter />, label: isRTL ? "اكس" : "X", color: "from-gray-700 to-gray-900", hover: "hover:from-gray-800 hover:to-black" },
   ];
 
-  // Why contact us
+  // Enhanced Why contact us with new icons and better design
   const whyContactUs = [
     {
-      icon: <FaComments className="text-3xl" />,
+      icon: <FaBolt className="text-3xl" />,
       title: isRTL ? "دعم سريع" : "Quick Support",
       description: isRTL ? "فريق دعم متخصص متاح للإجابة على استفساراتك" : "Specialized support team available to answer your inquiries",
       color: "from-blue-500 to-cyan-600",
-      darkColor: "dark:from-blue-700 dark:to-cyan-800"
+      darkColor: "dark:from-blue-700 dark:to-cyan-800",
+      bgPattern: "bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+      borderColor: "border-blue-200 dark:border-blue-800"
     },
     {
-      icon: <FaHeadset className="text-3xl" />,
+      icon: <FaShieldAlt className="text-3xl" />,
       title: isRTL ? "استشارات مجانية" : "Free Consultations",
       description: isRTL ? "نقدم استشارات أولية مجانية لمساعدتك في البداية" : "We offer initial free consultations to help you get started",
       color: "from-purple-500 to-indigo-600",
-      darkColor: "dark:from-purple-700 dark:to-indigo-800"
+      darkColor: "dark:from-purple-700 dark:to-indigo-800",
+      bgPattern: "bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
+      borderColor: "border-purple-200 dark:border-purple-800"
     },
     {
-      icon: <FaLightbulb className="text-3xl" />,
+      icon: <FaRocket className="text-3xl" />,
       title: isRTL ? "حلول مبتكرة" : "Innovative Solutions",
       description: isRTL ? "نقدم حلولاً مبتكرة تناسب احتياجاتك الخاصة" : "We provide innovative solutions that suit your specific needs",
       color: "from-yellow-500 to-orange-600",
-      darkColor: "dark:from-yellow-700 dark:to-orange-800"
+      darkColor: "dark:from-yellow-700 dark:to-orange-800",
+      bgPattern: "bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20",
+      borderColor: "border-yellow-200 dark:border-yellow-800"
     },
     {
-      icon: <FaHandshake className="text-3xl" />,
+      icon: <FaAward className="text-3xl" />,
       title: isRTL ? "شراكة ناجحة" : "Successful Partnership",
       description: isRTL ? "نبني علاقات طويلة الأمد مع عملائنا" : "We build long-term relationships with our clients",
       color: "from-green-500 to-teal-600",
-      darkColor: "dark:from-green-700 dark:to-teal-800"
+      darkColor: "dark:from-green-700 dark:to-teal-800",
+      bgPattern: "bg-gradient-to-br from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20",
+      borderColor: "border-green-200 dark:border-green-800"
     }
   ];
 
@@ -374,24 +412,24 @@ export default function ContactPage() {
           {/* شبكة زخرفية */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjwvcmVjdD4KPC9zdmc+')] opacity-10"></div>
           
-          {/* أيقونات المواد الدراسية في الخلفية */}
+          {/* أيقونات التواصل في الخلفية */}
           <div className="absolute top-1/4 left-1/4 text-white/10 transform -translate-x-1/2 -translate-y-1/2 float-animation">
-            <FaFlask className="text-7xl sm:text-9xl drop-shadow-lg" />
+            <FaEnvelope className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
           <div className="absolute top-1/3 right-1/4 text-white/10 transform translate-x-1/2 -translate-y-1/2 float-animation" style={{ animationDelay: '1s' }}>
-            <FaAtom className="text-7xl sm:text-9xl drop-shadow-lg" />
+            <FaPhone className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
           <div className="absolute bottom-1/4 left-1/3 text-white/10 transform -translate-x-1/2 translate-y-1/2 float-animation" style={{ animationDelay: '2s' }}>
-            <FaLandmark className="text-7xl sm:text-9xl drop-shadow-lg" />
+            <FaComments className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
           <div className="absolute bottom-1/3 right-1/3 text-white/10 transform translate-x-1/2 translate-y-1/2 float-animation" style={{ animationDelay: '3s' }}>
-            <FaBalanceScale className="text-7xl sm:text-9xl drop-shadow-lg" />
+            <FaHeadset className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
           <div className="absolute top-1/2 left-1/2 text-white/10 transform -translate-x-1/2 -translate-y-1/2 float-animation" style={{ animationDelay: '4s' }}>
-            <FaChartLine className="text-7xl sm:text-9xl drop-shadow-lg" />
+            <FaMapMarkerAlt className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
           <div className="absolute top-2/3 left-1/5 text-white/10 transform -translate-x-1/2 -translate-y-1/2 float-animation" style={{ animationDelay: '5s' }}>
-            <FaBook className="text-7xl sm:text-9xl drop-shadow-lg" />
+            <FaClock className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
         </div>
         
@@ -414,66 +452,31 @@ export default function ContactPage() {
               </span>
             </p>
             
-            {/* أيقونات المواد الدراسية في الأسفل */}
-            <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 flex-wrap">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation">
-                <FaEnvelope className="text-yellow-300 text-lg sm:text-xl" />
+            {/* أيقونات التواصل في الأسفل - الأيقونات الصفراء في سطرين */}
+            <div className="flex flex-col items-center gap-4 mt-6">
+              {/* السطر الأول */}
+              <div className="flex justify-center gap-3 sm:gap-4 md:gap-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation">
+                  <FaEnvelope className="text-yellow-300 text-lg sm:text-xl" />
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '0.5s' }}>
+                  <FaPhone className="text-yellow-300 text-lg sm:text-xl" />
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '1s' }}>
+                  <FaComments className="text-yellow-300 text-lg sm:text-xl" />
+                </div>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '0.5s' }}>
-                <FaPaperPlane className="text-yellow-300 text-lg sm:text-xl" />
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '1s' }}>
-                <FaUsers className="text-yellow-300 text-lg sm:text-xl" />
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '1.5s' }}>
-                <FaLightbulb className="text-yellow-300 text-lg sm:text-xl" />
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '2s' }}>
-                <FaGlobe className="text-yellow-300 text-lg sm:text-xl" />
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '2.5s' }}>
-                <FaHeart className="text-yellow-300 text-lg sm:text-xl" />
-              </div>
-            </div>
-          </div>
-          
-          {/* القسم الأيمن - الصورة أو الرسوم التوضيحية */}
-          <div className="w-full max-w-xs sm:max-w-sm md:max-w-md flex justify-center">
-            <div className="relative">
-              {/* دائرة خلفية */}
-              <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-full filter blur-3xl w-40 h-40 sm:w-56 sm:h-56 md:w-64 md:h-64 animate-pulse-slow"></div>
               
-              {/* الأيقونات المتحركة */}
-              <div className="relative grid grid-cols-3 gap-3 sm:gap-4 w-40 h-40 sm:w-56 sm:h-56 md:w-64 md:h-64">
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.1s' }}>
-                  <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-101">
-                    <FaEnvelope className="text-white text-xl sm:text-2xl" />
-                  </div>
+              {/* السطر الثاني */}
+              <div className="flex justify-center gap-3 sm:gap-4 md:gap-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '1.5s' }}>
+                  <FaHeadset className="text-yellow-300 text-lg sm:text-xl" />
                 </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.2s' }}>
-                  <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-101">
-                    <FaPaperPlane className="text-white text-xl sm:text-2xl" />
-                  </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '2s' }}>
+                  <FaMapMarkerAlt className="text-yellow-300 text-lg sm:text-xl" />
                 </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.3s' }}>
-                  <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-101">
-                    <FaUsers className="text-white text-xl sm:text-2xl" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.4s' }}>
-                  <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-101">
-                    <FaLightbulb className="text-white text-xl sm:text-2xl" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.5s' }}>
-                  <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-101">
-                    <FaGlobe className="text-white text-xl sm:text-2xl" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.6s' }}>
-                  <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-101">
-                    <FaHeart className="text-white text-xl sm:text-2xl" />
-                  </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '2.5s' }}>
+                  <FaClock className="text-yellow-300 text-lg sm:text-xl" />
                 </div>
               </div>
             </div>
@@ -486,7 +489,7 @@ export default function ContactPage() {
     );
   };
 
-  // Why Contact Us Section
+  // Enhanced Why Contact Us Section with layered cards and animations
   const WhyContactUsSection = () => {
     return (
       <section className="mb-16">
@@ -506,18 +509,385 @@ export default function ContactPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="group relative"
+              className="group relative h-full"
             >
-              <div className={`absolute inset-0 bg-gradient-to-r ${item.color} ${item.darkColor} rounded-2xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300`}></div>
-              <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-4 md:p-6 shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col items-center text-center">
-                <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-r ${item.color} ${item.darkColor} flex items-center justify-center mb-4`}>
+              {/* الخلفية المتدرجة المتحركة */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${item.color} ${item.darkColor} rounded-2xl blur-xl opacity-20 group-hover:opacity-30 transition-all duration-500 transform group-hover:scale-105`}></div>
+              
+              {/* طبقة الظل */}
+              <div className="absolute inset-0 bg-black/5 dark:bg-black/10 rounded-2xl transform translate-y-2 group-hover:translate-y-3 transition-transform duration-300"></div>
+              
+              {/* البطاقة الرئيسية */}
+              <div className={`relative ${item.bgPattern} ${item.borderColor} border-2 rounded-2xl p-6 shadow-xl group-hover:shadow-2xl transition-all duration-500 h-full flex flex-col items-center text-center transform group-hover:-translate-y-2 overflow-hidden`}>
+                {/* زخرفة خلفية داخل البطاقة */}
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-white/20 to-transparent rounded-bl-full"></div>
+                <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-white/20 to-transparent rounded-tr-full"></div>
+                
+                {/* الأيقونة */}
+                <div className={`relative z-10 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-r ${item.color} ${item.darkColor} flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transform group-hover:scale-110 transition-all duration-300`}>
                   <div className="text-white">{item.icon}</div>
                 </div>
-                <h3 className={`text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-3 ${isRTL ? '' : 'font-sans'}`}>{item.title}</h3>
-                <p className={`text-sm md:text-base text-gray-600 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{item.description}</p>
+                
+                {/* العنوان */}
+                <h3 className={`relative z-10 text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-3 ${isRTL ? '' : 'font-sans'}`}>{item.title}</h3>
+                
+                {/* الوصف */}
+                <p className={`relative z-10 text-sm md:text-base text-gray-600 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{item.description}</p>
+                
+                {/* تأثير لمعان عند التحويم */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               </div>
             </motion.div>
           ))}
+        </div>
+      </section>
+    );
+  };
+
+  // Enhanced Direct Contact Section with completely new card designs
+  const DirectContactSection = () => {
+    return (
+      <section id="direct-contact" className="mb-16 relative">
+        {/* خلفية فاخرة للقسم مع تحسينات */}
+        <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-100 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 rounded-3xl overflow-hidden"></div>
+        
+        {/* عناصر زخرفية محسنة في الخلفية */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-green-300 dark:bg-green-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow"></div>
+          <div className="absolute top-20 right-20 w-40 h-40 bg-emerald-300 dark:bg-emerald-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-10 left-1/3 w-36 h-36 bg-teal-300 dark:bg-teal-800 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+          
+          {/* خطوط زخرفية محسنة */}
+          <div className="absolute top-0 left-0 w-full h-full">
+            <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="grid-green" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(16, 185, 129, 0.05)" strokeWidth="1" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid-green)" />
+            </svg>
+          </div>
+          
+          {/* أيقونات تواصل عائمة في الخلفية */}
+          <motion.div 
+            animate={{ 
+              y: [0, -15, 0],
+              rotate: [0, 5, 0]
+            }}
+            transition={{ 
+              repeat: Infinity, 
+              duration: 6, 
+              ease: "easeInOut"
+            }}
+            className="absolute top-1/4 left-1/5 text-green-200 dark:text-green-800 opacity-20"
+          >
+            <FaDiscord className="text-6xl" />
+          </motion.div>
+          <motion.div 
+            animate={{ 
+              y: [0, 15, 0],
+              rotate: [0, -5, 0]
+            }}
+            transition={{ 
+              repeat: Infinity, 
+              duration: 7, 
+              ease: "easeInOut",
+              delay: 1
+            }}
+            className="absolute bottom-1/4 right-1/5 text-emerald-200 dark:text-emerald-800 opacity-20"
+          >
+            <FaEnvelope className="text-6xl" />
+          </motion.div>
+        </div>
+        
+        {/* المحتوى الرئيسي */}
+        <div className="relative z-10 p-8 md:p-12">
+          <div className="text-center mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-block mb-6"
+            >
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-full text-sm font-medium shadow-lg flex items-center">
+                <FaHandshake className="mr-2" />
+                {t.directContact}
+              </div>
+            </motion.div>
+            
+            <h2 className={`text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-gray-900 dark:text-white ${isRTL ? '' : 'font-sans'}`}>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600">
+                {t.contactUsDirectly}
+              </span>
+            </h2>
+            
+            <p className={`text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto ${isRTL ? '' : 'font-sans'}`}>
+              {t.directContactSubtitle}
+            </p>
+          </div>
+          
+          {/* بطاقات التواصل المباشر بتصميم جديد وبنفس الطول */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* بطاقة دسكورد بتصميم جديد */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              whileHover={{ y: -10, scale: 1.02 }}
+              className="h-full"
+            >
+              {/* الخلفية الرئيسية */}
+              <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 rounded-3xl p-1 shadow-2xl overflow-hidden h-full">
+                {/* تأثير التوهج */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                
+                {/* المحتوى الداخلي */}
+                <div className="relative bg-gray-900 dark:bg-gray-800 rounded-3xl p-8 h-full flex flex-col">
+                  {/* رأس البطاقة */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <motion.div
+                        animate={{ 
+                          rotate: [0, 10, 0, -10, 0],
+                          scale: [1, 1.05, 1]
+                        }}
+                        transition={{ 
+                          repeat: Infinity, 
+                          duration: 4, 
+                          ease: "easeInOut"
+                        }}
+                        className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg"
+                      >
+                        <FaDiscord className="text-3xl text-white" />
+                      </motion.div>
+                      <div className="mr-4">
+                        <h3 className={`text-2xl font-bold text-white ${isRTL ? '' : 'font-sans'}`}>
+                          {t.discord}
+                        </h3>
+                        <div className="flex items-center mt-1">
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></div>
+                          <span className="text-green-400 text-sm">{isRTL ? "متصل الآن" : "Online Now"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-indigo-400">
+                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v2h12v-2l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  {/* المحتوى الرئيسي */}
+                  <div className="flex-grow mb-6">
+                    <p className={`text-gray-300 mb-4 ${isRTL ? '' : 'font-sans'}`}>
+                      {t.discordDesc}
+                    </p>
+                    
+                    {/* مميزات */}
+                    <div className="space-y-3">
+                      <div className="flex items-center text-gray-300">
+                        <svg className="w-5 h-5 text-indigo-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className={isRTL ? '' : 'font-sans'}>{isRTL ? "دعم فوري 24/7" : "24/7 Instant Support"}</span>
+                      </div>
+                      <div className="flex items-center text-gray-300">
+                        <svg className="w-5 h-5 text-indigo-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className={isRTL ? '' : 'font-sans'}>{isRTL ? "مجتمع نشط" : "Active Community"}</span>
+                      </div>
+                      <div className="flex items-center text-gray-300">
+                        <svg className="w-5 h-5 text-indigo-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className={isRTL ? '' : 'font-sans'}>{isRTL ? "قنوات متخصصة" : "Specialized Channels"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* الزر */}
+                  <a 
+                    href="https://discord.gg/your-server-id" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-6 rounded-xl font-bold hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center"
+                  >
+                    {isRTL ? "انضم إلى سيرفرنا" : "Join Our Server"}
+                    <FaArrowRight className="mr-2" />
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+            
+            {/* بطاقة البريد الإلكتروني بتصميم جديد */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              whileHover={{ y: -10, scale: 1.02 }}
+              className="h-full"
+            >
+              {/* الخلفية الرئيسية */}
+              <div className="relative bg-gradient-to-br from-blue-600 via-cyan-600 to-blue-700 rounded-3xl p-1 shadow-2xl overflow-hidden h-full">
+                {/* تأثير التوهج */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                
+                {/* المحتوى الداخلي */}
+                <div className="relative bg-gray-900 dark:bg-gray-800 rounded-3xl p-8 h-full flex flex-col">
+                  {/* رأس البطاقة */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <motion.div
+                        animate={{ 
+                          rotate: [0, 10, 0, -10, 0],
+                          scale: [1, 1.05, 1]
+                        }}
+                        transition={{ 
+                          repeat: Infinity, 
+                          duration: 4, 
+                          ease: "easeInOut",
+                          delay: 1
+                        }}
+                        className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg"
+                      >
+                        <FaEnvelope className="text-3xl text-white" />
+                      </motion.div>
+                      <div className="mr-4">
+                        <h3 className={`text-2xl font-bold text-white ${isRTL ? '' : 'font-sans'}`}>
+                          {t.emailAddress}
+                        </h3>
+                        <div className="flex items-center mt-1">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mr-2"></div>
+                          <span className="text-blue-400 text-sm">{isRTL ? "رد خلال 24 ساعة" : "Response within 24h"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-blue-400">
+                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  {/* المحتوى الرئيسي */}
+                  <div className="flex-grow mb-6">
+                    <p className={`text-gray-300 mb-4 ${isRTL ? '' : 'font-sans'}`}>
+                      {t.emailDesc}
+                    </p>
+                    
+                    {/* مميزات */}
+                    <div className="space-y-3">
+                      <div className="flex items-center text-gray-300">
+                        <svg className="w-5 h-5 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className={isRTL ? '' : 'font-sans'}>{isRTL ? "ردود رسمية" : "Official Responses"}</span>
+                      </div>
+                      <div className="flex items-center text-gray-300">
+                        <svg className="w-5 h-5 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className={isRTL ? '' : 'font-sans'}>{isRTL ? "تتبع الرسائل" : "Message Tracking"}</span>
+                      </div>
+                      <div className="flex items-center text-gray-300">
+                        <svg className="w-5 h-5 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className={isRTL ? '' : 'font-sans'}>{isRTL ? "مرفقات آمنة" : "Secure Attachments"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* البريد الإلكتروني */}
+                  <div className={`bg-gray-800 rounded-xl p-3 mb-4 ${isRTL ? '' : 'font-sans'}`}>
+                    <p className="text-blue-400 text-sm font-mono">fazlaka.contact@gmail.com</p>
+                  </div>
+                  
+                  {/* الزر */}
+                  <a 
+                    href="https://mail.google.com/mail/?view=cm&to=fazlaka.contact@gmail.com" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white py-3 px-6 rounded-xl font-bold hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center"
+                  >
+                    {t.openGmail}
+                    <FaArrowRight className="mr-2" />
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+          
+          {/* قسم إضافي للنص محسن */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="mt-16 text-center"
+          >
+            <div className="inline-flex items-center justify-center p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-green-200 dark:border-green-800 max-w-2xl">
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 10, 0, -10, 0],
+                    scale: [1, 1.05, 1]
+                  }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    duration: 4, 
+                    ease: "easeInOut"
+                  }}
+                  className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg"
+                >
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </motion.div>
+                <div className="text-center md:text-right">
+                  <h3 className={`text-xl font-bold text-gray-900 dark:text-white mb-2 ${isRTL ? '' : 'font-sans'}`}>
+                    {t.weAreHereToHelp}
+                  </h3>
+                  <p className={`text-gray-600 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>
+                    {t.supportTeamAvailable}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+          
+          {/* قسم الميزات - تم حذف كارت فريق متخصص */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+            className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto"
+          >
+            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 border border-green-200 dark:border-green-800 shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-4">
+                <FaClock className="text-white text-xl" />
+              </div>
+              <h4 className={`text-lg font-bold text-gray-900 dark:text-white mb-2 ${isRTL ? '' : 'font-sans'}`}>
+                {isRTL ? "استجابة سريعة" : "Quick Response"}
+              </h4>
+              <p className={`text-gray-600 dark:text-gray-400 text-sm ${isRTL ? '' : 'font-sans'}`}>
+                {isRTL ? "نرد على استفساراتك في أسرع وقت ممكن" : "We respond to your inquiries as quickly as possible"}
+              </p>
+            </div>
+            
+            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-6 border border-green-200 dark:border-green-800 shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-4">
+                <FaShieldAlt className="text-white text-xl" />
+              </div>
+              <h4 className={`text-lg font-bold text-gray-900 dark:text-white mb-2 ${isRTL ? '' : 'font-sans'}`}>
+                {isRTL ? "خصوصية تامة" : "Complete Privacy"}
+              </h4>
+              <p className={`text-gray-600 dark:text-gray-400 text-sm ${isRTL ? '' : 'font-sans'}`}>
+                {isRTL ? "نضمن خصوصية وأمان معلوماتك" : "We ensure the privacy and security of your information"}
+              </p>
+            </div>
+          </motion.div>
         </div>
       </section>
     );
@@ -729,41 +1099,8 @@ export default function ContactPage() {
         {/* Why Contact Us Section */}
         <WhyContactUsSection />
         
-        <motion.div 
-          initial={reduceMotion ? {} : { opacity: 0, y: 20 }}
-          animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="flex justify-center mb-8"
-        >
-          <motion.div
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-          >
-            <Link href="/faq" className="group inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 border border-indigo-200 dark:border-indigo-700">
-              <motion.svg 
-                className="w-6 h-6 ml-2" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24" 
-                xmlns="http://www.w3.org/2000/svg"
-                animate={reduceMotion ? {} : { 
-                  y: [0, -3, 0],
-                }}
-                transition={{ 
-                  repeat: Infinity, 
-                  duration: 4, 
-                  repeatDelay: 2,
-                  ease: "easeInOut"
-                }}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </motion.svg>
-              <span className={`font-medium group-hover:text-indigo-100 transition-colors ${isRTL ? '' : 'font-sans'}`}>
-                {t.viewFAQ}
-              </span>
-            </Link>
-          </motion.div>
-        </motion.div>
+        {/* Direct Contact Section - قسم التواصل المباشر */}
+        <DirectContactSection />
         
         <motion.main 
           id="contact-form"
@@ -798,31 +1135,66 @@ export default function ContactPage() {
               initial={reduceMotion ? {} : { opacity: 0, scale: 0.95 }}
               animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
               transition={{ delay: 0.7, duration: 0.4 }}
-              className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6 mb-8"
+              className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-900/20 dark:via-purple-900/20 dark:to-pink-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-8 mb-8 relative overflow-hidden"
             >
-              <div className="flex items-center">
+              {/* خلفية زخرفية */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-200 to-purple-200 dark:from-indigo-800/30 dark:to-purple-800/30 rounded-full filter blur-2xl opacity-30"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-br from-purple-200 to-pink-200 dark:from-purple-800/30 dark:to-pink-800/30 rounded-full filter blur-2xl opacity-30"></div>
+              
+              <div className="relative z-10 flex flex-col items-center text-center">
                 <motion.div
                   animate={reduceMotion ? {} : { 
                     rotate: [0, 5, 0, -5, 0],
+                    scale: [1, 1.05, 1]
                   }}
                   transition={{ 
                     repeat: Infinity, 
                     duration: 4, 
                     ease: "easeInOut"
                   }}
-                  className="flex-shrink-0"
+                  className="w-20 h-20 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mb-6 shadow-lg"
                 >
-                  <svg className="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </motion.div>
-                <div className="ml-4">
-                  <p className="text-yellow-700 dark:text-yellow-300 font-medium">
-                    {t.mustSignIn} {" "}
-                    <Link href="/sign-in" className="font-bold underline text-yellow-800 dark:text-yellow-200 hover:text-yellow-900 dark:hover:text-yellow-100 transition-colors">
-                      {t.signIn}
-                    </Link>
-                  </p>
+                
+                <h3 className={`text-2xl font-bold text-gray-900 dark:text-white mb-3 ${isRTL ? '' : 'font-sans'}`}>
+                  {t.unlockFeatures}
+                </h3>
+                
+                <p className={`text-gray-700 dark:text-gray-300 mb-6 max-w-md ${isRTL ? '' : 'font-sans'}`}>
+                  {t.signInPrompt}
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                  <Link 
+                    href="/sign-in" 
+                    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold text-center hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  >
+                    {t.signIn}
+                  </Link>
+                  <Link 
+                    href="/sign-up" 
+                    className="flex-1 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 px-6 py-3 rounded-xl font-bold text-center border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                  >
+                    {t.createAccount}
+                  </Link>
+                </div>
+                
+                <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 ml-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className={isRTL ? '' : 'font-sans'}>{t.exclusiveAccess}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 ml-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className={isRTL ? '' : 'font-sans'}>{t.personalizedExperience}</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -949,7 +1321,7 @@ export default function ContactPage() {
                 <div className="relative">
                   <div className="absolute top-4 right-4 pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <textarea
@@ -1029,82 +1401,83 @@ export default function ContactPage() {
                 </div>
                 
                 {files.length > 0 && (
-                  <div className="mt-6 space-y-3 max-h-60 overflow-y-auto pr-2">
-                    <h3 className={`text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? '' : 'font-sans'}`}>{t.attachedFiles}</h3>
-                    {files.map((file, index) => (
-                      <motion.div 
-                        key={index}
-                        initial={reduceMotion ? {} : { 
-                          opacity: 0, 
-                          x: -20,
-                          scale: 0.9
-                        }}
-                        animate={reduceMotion ? {} : { 
-                          opacity: 1, 
-                          x: 0,
-                          scale: 1
-                        }}
-                        transition={{ 
-                          delay: 0.1 * index,
-                          type: "spring",
-                          stiffness: 300,
-                          damping: 20
-                        }}
-                        whileHover={{ 
-                          scale: 1.02,
-                          x: 5,
-                          transition: { duration: 0.2 }
-                        }}
-                        className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl px-4 py-3 hover:from-indigo-50 hover:to-purple-50 dark:hover:from-indigo-900/30 dark:hover:to-purple-900/30 transition-all duration-300 shadow-sm hover:shadow-md border border-gray-200 dark:border-gray-600"
-                      >
-                        <div className="flex items-center min-w-0">
-                          {getFileIcon(file.type)}
-                          <div className="mr-3 min-w-0">
-                            <p className={`text-sm font-medium text-gray-800 dark:text-gray-200 truncate ${isRTL ? '' : 'font-sans'}`}>{file.name}</p>
-                            <p className={`text-xs text-gray-500 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{formatFileSize(file.size)}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <motion.button 
+                  <div className="mt-6">
+                    <h3 className={`text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 ${isRTL ? '' : 'font-sans'}`}>{t.attachedFiles}</h3>
+                    <motion.div 
+                      initial={reduceMotion ? {} : { opacity: 0, y: 20 }}
+                      animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2, duration: 0.5 }}
+                      className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-600 shadow-lg"
+                    >
+                      <div className="flex flex-wrap gap-4">
+                        {files.map((file, index) => (
+                          <motion.div 
+                            key={index}
+                            initial={reduceMotion ? {} : { 
+                              opacity: 0, 
+                              scale: 0.9
+                            }}
+                            animate={reduceMotion ? {} : { 
+                              opacity: 1, 
+                              scale: 1
+                            }}
+                            transition={{ 
+                              delay: 0.1 * index,
+                              type: "spring",
+                              stiffness: 300,
+                              damping: 20
+                            }}
                             whileHover={{ 
-                              scale: 1.1,
-                              rotate: 15
+                              scale: 1.05,
+                              transition: { duration: 0.2 }
                             }}
-                            whileTap={{ 
-                              scale: 0.9,
-                              rotate: -15
-                            }}
-                            type="button"
-                            onClick={() => handlePreview(file)}
-                            className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/30 shadow-sm"
-                            title={t.preview}
+                            className="flex items-center bg-white dark:bg-gray-700 rounded-xl px-4 py-3 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-600 flex-1 min-w-[200px]"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </motion.button>
-                          <motion.button 
-                            whileHover={{ 
-                              scale: 1.1,
-                              rotate: 15
-                            }}
-                            whileTap={{ 
-                              scale: 0.9,
-                              rotate: -15
-                            }}
-                            type="button"
-                            onClick={() => removeFile(file.name)}
-                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 shadow-sm"
-                            title={t.delete}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </motion.button>
-                        </div>
-                      </motion.div>
-                    ))}
+                            <div className="flex items-center min-w-0 flex-1">
+                              {getFileIcon(file.type)}
+                              <div className="mr-3 min-w-0 flex-1">
+                                <p className={`text-sm font-medium text-gray-800 dark:text-gray-200 truncate ${isRTL ? '' : 'font-sans'}`}>{file.name}</p>
+                                <p className={`text-xs text-gray-500 dark:text-gray-400 ${isRTL ? '' : 'font-sans'}`}>{formatFileSize(file.size)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2 flex-shrink-0">
+                              <motion.button 
+                                whileHover={{ 
+                                  scale: 1.1,
+                                  rotate: 15
+                                }}
+                                whileTap={{ 
+                                  scale: 0.9,
+                                  rotate: -15
+                                }}
+                                type="button"
+                                onClick={() => handlePreview(file)}
+                                className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/30 shadow-sm"
+                                title={t.preview}
+                              >
+                                <FaEye className="w-4 h-4" />
+                              </motion.button>
+                              <motion.button 
+                                whileHover={{ 
+                                  scale: 1.1,
+                                  rotate: 15
+                                }}
+                                whileTap={{ 
+                                  scale: 0.9,
+                                  rotate: -15
+                                }}
+                                type="button"
+                                onClick={() => removeFile(file.name)}
+                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 shadow-sm"
+                                title={t.delete}
+                              >
+                                <FaTrash className="w-4 h-4" />
+                              </motion.button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
                   </div>
                 )}
                 
@@ -1148,13 +1521,11 @@ export default function ContactPage() {
                       onClick={closePreview}
                       className="text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-200 p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex-shrink-0"
                     >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <FaTimes className="w-6 h-6" />
                     </button>
                   </div>
                   
-                  <div className="p-4 md:p-6 overflow-auto max-h-[300px] bg-white dark:bg-gray-800">
+                  <div className="p-4 md:p-6 overflow-auto max-h-[500px] bg-white dark:bg-gray-800">
                     {previewUrl && previewFile.type.startsWith('image/') ? (
                       <motion.div 
                         initial={reduceMotion ? {} : { opacity: 0, scale: 0.9 }}
@@ -1165,13 +1536,49 @@ export default function ContactPage() {
                         <motion.img 
                           src={previewUrl} 
                           alt={previewFile.name} 
-                          className="max-w-full max-h-[250px] object-contain rounded-xl shadow-md"
+                          className="max-w-full max-h-[400px] object-contain rounded-xl shadow-md"
                           whileHover={{ 
                             scale: 1.02,
                             transition: { duration: 0.3 }
                           }}
                         />
                       </motion.div>
+                    ) : previewUrl && previewFile.type === 'application/pdf' ? (
+                      <div className="flex flex-col items-center">
+                        {pdfError ? (
+                          <div className="flex flex-col items-center justify-center p-8 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 max-w-md">
+                            <FaTimesCircle className="text-4xl text-red-500 mb-4" />
+                            <p className="text-red-700 dark:text-red-300 text-center mb-4">{t.pdfPreviewError}</p>
+                            <button
+                              onClick={() => {
+                                const url = URL.createObjectURL(previewFile);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = previewFile.name;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                            >
+                              <FaDownload className="mr-2" />
+                              {t.downloadPdf}
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-full max-w-2xl bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden shadow-md">
+                              <iframe
+                                src={previewUrl}
+                                className="w-full h-[400px] border-0"
+                                title={previewFile.name}
+                                onError={() => setPdfError(true)}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <motion.div 
                         initial={reduceMotion ? {} : { opacity: 0, y: 10 }}
@@ -1211,9 +1618,7 @@ export default function ContactPage() {
                           }}
                           className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-md font-medium"
                         >
-                          <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
+                          <FaDownload className="mr-2" />
                           <span className={isRTL ? '' : 'font-sans'}>
                             {t.downloadFile}
                           </span>
@@ -1229,7 +1634,7 @@ export default function ContactPage() {
                     <div className="flex space-x-2">
                       <button
                         onClick={closePreview}
-                        className={`px-4 py-2 bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors font-medium ${isRTL ? '' : 'font-sans'}`}
+                        className={`px-4 py-2 bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-600 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors font-medium ${isRTL ? '' : 'font-sans'}`}
                       >
                         {t.close}
                       </button>
@@ -1246,6 +1651,7 @@ export default function ContactPage() {
                         }}
                         className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md font-medium ${isRTL ? '' : 'font-sans'}`}
                       >
+                        <FaDownload className="inline mr-2" />
                         {t.download}
                       </button>
                     </div>
@@ -1301,9 +1707,7 @@ export default function ContactPage() {
                       animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
                       className="text-green-600 dark:text-green-400 font-bold flex items-center justify-center text-lg"
                     >
-                      <svg className="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
+                      <FaCheckCircle className="mr-2" />
                       <span className={isRTL ? '' : 'font-sans'}>
                         {t.successMessage}
                       </span>
@@ -1315,9 +1719,7 @@ export default function ContactPage() {
                       animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
                       className="text-red-600 dark:text-red-400 font-bold flex items-center justify-center text-lg"
                     >
-                      <svg className="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <FaTimesCircle className="mr-2" />
                       <span className={isRTL ? '' : 'font-sans'}>
                         {t.errorMessage}
                       </span>
@@ -1365,9 +1767,7 @@ export default function ContactPage() {
                       ease: "easeInOut"
                     }}
                   >
-                    <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <FaCheckCircle className="h-8 w-8" />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -1380,9 +1780,7 @@ export default function ContactPage() {
                       ease: "easeInOut"
                     }}
                   >
-                    <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <FaTimesCircle className="h-8 w-8" />
                   </motion.div>
                 )}
               </div>
@@ -1402,9 +1800,7 @@ export default function ContactPage() {
                 onClick={() => setShowToast(false)}
                 className="ml-2 p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors flex-shrink-0"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FaTimes className="h-5 w-5" />
               </motion.button>
             </div>
           </motion.div>
