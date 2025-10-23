@@ -398,7 +398,7 @@ function FaqContent() {
         <div className="absolute bottom-1/3 right-1/3 w-6 h-6 border-2 border-white/20 rotate-45"></div>
         
         <div className="relative z-10 py-16 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between">
-          <div className="md:w-1/2 mb-12 md:mb-0 text-center md:text-right">
+          <div className={`md:w-1/2 mb-12 md:mb-0 text-center ${isRTL ? 'md:text-right' : 'md:text-left'}`}>
             <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full mb-6">
               <span className="text-white font-medium flex items-center justify-center">
                 <FaStar className="text-yellow-300 ml-2 animate-pulse" />
@@ -418,13 +418,13 @@ function FaqContent() {
             
             <div className="flex flex-wrap gap-4 justify-center md:justify-start">
               <Link href="#faq-search" className="inline-flex items-center bg-white/20 backdrop-blur-sm text-white font-medium py-3 px-6 rounded-full hover:bg-white/30 transition-all duration-300 transform hover:-translate-y-0.5 shadow-lg">
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className={`w-5 h-5 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 {t.searchButton}
               </Link>
               <Link href="#contact-section" className="inline-flex items-center bg-white/20 backdrop-blur-sm text-white font-medium py-3 px-6 rounded-full hover:bg-white/30 transition-all duration-300 transform hover:-translate-y-0.5 shadow-lg">
-                <FaComments className="ml-2" />
+                <FaComments className={`${isRTL ? 'ml-2' : 'mr-2'}`} />
                 {t.contactButton}
               </Link>
             </div>
@@ -436,32 +436,32 @@ function FaqContent() {
               <div className="relative grid grid-cols-3 gap-6 w-64 h-64 md:w-80 md:h-80">
                 <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.1s' }}>
                   <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaQuestionCircle className="text-white text-3xl" />
+                    <FaQuestionCircle className="text-yellow-300 text-3xl" />
                   </div>
                 </div>
                 <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.2s' }}>
                   <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaLightbulb className="text-white text-3xl" />
+                    <FaLightbulb className="text-yellow-300 text-3xl" />
                   </div>
                 </div>
                 <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.3s' }}>
                   <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaEnvelope className="text-white text-3xl" />
+                    <FaEnvelope className="text-yellow-300 text-3xl" />
                   </div>
                 </div>
                 <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.4s' }}>
                   <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaPaperPlane className="text-white text-3xl" />
+                    <FaPaperPlane className="text-yellow-300 text-3xl" />
                   </div>
                 </div>
                 <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.5s' }}>
                   <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaGlobe className="text-white text-3xl" />
+                    <FaGlobe className="text-yellow-300 text-3xl" />
                   </div>
                 </div>
                 <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.6s' }}>
                   <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaHeart className="text-white text-3xl" />
+                    <FaHeart className="text-yellow-300 text-3xl" />
                   </div>
                 </div>
               </div>
@@ -520,7 +520,7 @@ function FaqContent() {
           <div className="relative z-10">
             <div className="flex justify-center mb-6">
               <div className="bg-indigo-100 dark:bg-indigo-800/50 p-5 rounded-full shadow-lg">
-                <FaHeadset className="text-indigo-600 dark:text-indigo-400 text-4xl" />
+                <FaHeadset className="text-yellow-300 text-4xl" />
               </div>
             </div>
             <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
@@ -536,7 +536,7 @@ function FaqContent() {
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-8 md:px-10 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center mx-auto transform hover:-translate-y-1"
               >
                 {t.contactDirectly}
-                <FaArrowRight className="ml-3 text-xl" />
+                <FaArrowRight className={`${isRTL ? 'ml-3' : 'mr-3'} text-xl`} />
               </motion.button>
             </Link>
           </div>
@@ -559,10 +559,10 @@ function FaqContent() {
           style={{ boxShadow: getBoxShadow() }}
         >
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="text-center md:text-right">
+            <div className={`text-center ${isRTL ? 'md:text-right' : 'md:text-left'}`}>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 flex flex-col md:flex-row items-center justify-center md:justify-start">
                 <motion.div animate={reduceMotion ? {} : { rotate: [0, 5, 0, -5, 0] }} transition={{ repeat: Infinity, duration: 6, repeatDelay: 3, ease: "easeInOut" }}>
-                  <FaQuestionCircle className="w-8 h-8 md:w-10 md:h-10 ml-3 text-indigo-600 dark:text-indigo-400" />
+                  <FaQuestionCircle className={`w-8 h-8 md:w-10 md:h-10 ${isRTL ? 'ml-3' : 'mr-3'} text-yellow-300`} />
                 </motion.div>
                 <span className="mt-2 md:mt-0">{t.faqSectionTitle}</span>
               </h2>
@@ -606,9 +606,9 @@ function FaqContent() {
             
             <div className="relative">
               <button onClick={() => setShowCategories(!showCategories)} suppressHydrationWarning={true} className="flex items-center justify-center w-full md:w-auto px-4 md:px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:from-indigo-600 hover:to-purple-700 transform hover:-translate-y-0.5">
-                <FaFilter className="ml-2" />
+                <FaFilter className={`${isRTL ? 'ml-2' : 'mr-2'}`} />
                 <span className="truncate">{activeCategory ? activeCategory : t.categories}</span>
-                {activeCategory && (<span className="ml-2 bg-white text-indigo-600 text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">1</span>)}
+                {activeCategory && (<span className={`${isRTL ? 'ml-2' : 'mr-2'} bg-white text-indigo-600 text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0`}>1</span>)}
               </button>
               
               {showCategories && (
@@ -621,7 +621,7 @@ function FaqContent() {
                     <div key={category} className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200 flex items-center justify-between" onClick={() => selectCategory(category)}>
                       <div className="flex items-center min-w-0">
                         <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{category}</span>
-                        <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full flex-shrink-0">{categoryCounts[category] || 0}</span>
+                        <span className={`${isRTL ? 'ml-2' : 'mr-2'} text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full flex-shrink-0`}>{categoryCounts[category] || 0}</span>
                       </div>
                       {activeCategory === category && (<span className="text-indigo-500 flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></span>)}
                     </div>
@@ -634,11 +634,12 @@ function FaqContent() {
           {activeCategory && (
             <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="flex items-center">
-                <span className="text-gray-600 dark:text-gray-400 ml-2">{t.filterBy}:</span>
+                <span className="text-gray-600 dark:text-gray-400">{isRTL ? ' : ' : ''}{t.filterBy}</span>
                 <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium truncate max-w-xs">{activeCategory}</span>
+                <span className="text-gray-600 dark:text-gray-400">{isRTL ? '' : ' : '}</span>
               </div>
               <button onClick={() => setActiveCategory(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center flex-shrink-0">
-                <FaTimes className="ml-1" />
+                <FaTimes className={`${isRTL ? 'ml-1' : 'mr-1'}`} />
                 {t.removeFilter}
               </button>
             </div>
@@ -647,7 +648,7 @@ function FaqContent() {
           {faqIdFromSearch && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
               <p className="text-blue-700 dark:text-blue-300 flex items-center">
-                <svg className="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                <svg className={`w-5 h-5 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
                 {t.questionOpened}
               </p>
             </motion.div>
@@ -693,17 +694,17 @@ function FaqContent() {
                       <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-30"></div>
                       <button onClick={() => toggleFaq(f.id)} aria-expanded={isOpen} className="w-full flex items-center justify-between relative z-10" suppressHydrationWarning={true}>
                         <div className="flex items-center min-w-0">
-                          <div className={`p-3 rounded-xl bg-white/20 backdrop-blur-sm shadow-sm mr-4 flex-shrink-0`}>
+                          <div className={`p-3 rounded-xl bg-white/20 backdrop-blur-sm shadow-sm ${isRTL ? 'ml-4' : 'mr-4'} flex-shrink-0`}>
                             <FaQuestionCircle className={`text-xl ${colors.headerText}`} />
                           </div>
-                          <span className="font-bold text-base md:text-lg text-right text-white break-words">{f.question || t.noTitle}</span>
+                          <span className={`font-bold text-base md:text-lg ${isRTL ? 'text-right' : 'text-left'} text-white break-words`}>{f.question || t.noTitle}</span>
                         </div>
-                        <motion.span animate={reduceMotion ? {} : { rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.3 }} className="ml-3 flex-shrink-0" aria-hidden>
+                        <motion.span animate={reduceMotion ? {} : { rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.3 }} className={`${isRTL ? 'ml-3' : 'mr-3'} flex-shrink-0`} aria-hidden>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isOpen ? "M19 15l-7-7-7 7" : "M19 9l-7 7-7 7"} /></svg>
                         </motion.span>
                       </button>
                       {f.category && (
-                        <div className="mt-3 ml-16 relative z-10">
+                        <div className={`mt-3 ${isRTL ? 'mr-16' : 'ml-16'} relative z-10`}>
                           <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs rounded-full">{f.category}</span>
                         </div>
                       )}
