@@ -123,8 +123,11 @@ const translations = {
     language: "تبديل اللغة",
     copyright: "© {year} فذلكة",
     PlatformMame: "فذلكة",
-    settings: "الإعدادات"
-
+    settings: "الإعدادات",
+    fontSize: "حجم الخط",
+    small: "صغير",
+    medium: "متوسط",
+    large: "كبير"
   },
   en: {
     home: "Home",
@@ -168,7 +171,11 @@ const translations = {
     language: "Toggle Language",
     copyright: "© {year} Fazlaka",
     PlatformMame: "Fazlaka",
-    settings: "Settings"
+    settings: "Settings",
+    fontSize: "Font Size",
+    small: "Small",
+    medium: "Medium",
+    large: "Large"
   }
 };
 
@@ -212,7 +219,47 @@ function renderHighlighted(text: string, q: string): React.ReactNode {
   }
 }
 
-// مكون شريط البحث مع دعم اللغة
+// مكون تبديل حجم الخط
+const FontSizeSwitch = ({ fontSize, setFontSize, isRTL }: { 
+  fontSize: string; 
+  setFontSize: (size: string) => void;
+  isRTL: boolean;
+}) => {
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H5zm0-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2z" />
+            <path d="M7 7h6v2H7V7zm0 4h6v2H7v-2zm0 4h6v2H7v-2z" />
+          </svg>
+        </div>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {t.fontSize}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        {['small', 'medium', 'large'].map((size) => (
+          <button
+            key={size}
+            onClick={() => setFontSize(size)}
+            className={`px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
+              fontSize === size
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            {size === 'small' ? 'A' : size === 'medium' ? 'A' : 'A'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// مكون شريط البحث مع دعم اللغة وتحسينات التصميم
 const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boolean; isRTL: boolean }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -907,7 +954,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
       <form 
         onSubmit={handleSubmit} 
         className={`relative flex items-center transition-all duration-300 ease-in-out ${
-          isExpanded ? 'w-64' : 'w-10'
+          isExpanded ? 'w-80' : 'w-10'
         }`}
       >
         <input
@@ -953,22 +1000,22 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
       <AnimatePresence>
         {showSuggestions && suggestions.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto`}
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-96 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
           >
             <div className="p-2">
               {suggestions.map((suggestion, index) => (
                 <div
                   key={suggestion}
-                  className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150 flex items-center gap-3 ${
-                    index === selectedSuggestion ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                  className={`px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-150 flex items-center gap-3 rounded-xl ${
+                    index === selectedSuggestion ? 'bg-blue-50/70 dark:bg-blue-900/30' : ''
                   }`}
                   onClick={() => handleSuggestionSelect(suggestion)}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                   <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
@@ -983,50 +1030,53 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
       <AnimatePresence>
         {showResults && isExpanded && (query.trim().length >= 2 || results.length > 0) && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto`}
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-96 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
           >
             {isLoading ? (
-              <div className="p-4 text-center">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{searchT.searching}</p>
+              <div className="p-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{searchT.searching}</p>
               </div>
             ) : results.length > 0 ? (
-              <div className="py-1">
-                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <div className="py-2">
+                <div className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-700/50">
                   {results.length} {searchT.resultsCount} &quot;{query}&quot;
                 </div>
-                {results.slice(0, 5).map((result) => (
-                  <div
+                {results.slice(0, 6).map((result) => (
+                  <motion.div
                     key={`${result._type}-${result._id}`}
-                    className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150 flex items-center gap-3"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-200 flex items-center gap-3 group"
                     onClick={() => handleResultClick(result)}
                   >
                     <div className="flex-shrink-0">
                       {getIcon(result._type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {renderHighlighted(getDisplayTitle(result), query)}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <p className="text-xs text-blue-500 dark:text-blue-400 font-medium truncate mt-1">
                         {getTypeLabel(result._type)}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 truncate mt-2 leading-relaxed">
                         {renderHighlighted(getDisplayText(result), query)}
                       </p>
                     </div>
                     {getImageUrl(result) && (
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
                         <Image
                           src={getImageUrl(result)}
                           alt={getDisplayTitle(result)}
-                          width={40}
-                          height={40}
-                          className="w-full h-full object-cover"
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
@@ -1034,27 +1084,29 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
                         />
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
-                <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                <div className="px-4 py-3 border-t border-gray-200/50 dark:border-gray-700/50 bg-gray-50/30 dark:bg-gray-700/30">
                   <button
                     onClick={handleSubmit}
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-center group shadow-lg hover:shadow-xl"
                   >
                     {searchT.viewAllResults}
-                    <svg className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isRTL ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} />
+                    <svg className={`w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-200 ${isRTL ? 'mr-2 rotate-180' : 'ml-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
                 </div>
               </div>
             ) : query.trim().length >= 2 ? (
-              <div className="p-4 text-center">
-                <svg className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{searchT.noResults}</p>
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{searchT.tryDifferentKeywords}</p>
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">{searchT.noResults}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">{searchT.tryDifferentKeywords}</p>
               </div>
             ) : null}
           </motion.div>
@@ -1275,17 +1327,21 @@ const LanguageSwitch = ({ isRTL, toggleLanguage }: { isRTL: boolean; toggleLangu
   );
 };
 
-// مكون الإعدادات الرئيسي الذي يجمع الوضع الداكن واللغة
+// مكون الإعدادات الرئيسي الذي يجمع الوضع الداكن واللغة وحجم الخط
 const SettingsDropdown = ({ 
   isDark, 
   toggleDarkMode, 
   isRTL, 
-  toggleLanguage 
+  toggleLanguage,
+  fontSize,
+  setFontSize
 }: { 
   isDark: boolean; 
   toggleDarkMode: () => void;
   isRTL: boolean;
   toggleLanguage: () => void;
+  fontSize: string;
+  setFontSize: (size: string) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -1322,11 +1378,11 @@ const SettingsDropdown = ({
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50`}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden z-50`}
           >
             {/* رأس الإعدادات */}
-            <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800">
+            <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700/50 dark:to-gray-800/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -1345,9 +1401,9 @@ const SettingsDropdown = ({
             </div>
 
             {/* خيارات الإعدادات */}
-            <div className="p-2 space-y-2">
+            <div className="p-2 space-y-1">
               {/* تبديل الوضع الداكن */}
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -1362,7 +1418,7 @@ const SettingsDropdown = ({
               </div>
 
               {/* تبديل اللغة */}
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -1375,10 +1431,13 @@ const SettingsDropdown = ({
                 </div>
                 <LanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
               </div>
+
+              {/* حجم الخط */}
+              <FontSizeSwitch fontSize={fontSize} setFontSize={setFontSize} isRTL={isRTL} />
             </div>
 
             {/* تذييل الإعدادات */}
-            <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+            <div className="p-3 border-t border-gray-200/50 dark:border-gray-700/50 bg-gray-50/30 dark:bg-gray-700/30">
               <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                 {isRTL ? 'سيتم حفظ تفضيلاتك تلقائياً' : 'Your preferences will be saved automatically'}
               </p>
@@ -1395,12 +1454,16 @@ const MobileSettingsDropdown = ({
   isDark, 
   toggleDarkMode, 
   isRTL, 
-  toggleLanguage 
+  toggleLanguage,
+  fontSize,
+  setFontSize
 }: { 
   isDark: boolean; 
   toggleDarkMode: () => void;
   isRTL: boolean;
   toggleLanguage: () => void;
+  fontSize: string;
+  setFontSize: (size: string) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const t = translations[isRTL ? 'ar' : 'en'];
@@ -1480,6 +1543,11 @@ const MobileSettingsDropdown = ({
                   </div>
                 </div>
                 <LanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
+              </div>
+
+              {/* حجم الخط */}
+              <div className="px-4">
+                <FontSizeSwitch fontSize={fontSize} setFontSize={setFontSize} isRTL={isRTL} />
               </div>
             </div>
           </motion.div>
@@ -1727,18 +1795,18 @@ const NotificationButton = ({
                   mass: 0.8,
                   duration: 0.5
                 }}
-                className="fixed top-20 left-4 right-4 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl z-50 max-h-[70vh] overflow-hidden"
+                className="fixed top-20 left-4 right-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg rounded-3xl shadow-2xl z-50 max-h-[70vh] overflow-hidden"
                 style={{
                   boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 0 rgba(255, 255, 255, 0.1)'
                 }}
               >
                 {/* مقبض السحب المحسن */}
-                <div className="flex justify-center py-3 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
+                <div className="flex justify-center py-3 bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-900/80 dark:to-gray-800/80">
                   <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                 </div>
                 
                 {/* رأس الإشعارات المحسن */}
-                <div className="px-5 pb-4 pt-2 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+                <div className="px-5 pb-4 pt-2 bg-gradient-to-b from-white/80 to-gray-50/80 dark:from-gray-900/80 dark:to-gray-800/80 border-b border-gray-200/50 dark:border-gray-700/50">
                   <div className="flex justify-between items-center">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                       <span className="relative">
@@ -1788,7 +1856,7 @@ const NotificationButton = ({
                           initial={{ opacity: 0, y: -20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all duration-200 cursor-pointer"
+                          className="p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-all duration-200 cursor-pointer"
                           onClick={() => handleNotificationClick(notification)}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -1826,10 +1894,10 @@ const NotificationButton = ({
                 </div>
                 
                 {/* شريط سفيف مع انحناءات */}
-                <div className="px-5 pb-5 pt-2 bg-gradient-to-t from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
+                <div className="px-5 pb-5 pt-2 bg-gradient-to-t from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-900/80">
                   <motion.button
                     onClick={() => setShowNotifications(false)}
-                    className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 bg-gray-100/80 dark:bg-gray-800/80 hover:bg-gray-200/80 dark:hover:bg-gray-700/80 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -1897,15 +1965,15 @@ const NotificationButton = ({
       <AnimatePresence>
         {showNotifications && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={`absolute z-50 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-96 overflow-y-auto ${
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={`absolute z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto ${
               isRTL ? 'left-0' : 'right-0'
-            } mt-2 w-80`}
+            } mt-2 w-96`}
           >
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-gray-700/50 dark:to-gray-800/50">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t.notifications}</h3>
                 <button
@@ -1918,20 +1986,20 @@ const NotificationButton = ({
             </div>
             
             {loading ? (
-              <div className="p-4 text-center">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t.loading}</p>
+              <div className="p-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t.loading}</p>
               </div>
             ) : notifications.length > 0 ? (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 {notifications.map((notification) => (
                   <div
                     key={`${notification.type}-${notification.id}`}
-                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150"
+                    className="p-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-150"
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-start">
-                      <div className="flex-shrink-0 w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xl">
+                      <div className="flex-shrink-0 w-10 h-10 bg-gray-100/80 dark:bg-gray-700/80 rounded-lg flex items-center justify-center text-xl">
                         {getTypeIcon(notification.type)}
                       </div>
                       <div className={`${isRTL ? 'mr-3' : 'ml-3'} flex-1 min-w-0`}>
@@ -1952,8 +2020,10 @@ const NotificationButton = ({
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center">
-                <div className="text-5xl mb-3">📭</div>
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-full flex items-center justify-center">
+                  <div className="text-2xl">📭</div>
+                </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{t.noNotifications}</p>
               </div>
             )}
@@ -1969,6 +2039,7 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [isRTL, setIsRTL] = useState(true); // القيمة الافتراضية هي العربية (RTL)
+  const [fontSize, setFontSize] = useState('medium'); // حجم الخط الافتراضي
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -2004,6 +2075,12 @@ export default function Navbar() {
       const browserLang = navigator.language || '';
       setIsRTL(browserLang.includes('ar'));
     }
+
+    // التحقق من تفضيل حجم الخط المحفوظ في localStorage
+    const savedFontSize = localStorage.getItem('fontSize');
+    if (savedFontSize) {
+      setFontSize(savedFontSize);
+    }
   }, []);
   
   useEffect(() => {
@@ -2029,6 +2106,17 @@ export default function Navbar() {
       document.documentElement.lang = isRTL ? 'ar' : 'en';
     }
   }, [isRTL, mounted]);
+
+  useEffect(() => {
+    if (mounted) {
+      // تطبيق حجم الخط
+      document.documentElement.classList.remove('font-small', 'font-medium', 'font-large');
+      document.documentElement.classList.add(`font-${fontSize}`);
+      
+      // حفظ تفضيل حجم الخط في localStorage
+      localStorage.setItem('fontSize', fontSize);
+    }
+  }, [fontSize, mounted]);
   
   function resolveAvatarRaw(raw: string | undefined): string | undefined {
     if (!raw) return undefined;
@@ -2192,36 +2280,44 @@ export default function Navbar() {
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
                 </button>
-                {contentOpen && (
-                  <div className={`absolute top-full ${isRTL ? 'right-0' : 'left-0'} mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top opacity-0 scale-95 animate-fade-in z-50`}>
-                    <div className="p-1">
-                      <Link href="/episodes" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.episodes}</span>
-                      </Link>
-                      <Link href="/playlists" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.playlists}</span>
-                      </Link>
-                      <Link href="/seasons" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H8V3a1 1 0 00-1-1H6zM4 8h12v8H4V8z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.seasons}</span>
-                      </Link>
-                      <Link href="/articles" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500 group-hover:text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.articles}</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {contentOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className={`absolute top-full ${isRTL ? 'right-0' : 'left-0'} mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg text-gray-900 dark:text-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-50`}
+                    >
+                      <div className="p-1">
+                        <Link href="/episodes" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.episodes}</span>
+                        </Link>
+                        <Link href="/playlists" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.playlists}</span>
+                        </Link>
+                        <Link href="/seasons" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H8V3a1 1 0 00-1-1H6zM4 8h12v8H4V8z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.seasons}</span>
+                        </Link>
+                        <Link href="/articles" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500 group-hover:text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-5L9 2H4z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.articles}</span>
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               
               <div className="relative about-dropdown">
@@ -2237,33 +2333,41 @@ export default function Navbar() {
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
                 </button>
-                {aboutOpen && (
-                  <div className={`absolute top-full ${isRTL ? 'right-0' : 'left-0'} mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top opacity-0 scale-95 animate-fade-in z-50`}>
-                    <div className="p-1">
-                      <Link href="/about" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.whoWeAre}</span>
-                      </Link>
-                      
-                      <Link href="/follow-us" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        {/* أيقونة الشبكة الجديدة باللون الأحمر */}
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M3.75 5.25A.75.75 0 014.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V5.25zm0 9A.75.75 0 014.5 13.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75v-5.25zm9-9A.75.75 0 0113.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75V5.25zm0 9a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75v-5.25z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.platforms}</span>
-                      </Link>
-                      
-                      <Link href="/team" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.team}</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {aboutOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className={`absolute top-full ${isRTL ? 'right-0' : 'left-0'} mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg text-gray-900 dark:text-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-50`}
+                    >
+                      <div className="p-1">
+                        <Link href="/about" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.whoWeAre}</span>
+                        </Link>
+                        
+                        <Link href="/follow-us" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          {/* أيقونة الشبكة الجديدة باللون الأحمر */}
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3.75 5.25A.75.75 0 014.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V5.25zm0 9A.75.75 0 014.5 13.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75v-5.25zm9-9A.75.75 0 0113.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75V5.25zm0 9a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75v-5.25z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.platforms}</span>
+                        </Link>
+                        
+                        <Link href="/team" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-500 group-hover:text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.team}</span>
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               
               <div className="relative contact-dropdown">
@@ -2280,25 +2384,33 @@ export default function Navbar() {
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
                 </button>
-                {contactOpen && (
-                  <div className={`absolute top-full ${isRTL ? 'right-0' : 'left-0'} mt-2 w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top opacity-0 scale-95 animate-fade-in z-50`}>
-                    <div className="p-1">
-                      <Link href="/contact" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.contactUs}</span>
-                      </Link>
-                      <Link href="/faq" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
-                        </svg>
-                        <span className="text-sm font-medium">{t.faq}</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {contactOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className={`absolute top-full ${isRTL ? 'right-0' : 'left-0'} mt-2 w-48 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg text-gray-900 dark:text-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-50`}
+                    >
+                      <div className="p-1">
+                        <Link href="/contact" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.contactUs}</span>
+                        </Link>
+                        <Link href="/faq" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                          </svg>
+                          <span className="text-sm font-medium">{t.faq}</span>
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               
               {/* قسم البحث */}
@@ -2316,6 +2428,8 @@ export default function Navbar() {
               toggleDarkMode={toggleDarkMode}
               isRTL={isRTL}
               toggleLanguage={toggleLanguage}
+              fontSize={fontSize}
+              setFontSize={setFontSize}
             />
             
             <SignedOut>
@@ -2366,44 +2480,52 @@ export default function Navbar() {
                   </svg>
                 </button>
                 
-                {profileOpen && (
-                  <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-2xl ring-1 ring-black/10 overflow-hidden transition-all duration-300 transform origin-top-${isRTL ? 'left' : 'right'} opacity-0 scale-95 animate-fade-in z-50`}>
-                    <div className="p-1">
-                      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                <AnimatePresence>
+                  {profileOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg text-gray-900 dark:text-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-50`}
+                    >
+                      <div className="p-1">
+                        <div className="px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                        </div>
+                        <button
+                          onClick={handleManage}
+                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
+                        >
+                          <span className="text-sm font-medium">{t.manageAccount}</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={handleFavorites}
+                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
+                        >
+                          <span className="text-sm font-medium">{t.favorites}</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+                          </svg>
+                        </button>
+                        <div className="border-t border-gray-200/50 dark:border-gray-700/50 my-1"></div>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-red-50/50 dark:hover:bg-red-900/20 transition-colors duration-200 flex items-center justify-between group"
+                        >
+                          <span className="text-sm font-medium text-red-600 dark:text-red-400">{t.signOut}</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
+                          </svg>
+                        </button>
                       </div>
-                      <button
-                        onClick={handleManage}
-                        className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-between group"
-                      >
-                        <span className="text-sm font-medium">{t.manageAccount}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={handleFavorites}
-                        className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-between group"
-                      >
-                        <span className="text-sm font-medium">{t.favorites}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                        </svg>
-                      </button>
-                      <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full text-right px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 flex items-center justify-between group"
-                      >
-                        <span className="text-sm font-medium text-red-600 dark:text-red-400">{t.signOut}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </SignedIn>
           </div>
@@ -2483,6 +2605,8 @@ export default function Navbar() {
               toggleDarkMode={toggleDarkMode}
               isRTL={isRTL}
               toggleLanguage={toggleLanguage}
+              fontSize={fontSize}
+              setFontSize={setFontSize}
             />
             
             {/* زر القائمة */}
@@ -2522,7 +2646,7 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: isRTL ? "-100%" : "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className={`mobile-menu-container fixed top-0 ${isRTL ? 'left-0' : 'right-0'} h-full w-80 max-w-full bg-white dark:bg-gray-900 shadow-2xl z-50 overflow-y-auto md:hidden`}
+              className={`mobile-menu-container fixed top-0 ${isRTL ? 'left-0' : 'right-0'} h-full w-80 max-w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg shadow-2xl z-50 overflow-y-auto md:hidden`}
             >
               <div className="flex flex-col h-full">
                 {/* رأس القائمة */}
@@ -2568,7 +2692,7 @@ export default function Navbar() {
                 </div>
                 
                 {/* شريط البحث */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
                   <SearchBar initialExpanded={true} isRTL={isRTL} />
                 </div>
                 
@@ -2598,7 +2722,7 @@ export default function Navbar() {
                         <Link
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
                         >
                           <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg`}>
                             {item.icon === "home" && (
@@ -2667,6 +2791,8 @@ export default function Navbar() {
                       toggleDarkMode={toggleDarkMode}
                       isRTL={isRTL}
                       toggleLanguage={toggleLanguage}
+                      fontSize={fontSize}
+                      setFontSize={setFontSize}
                     />
                     
                     {/* إضافة رابط الإشعارات في قائمة الموبايل */}
@@ -2681,7 +2807,7 @@ export default function Navbar() {
                         <Link
                           href="/notifications"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -2699,7 +2825,7 @@ export default function Navbar() {
                   </div>
                   
                   <SignedOut>
-                    <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    <div className="pt-4 mt-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-3">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -2710,7 +2836,7 @@ export default function Navbar() {
                         <Link
                           href="/sign-in"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -2748,7 +2874,7 @@ export default function Navbar() {
                   </SignedOut>
                   
                   <SignedIn>
-                    <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                    <div className="pt-4 mt-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-3">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -2759,7 +2885,7 @@ export default function Navbar() {
                         <Link
                           href="/profile"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -2783,7 +2909,7 @@ export default function Navbar() {
                         <Link
                           href="/favorites"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -2806,7 +2932,7 @@ export default function Navbar() {
                       >
                         <button
                           onClick={handleSignOut}
-                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group"
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50/50 dark:hover:bg-red-900/20 transition-all duration-200 group"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -2824,7 +2950,7 @@ export default function Navbar() {
                 </div>
                 
                 {/* تذييل القائمة */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50">
                   <div className="flex flex-col space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -2870,6 +2996,17 @@ export default function Navbar() {
         }
         .animate-fade-in {
           animation: fade-in 0.3s ease-out forwards;
+        }
+
+        /* حجم الخط المخصص */
+        .font-small {
+          font-size: 14px;
+        }
+        .font-medium {
+          font-size: 16px;
+        }
+        .font-large {
+          font-size: 18px;
         }
       `}</style>
     </>
