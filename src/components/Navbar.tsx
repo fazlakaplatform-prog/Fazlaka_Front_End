@@ -259,7 +259,7 @@ const FontSizeSwitch = ({ fontSize, setFontSize, isRTL }: {
   );
 };
 
-// مكون شريط البحث المحدث من الكود الثاني
+// مكون شريط البحث المحسّن
 const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boolean; isRTL: boolean }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -980,7 +980,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
       <form 
         onSubmit={handleSubmit} 
         className={`relative flex items-center transition-all duration-300 ease-in-out ${
-          isExpanded ? 'w-80' : 'w-10'
+          isExpanded ? 'w-64' : 'w-10'
         }`}
       >
         <input
@@ -1030,7 +1030,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-96 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
+            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
           >
             <div className="p-2">
               {suggestions.map((suggestion, index) => (
@@ -1060,7 +1060,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-96 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
+            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
           >
             {isLoading ? (
               <div className="p-6 text-center">
@@ -1143,9 +1143,6 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
   );
 };
 
-// ... باقي المكونات (DarkModeSwitch, LanguageSwitch, SettingsDropdown, NotificationButton, إلخ)
-// تبقى كما هي بدون تغيير من الكود الأول
-
 // مكون تبديل الوضع الداكن
 const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDarkMode: () => void }) => {
   return (
@@ -1195,7 +1192,7 @@ const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDar
         transition={{ duration: 0.5 }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 00-1-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
         </svg>
       </motion.div>
       
@@ -1478,9 +1475,6 @@ const SettingsDropdown = ({
     </div>
   );
 };
-
-// ... باقي المكونات (MobileSettingsDropdown, MobileSettingsMenu, NotificationButton) 
-// تبقى كما هي بدون تغيير من الكود الأول
 
 // مكون الإعدادات للقائمة الجانبية في الموبايل
 const MobileSettingsDropdown = ({ 
@@ -2100,7 +2094,7 @@ const NotificationButton = ({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={`absolute z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto ${
               isRTL ? 'left-0' : 'right-0'
-            } mt-2 w-96`}
+            } mt-2 w-80`}
           >
             <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-gray-700/50 dark:to-gray-800/50">
               <div className="flex justify-between items-center">
@@ -2795,46 +2789,68 @@ export default function Navbar() {
               className={`mobile-menu-container fixed top-0 ${isRTL ? 'left-0' : 'right-0'} h-full w-80 max-w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg shadow-2xl z-50 overflow-y-auto md:hidden`}
             >
               <div className="flex flex-col h-full">
-                {/* رأس القائمة */}
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
-                  <div className="flex justify-between items-center">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                {/* رأس القائمة - محسّن */}
+                <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-6 text-white relative overflow-hidden">
+                  {/* خلفية متحركة */}
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                    <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="text-sm text-white/80 font-medium">
                         {t.PlatformMame.replace('{year}', new Date().getFullYear().toString())}
                       </div>
                       <button
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  {/* معلومات المستخدم */}
-                  <SignedIn>
-                    <div className="mt-6 flex items-center">
-                      {avatarSrc ? (
-                        <Image
-                          src={avatarSrc}
-                          alt={displayName}
-                          width={56}
-                          height={56}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-white/30"
-                          referrerPolicy="no-referrer"
-                          onError={() => setAvatarSrc(undefined)}
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-lg">
-                          {initials}
-                        </div>
-                      )}
-                      <div className="mr-3">
-                        <p className="font-semibold text-lg">{displayName}</p>
-                        <p className="text-sm opacity-80">{user?.emailAddresses?.[0]?.emailAddress}</p>
-                      </div>
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                  </SignedIn>
+                    
+                    {/* معلومات المستخدم */}
+                    <SignedIn>
+                      <div className="flex items-center">
+                        {avatarSrc ? (
+                          <Image
+                            src={avatarSrc}
+                            alt={displayName}
+                            width={56}
+                            height={56}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-white/30"
+                            referrerPolicy="no-referrer"
+                            onError={() => setAvatarSrc(undefined)}
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-lg">
+                            {initials}
+                          </div>
+                        )}
+                        <div className="mr-3">
+                          <p className="font-semibold text-lg">{displayName}</p>
+                          <p className="text-sm opacity-80">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                        </div>
+                      </div>
+                    </SignedIn>
+                    
+                    <SignedOut>
+                      <div className="flex items-center">
+                        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                          </svg>
+                        </div>
+                        <div className="mr-3">
+                          <p className="font-semibold text-lg">{t.PlatformMame}</p>
+                          <p className="text-sm opacity-80">{isRTL ? 'مرحباً بك' : 'Welcome'}</p>
+                        </div>
+                      </div>
+                    </SignedOut>
+                  </div>
                 </div>
                 
                 {/* شريط البحث المحدث */}
@@ -2852,7 +2868,7 @@ export default function Navbar() {
                       { href: "/seasons", icon: "calendar", label: t.seasons, color: "from-yellow-500 to-orange-500" },
                       { href: "/articles", icon: "article", label: t.articles, color: "from-red-500 to-rose-500" },
                       { href: "/about", icon: "info", label: t.whoWeAre, color: "from-indigo-500 to-blue-500" },
-                      { href: "/follow-us", icon: "grid", label: t.platforms, color: "from-indigo-500 to-blue-500" },
+                      { href: "/follow-us", icon: "grid", label: t.platforms, color: "from-red-500 to-pink-500" },
                       { href: "/team", icon: "team", label: t.team, color: "from-pink-500 to-rose-500" },
                       { href: "/contact", icon: "mail", label: t.contactUs, color: "from-cyan-500 to-blue-500" },
                       { href: "/faq", icon: "question", label: t.faq, color: "from-teal-500 to-green-500" }
@@ -2918,7 +2934,7 @@ export default function Navbar() {
                               </svg>
                             )}
                             {item.icon === "grid" && (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M3.75 5.25A.75.75 0 014.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75V5.25zm0 9A.75.75 0 014.5 13.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H4.5a.75.75 0 01-.75-.75v-5.25zm9-9A.75.75 0 0113.5 4.5h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75V5.25zm0 9a.75.75 0 01.75-.75h5.25a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75H13.5a.75.75 0 01-.75-.75v-5.25z" />
                               </svg>
                             )}
