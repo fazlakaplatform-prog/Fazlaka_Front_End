@@ -259,7 +259,7 @@ const FontSizeSwitch = ({ fontSize, setFontSize, isRTL }: {
   );
 };
 
-// مكون شريط البحث مع دعم اللغة وتحسينات التصميم
+// مكون شريط البحث المحدث من الكود الثاني
 const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boolean; isRTL: boolean }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -384,20 +384,38 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
           language
         }`;
         
+        const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"]{
+          _id,
+          title,
+          titleEn,
+          language
+        }`;
+        
+        const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"]{
+          _id,
+          title,
+          titleEn,
+          language
+        }`;
+        
         const [
           episodesData, 
           articlesData, 
           playlistsData, 
           faqsData, 
           seasonsData, 
-          teamMembersData
+          teamMembersData,
+          termsData,
+          privacyData
         ] = await Promise.all([
           fetchFromSanity(episodesQuery) as Promise<SearchResult[]>,
           fetchFromSanity(articlesQuery) as Promise<SearchResult[]>,
           fetchFromSanity(playlistsQuery) as Promise<SearchResult[]>,
           fetchFromSanity(faqsQuery) as Promise<FaqResult[]>,
           fetchFromSanity(seasonsQuery) as Promise<SearchResult[]>,
-          fetchFromSanity(teamMembersQuery) as Promise<TeamMemberResult[]>
+          fetchFromSanity(teamMembersQuery) as Promise<TeamMemberResult[]>,
+          fetchFromSanity(termsQuery) as Promise<SearchResult[]>,
+          fetchFromSanity(privacyQuery) as Promise<SearchResult[]>
         ]);
         
         // فلترة البيانات حسب اللغة الحالية فقط
@@ -433,7 +451,17 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
           // فلترة أعضاء الفريق حسب اللغة
           ...teamMembersData
             .filter((item: TeamMemberResult) => item.language === currentLanguage)
-            .map((item: TeamMemberResult) => isRTL ? item.name || '' : (item.nameEn || item.name || ''))
+            .map((item: TeamMemberResult) => isRTL ? item.name || '' : (item.nameEn || item.name || '')),
+          
+          // فلترة الشروط والأحكام حسب اللغة
+          ...termsData
+            .filter((item: SearchResult) => item.language === currentLanguage)
+            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || '')),
+          
+          // فلترة سياسة الخصوصية حسب اللغة
+          ...privacyData
+            .filter((item: SearchResult) => item.language === currentLanguage)
+            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || ''))
         ];
         
         // فلترة المصفوفة لإزالة أي قيم فارغة أو undefined
@@ -855,6 +883,11 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
   };
   
   const getImageUrl = (result: SearchResult): string => {
+    // للأنواع التي لا يجب أن يكون لها صور (FAQ, Terms, Privacy) نرجع سلسلة فارغة
+    if (result._type === "faq" || result._type === "terms" || result._type === "privacy") {
+      return "";
+    }
+    
     try {
       if (result.thumbnail) {
         const url = buildSearchMediaUrl(result.thumbnail);
@@ -870,13 +903,6 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
       }
       if (result._type === "playlist" && result.imageUrl) {
         return result.imageUrl;
-      }
-      
-      if (result._type === "terms") {
-        return "/images/terms-default.jpg";
-      }
-      if (result._type === "privacy") {
-        return "/images/privacy-default.jpg";
       }
       
       return "/placeholder.png";
@@ -1069,6 +1095,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
                         {renderHighlighted(getDisplayText(result), query)}
                       </p>
                     </div>
+                    {/* عرض الصورة فقط للأنواع التي تدعم الصور */}
                     {getImageUrl(result) && (
                       <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
                         <Image
@@ -1115,6 +1142,9 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
     </div>
   );
 };
+
+// ... باقي المكونات (DarkModeSwitch, LanguageSwitch, SettingsDropdown, NotificationButton, إلخ)
+// تبقى كما هي بدون تغيير من الكود الأول
 
 // مكون تبديل الوضع الداكن
 const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDarkMode: () => void }) => {
@@ -1448,6 +1478,9 @@ const SettingsDropdown = ({
     </div>
   );
 };
+
+// ... باقي المكونات (MobileSettingsDropdown, MobileSettingsMenu, NotificationButton) 
+// تبقى كما هي بدون تغيير من الكود الأول
 
 // مكون الإعدادات للقائمة الجانبية في الموبايل
 const MobileSettingsDropdown = ({ 
@@ -2424,7 +2457,7 @@ export default function Navbar() {
                   className={`px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                    <path d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
                   </svg>
                   {t.about}
                   <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-300 ${aboutOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
@@ -2443,7 +2476,7 @@ export default function Navbar() {
                       <div className="p-1">
                         <Link href="/about" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 group-hover:text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
                           </svg>
                           <span className="text-sm font-medium">{t.whoWeAre}</span>
                         </Link>
@@ -2501,7 +2534,7 @@ export default function Navbar() {
                         </Link>
                         <Link href="/faq" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 group">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 group-hover:text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0118 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
                           </svg>
                           <span className="text-sm font-medium">{t.faq}</span>
                         </Link>
@@ -2511,7 +2544,7 @@ export default function Navbar() {
                 </AnimatePresence>
               </div>
               
-              {/* قسم البحث */}
+              {/* قسم البحث المحدث */}
               <div className="relative">
                 <SearchBar isRTL={isRTL} />
               </div>
@@ -2804,7 +2837,7 @@ export default function Navbar() {
                   </SignedIn>
                 </div>
                 
-                {/* شريط البحث */}
+                {/* شريط البحث المحدث */}
                 <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
                   <SearchBar initialExpanded={true} isRTL={isRTL} />
                 </div>
