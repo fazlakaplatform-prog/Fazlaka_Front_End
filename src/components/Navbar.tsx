@@ -122,7 +122,8 @@ const translations = {
     darkMode: "تبديل الوضع الليلي",
     language: "تبديل اللغة",
     copyright: "© {year} فذلكة",
-    PlatformMame: "فذلكة"
+    PlatformMame: "فذلكة",
+    settings: "الإعدادات"
 
   },
   en: {
@@ -167,6 +168,7 @@ const translations = {
     language: "Toggle Language",
     copyright: "© {year} Fazlaka",
     PlatformMame: "Fazlaka",
+    settings: "Settings"
   }
 };
 
@@ -774,7 +776,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
         return (
           <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl shadow-sm">
             <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 100-6 3 3 0 000 6zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 100-6 3 3 0 000 6zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
         );
@@ -1111,7 +1113,7 @@ const DarkModeSwitch = ({ isDark, toggleDarkMode }: { isDark: boolean; toggleDar
         transition={{ duration: 0.5 }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 00-1-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707+.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 00-1-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
         </svg>
       </motion.div>
       
@@ -1270,6 +1272,220 @@ const LanguageSwitch = ({ isRTL, toggleLanguage }: { isRTL: boolean; toggleLangu
         <div className="absolute inset-0 rounded-full bg-emerald-400 opacity-30 blur-md"></div>
       </div>
     </motion.button>
+  );
+};
+
+// مكون الإعدادات الرئيسي الذي يجمع الوضع الداكن واللغة
+const SettingsDropdown = ({ 
+  isDark, 
+  toggleDarkMode, 
+  isRTL, 
+  toggleLanguage 
+}: { 
+  isDark: boolean; 
+  toggleDarkMode: () => void;
+  isRTL: boolean;
+  toggleLanguage: () => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const t = translations[isRTL ? 'ar' : 'en'];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={settingsRef}>
+      <motion.button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        aria-label={t.settings}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+        </svg>
+      </motion.button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50`}
+          >
+            {/* رأس الإعدادات */}
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    {t.settings}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {isRTL ? 'تخصيص تجربتك' : 'Customize your experience'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* خيارات الإعدادات */}
+            <div className="p-2 space-y-2">
+              {/* تبديل الوضع الداكن */}
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path d={isDark ? "M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" : "M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"} />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t.darkMode}
+                  </span>
+                </div>
+                <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
+              </div>
+
+              {/* تبديل اللغة */}
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 11-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t.language}
+                  </span>
+                </div>
+                <LanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
+              </div>
+            </div>
+
+            {/* تذييل الإعدادات */}
+            <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                {isRTL ? 'سيتم حفظ تفضيلاتك تلقائياً' : 'Your preferences will be saved automatically'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// مكون الإعدادات للقائمة الجانبية في الموبايل
+const MobileSettingsDropdown = ({ 
+  isDark, 
+  toggleDarkMode, 
+  isRTL, 
+  toggleLanguage 
+}: { 
+  isDark: boolean; 
+  toggleDarkMode: () => void;
+  isRTL: boolean;
+  toggleLanguage: () => void;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const t = translations[isRTL ? 'ar' : 'en'];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.25 }}
+      className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4"
+    >
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
+      >
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <span className="text-lg font-medium text-gray-900 dark:text-white">
+            {t.settings}
+          </span>
+          <div className="h-0.5 w-0 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></div>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-gray-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="py-4 space-y-4">
+              {/* الوضع الداكن */}
+              <div className="flex items-center justify-between px-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path d={isDark ? "M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" : "M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"} />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-lg font-medium text-gray-900 dark:text-white">
+                      {t.darkMode}
+                    </span>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {isRTL ? 'تغيير مظهر التطبيق' : 'Change app appearance'}
+                    </p>
+                  </div>
+                </div>
+                <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
+              </div>
+
+              {/* اللغة */}
+              <div className="flex items-center justify-between px-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 11-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-lg font-medium text-gray-900 dark:text-white">
+                      {t.language}
+                    </span>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {isRTL ? 'تغيير لغة الواجهة' : 'Change interface language'}
+                    </p>
+                  </div>
+                </div>
+                <LanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -2094,11 +2310,13 @@ export default function Navbar() {
           
           {/* القسم الأيمن - الوضع الداكن واللغة والحساب */}
           <div className="flex items-center space-x-1">
-            {/* أيقونة الوضع الداكن */}
-            <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
-            
-            {/* أيقونة تبديل اللغة - بنفس حجم زر الوضع الليلي */}
-            <LanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
+            {/* زر الإعدادات الجديد بدلاً من الأزرار الفردية */}
+            <SettingsDropdown 
+              isDark={isDark}
+              toggleDarkMode={toggleDarkMode}
+              isRTL={isRTL}
+              toggleLanguage={toggleLanguage}
+            />
             
             <SignedOut>
               <div className="flex items-center space-x-1">
@@ -2257,10 +2475,15 @@ export default function Navbar() {
             </Link>
           </div>
           
-          {/* القسم الأيمن - الأزرار (تم إزالة زر تبديل اللغة) */}
+          {/* القسم الأيمن - الأزرار (تم إضافة زر الإعدادات) */}
           <div className="flex items-center space-x-2">
-            {/* أيقونة الوضع الداكن */}
-            <DarkModeSwitch isDark={isDark} toggleDarkMode={toggleDarkMode} />
+            {/* زر الإعدادات الجديد بدلاً من زر الوضع الداكن */}
+            <SettingsDropdown 
+              isDark={isDark}
+              toggleDarkMode={toggleDarkMode}
+              isRTL={isRTL}
+              toggleLanguage={toggleLanguage}
+            />
             
             {/* زر القائمة */}
             <button
@@ -2437,8 +2660,14 @@ export default function Navbar() {
                         </Link>
                       </motion.div>
                     ))}
-                    {/* إضافة زر تبديل اللغة في قائمة الموبايل */}
-                    <MobileLanguageSwitch isRTL={isRTL} toggleLanguage={toggleLanguage} />
+                    
+                    {/* إضافة مكون الإعدادات للقائمة الجانبية */}
+                    <MobileSettingsDropdown 
+                      isDark={isDark}
+                      toggleDarkMode={toggleDarkMode}
+                      isRTL={isRTL}
+                      toggleLanguage={toggleLanguage}
+                    />
                     
                     {/* إضافة رابط الإشعارات في قائمة الموبايل */}
                     <SignedIn>
