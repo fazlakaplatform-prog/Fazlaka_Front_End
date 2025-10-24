@@ -8,7 +8,7 @@ import rehypeSanitize from "rehype-sanitize";
 import { useParams, useRouter } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
-import { UserResource } from "@clerk/types"; // Import the correct User type
+import { UserResource } from "@clerk/types";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -17,11 +17,10 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 import { client, urlForImage, fetchFromSanity, fetchArrayFromSanity } from "@/lib/sanity";
-import FavoriteButton from "@/components/FavoriteButton";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getLocalizedText } from "@/lib/sanity";
 
-import { FaPlay, FaShare, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive, FaReply, FaTrash } from "react-icons/fa";
+import { FaPlay, FaShare, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive, FaReply, FaTrash, FaHeart, FaBookmark } from "react-icons/fa";
 
 // تعريف الأنواع مباشرة في الملف مع دعم اللغة
 interface SanityImage {
@@ -158,7 +157,15 @@ const translations = {
     replying: "جاري الرد...",
     noReplies: "لا توجد ردود بعد",
     showReplies: "عرض الردود",
-    hideReplies: "إخفاء الردود"
+    hideReplies: "إخفاء الردود",
+    // ترجمات جديدة للأزرار
+    like: "إعجاب",
+    liked: "تم الإعجاب",
+    shareEpisode: "مشاركة الحلقة",
+    commentEpisode: "تعليق على الحلقة",
+    saveEpisode: "حفظ الحلقة",
+    savedEpisode: "تم الحفظ",
+    interactWithEpisode: "تفاعل مع الحلقة"
   },
   en: {
     loading: "Loading...",
@@ -209,7 +216,15 @@ const translations = {
     replying: "Replying...",
     noReplies: "No replies yet",
     showReplies: "Show replies",
-    hideReplies: "Hide replies"
+    hideReplies: "Hide replies",
+    // ترجمات جديدة للأزرار
+    like: "Like",
+    liked: "Liked",
+    shareEpisode: "Share Episode",
+    commentEpisode: "Comment on Episode",
+    saveEpisode: "Save Episode",
+    savedEpisode: "Saved",
+    interactWithEpisode: "Interact with Episode"
   }
 };
 
@@ -358,7 +373,7 @@ function CommentItem({
   isRTL: boolean;
   language: 'ar' | 'en';
   t: typeof translations.ar | typeof translations.en;
-  user: UserResource | null; // Fixed: Using UserResource from @clerk/types
+  user: UserResource | null;
   contentId: string;
   type: "article" | "episode";
 }) {
@@ -887,7 +902,7 @@ function CommentsClient({
               isRTL={isRTL}
               language={language}
               t={t}
-              user={user || null} // Fixed: Convert undefined to null
+              user={user || null}
               contentId={contentId}
               type={type}
             />
@@ -898,10 +913,332 @@ function CommentsClient({
   );
 }
 
+// مكون FavoriteButton المحسّن
+function FavoriteButton({ contentId, contentType, isFavorite, onToggle }: { 
+  contentId: string; 
+  contentType: "episode" | "article"; 
+  isFavorite: boolean;
+  onToggle: () => void;
+}) {
+  const { user } = useUser();
+  const { language } = useLanguage();
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // نصوص التطبيق حسب اللغة
+  const texts = {
+    ar: {
+      addToFavorites: "إضافة للمفضلة",
+      removeFromFavorites: "إزالة من المفضلة",
+      errorMessage: "حدث خطأ أثناء تحديث المفضلة. يرجى المحاولة مرة أخرى."
+    },
+    en: {
+      addToFavorites: "Add to favorites",
+      removeFromFavorites: "Remove from favorites",
+      errorMessage: "An error occurred while updating favorites. Please try again."
+    }
+  };
+
+  const t = texts[language];
+
+  useEffect(() => {
+    if (user) {
+      setLoading(false);
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  async function handleToggle() {
+    if (!user || actionLoading) return;
+    
+    setActionLoading(true);
+    
+    try {
+      const method = isFavorite ? "DELETE" : "POST";
+      const response = await fetch(`/api/favorites`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          contentId,
+          contentType,
+        }),
+      });
+
+      if (response.ok) {
+        onToggle();
+      } else {
+        const errorData = await response.json();
+        console.error("Error toggling favorite:", errorData);
+        alert(t.errorMessage);
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      alert(t.errorMessage);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  if (loading) return null;
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={actionLoading}
+      aria-label={isFavorite ? t.removeFromFavorites : t.addToFavorites}
+      className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 overflow-hidden"
+    >
+      {/* خلفية متدرجة */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${isFavorite ? 'from-red-500 to-pink-600' : 'from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800'} transition-all duration-500`}></div>
+      
+      {/* تأثير اللمعان */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      
+      {/* تأثير الحركة عند التفعيل */}
+      {isFavorite && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-full h-full rounded-full bg-red-500/30 animate-ping"></div>
+        </div>
+      )}
+      
+      {/* الأيقونة */}
+      <div className="relative z-10 flex items-center justify-center">
+        {actionLoading ? (
+          <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        ) : (
+          <svg 
+            className={`w-5 h-5 md:w-6 md:h-6 transition-all duration-300 ${isFavorite ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`} 
+            fill={isFavorite ? "currentColor" : "none"} 
+            stroke={isFavorite ? "white" : "currentColor"}
+            strokeWidth={isFavorite ? 0 : 2}
+            viewBox="0 0 24 24"
+          >
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        )}
+      </div>
+      
+      {/* تأثير النبض عند التفعيل */}
+      {isFavorite && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+      )}
+    </button>
+  );
+}
+
+// مكون الأزرار المحسّن
+function ActionButtons({ 
+  contentId, 
+  contentType, 
+  title, 
+  onCommentClick,
+  isFavorite,
+  onToggleFavorite
+}: { 
+  contentId: string; 
+  contentType: "episode" | "article"; 
+  title: string;
+  onCommentClick: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+}) {
+  const { user } = useUser();
+  const { isRTL, language } = useLanguage();
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+
+  // نصوص التطبيق حسب اللغة
+  const texts = {
+    ar: {
+      share: "مشاركة",
+      comment: "تعليق",
+      bookmark: "حفظ",
+      bookmarked: "تم الحفظ",
+      errorMessage: "حدث خطأ. يرجى المحاولة مرة أخرى."
+    },
+    en: {
+      share: "Share",
+      comment: "Comment",
+      bookmark: "Bookmark",
+      bookmarked: "Bookmarked",
+      errorMessage: "An error occurred. Please try again."
+    }
+  };
+
+  const t = texts[language];
+
+  const handleShare = () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({
+        title,
+        url: window.location.href,
+      });
+    } else {
+      // نسخ الرابط إلى الحافظة كبديل
+      navigator.clipboard.writeText(window.location.href);
+      alert("تم نسخ الرابط إلى الحافظة");
+    }
+  };
+
+  const handleBookmark = () => {
+    if (!user || bookmarkLoading) return;
+    
+    setBookmarkLoading(true);
+    
+    // محاكاة عملية الحفظ
+    setTimeout(() => {
+      setIsBookmarked(!isBookmarked);
+      setBookmarkLoading(false);
+    }, 1000);
+  };
+
+  return (
+    <div className="relative bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-800 dark:via-slate-750 dark:to-slate-800 rounded-3xl p-6 md:p-8 border border-slate-200/60 dark:border-slate-700/60 shadow-xl overflow-hidden">
+      {/* تأثيرات الإضاءة الخلفية */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/10 rounded-full filter blur-3xl"></div>
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-400/10 rounded-full filter blur-3xl"></div>
+      
+      {/* عنوان القسم */}
+      <div className="relative flex items-center justify-center mb-8">
+        <div className="h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent flex-grow"></div>
+        <h3 className="px-6 text-xl font-bold bg-gradient-to-r from-slate-700 dark:from-slate-300 to-slate-900 dark:to-slate-100 bg-clip-text text-transparent">
+          {translations[language].interactWithEpisode}
+        </h3>
+        <div className="h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent flex-grow"></div>
+      </div>
+      
+      {/* الأزرار مع العناوين */}
+      <div className="relative flex flex-wrap items-center justify-center gap-6 md:gap-8">
+        {/* زر الإعجاب */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-500 rounded-full blur-lg opacity-0 group-hover:opacity-40 transition-all duration-500"></div>
+            <FavoriteButton 
+              contentId={contentId} 
+              contentType={contentType} 
+              isFavorite={isFavorite}
+              onToggle={onToggleFavorite}
+            />
+          </div>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {isFavorite ? translations[language].liked : translations[language].like}
+          </span>
+        </div>
+        
+        {/* زر المشاركة */}
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={handleShare}
+            className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-hidden"
+          >
+            {/* خلفية متدرجة */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 transition-all duration-500"></div>
+            
+            {/* تأثير اللمعان */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            {/* الأيقونة */}
+            <div className="relative z-10 flex items-center justify-center">
+              <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.032 4.026a9.001 9.001 0 01-7.432 0m9.032-4.026A9.001 9.001 0 0112 3c-4.474 0-8.268 3.12-9.032 7.326m0 0A9.001 9.001 0 0012 21c4.474 0 8.268-3.12 9.032-7.326" />
+              </svg>
+            </div>
+          </button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {translations[language].shareEpisode}
+          </span>
+        </div>
+        
+        {/* زر التعليق */}
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={onCommentClick}
+            className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-hidden"
+          >
+            {/* خلفية متدرجة */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-amber-600 transition-all duration-500"></div>
+            
+            {/* تأثير اللمعان */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            {/* الأيقونة */}
+            <div className="relative z-10 flex items-center justify-center">
+              <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+          </button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {translations[language].commentEpisode}
+          </span>
+        </div>
+        
+        {/* زر الحفظ */}
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={handleBookmark}
+            disabled={bookmarkLoading}
+            className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-hidden disabled:opacity-50"
+          >
+            {/* خلفية متدرجة */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${isBookmarked ? 'from-emerald-500 to-emerald-600' : 'from-slate-400 to-slate-500'} transition-all duration-500`}></div>
+            
+            {/* تأثير اللمعان */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            {/* تأثير الحركة عند التفعيل */}
+            {isBookmarked && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-full h-full rounded-full bg-emerald-500/30 animate-ping"></div>
+              </div>
+            )}
+            
+            {/* الأيقونة */}
+            <div className="relative z-10 flex items-center justify-center">
+              {bookmarkLoading ? (
+                <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg 
+                  className={`w-5 h-5 md:w-6 md:h-6 transition-all duration-300 text-white`} 
+                  fill={isBookmarked ? "currentColor" : "none"} 
+                  stroke="white"
+                  strokeWidth={isBookmarked ? 0 : 2}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                </svg>
+              )}
+            </div>
+            
+            {/* تأثير النبض عند التفعيل */}
+            {isBookmarked && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+            )}
+          </button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {isBookmarked ? translations[language].savedEpisode : translations[language].saveEpisode}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EpisodeDetailPageClient() {
   const params = useParams();
   const router = useRouter();
   const { isRTL, language } = useLanguage();
+  const { user } = useUser(); // إضافة useUser hook هنا
   const t = translations[language];
   const rawSlug = params?.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
@@ -910,6 +1247,7 @@ export default function EpisodeDetailPageClient() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
   
   // Swiper navigation refs
   const navPrevRef = useRef<HTMLButtonElement | null>(null);
@@ -1392,6 +1730,7 @@ export default function EpisodeDetailPageClient() {
       setEpisode(null);
       setSuggested([]);
       setArticles([]);
+      setIsFavorite(false);
       try {
         if (!slug) {
           setError(t.error);
@@ -1464,6 +1803,25 @@ export default function EpisodeDetailPageClient() {
     };
   }, [slug, language, t.error, t.notFound]);
   
+  // التحقق من حالة المفضلة
+  useEffect(() => {
+    if (user && episode) {
+      const checkFavorite = async () => {
+        try {
+          const response = await fetch(`/api/favorites?userId=${user.id}&contentId=${episode._id}&contentType=episode`);
+          if (response.ok) {
+            const data = await response.json();
+            setIsFavorite(data.isFavorite);
+          }
+        } catch (error) {
+          console.error("Error checking favorite status:", error);
+        }
+      };
+
+      checkFavorite();
+    }
+  }, [user, episode]);
+  
   if (loading)
     return (
       <div className="container mx-auto py-8 text-center">
@@ -1527,6 +1885,10 @@ export default function EpisodeDetailPageClient() {
       month: 'long', 
       day: 'numeric' 
     });
+  };
+  
+  const handleToggleFavorite = () => {
+    setIsFavorite(!isFavorite);
   };
   
   return (
@@ -1633,28 +1995,21 @@ export default function EpisodeDetailPageClient() {
                 </div>
               )}
               
-              {/* Action Buttons */}
-              <div className="mt-4 md:mt-6 flex flex-wrap items-center gap-3 md:gap-4">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <FavoriteButton contentId={episode._id} contentType="episode" />
-                </motion.div>
-                
-                {typeof navigator !== "undefined" && navigator.share && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() =>
-                      navigator.share({
-                        title,
-                        url: window.location.href,
-                      })
+              {/* ACTION BUTTONS - قسم محسّن بالأزرار الجديدة */}
+              <div className="mt-6 md:mt-8">
+                <ActionButtons 
+                  contentId={episode._id} 
+                  contentType="episode" 
+                  title={title}
+                  onCommentClick={() => {
+                    const commentsSection = document.getElementById('comments-section');
+                    if (commentsSection) {
+                      commentsSection.scrollIntoView({ behavior: 'smooth' });
                     }
-                    className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <FaShare className="text-base md:text-lg" />
-                    <span className="font-medium text-sm md:text-base">{t.share}</span>
-                  </motion.button>
-                )}
+                  }}
+                  isFavorite={isFavorite}
+                  onToggleFavorite={handleToggleFavorite}
+                />
               </div>
             </div>
           </motion.section>
@@ -1982,6 +2337,7 @@ export default function EpisodeDetailPageClient() {
           
           {/* COMMENTS SECTION */}
           <motion.section 
+            id="comments-section"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
@@ -2131,6 +2487,16 @@ export default function EpisodeDetailPageClient() {
         }
         .prose[dir="ltr"] h1, .prose[dir="ltr"] h2, .prose[dir="ltr"] h3, .prose[dir="ltr"] h4, .prose[dir="ltr"] h5, .prose[dir="ltr"] h6 {
           text-align: left;
+        }
+        /* تأثيرات الحركة للأزرار */
+        .delay-75 {
+          animation-delay: 75ms;
+        }
+        .delay-150 {
+          animation-delay: 150ms;
+        }
+        .delay-1000 {
+          animation-delay: 1000ms;
         }
       `}</style>
     </div>

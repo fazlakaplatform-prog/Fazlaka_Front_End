@@ -17,9 +17,12 @@ import {
   FaFileAlt,
   FaStar,
   FaHeart,
-  FaFilter
+  FaFilter,
+  FaUser,
+  FaSignInAlt
 } from "react-icons/fa";
 import { client } from "@/lib/sanity";
+import { useUser } from "@clerk/nextjs"; // استخدام هوك Clerk الصحيح
 
 // تعريف نوع موسع للتعامل مع الصور المختلفة
 type PlaylistWithImage = Playlist & {
@@ -89,7 +92,12 @@ const translations = {
     allTypes: "جميع الأنواع",
     withEpisodes: "تحتوي على حلقات",
     withArticles: "تحتوي على مقالات",
-    withBoth: "تحتوي على الاثنين"
+    withBoth: "تحتوي على الاثنين",
+    loginToViewFavorites: "سجل دخولك لعرض المفضلة",
+    loginPrompt: "سجل دخولك لحفظ المحتوى المفضل لديك والوصول إليه بسهولة",
+    signIn: "تسجيل الدخول",
+    noFavoritesYet: "لا توجد عناصر في المفضلة بعد",
+    startAddingFavorites: "ابدأ بإضافة المحتوى الذي يعجبك إلى المفضلة"
   },
   en: {
     loading: "Loading...",
@@ -119,13 +127,21 @@ const translations = {
     allTypes: "All Types",
     withEpisodes: "With Episodes",
     withArticles: "With Articles",
-    withBoth: "With Both"
+    withBoth: "With Both",
+    loginToViewFavorites: "Login to view your favorites",
+    loginPrompt: "Sign in to save your favorite content and access it easily",
+    signIn: "Sign In",
+    noFavoritesYet: "No items in favorites yet",
+    startAddingFavorites: "Start adding content you like to your favorites"
   }
 };
 
 const PlaylistsPage = () => {
   const { isRTL, language } = useLanguage();
   const t = translations[language];
+  
+  // استخدام هوك Clerk الصحيح للحصول على بيانات المستخدم
+  const { isSignedIn, user, isLoaded } = useUser();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("grid");
@@ -157,36 +173,50 @@ const PlaylistsPage = () => {
     fetchPlaylistsData();
   }, [language]);
 
-  // جلب بيانات المفضلة
+  // جلب بيانات المفضلة للمستخدم الحالي
   useEffect(() => {
     async function fetchFavoritesData() {
       try {
-        // جلب الحلقات المفضلة
-        const episodesQuery = `*[_type == "favorite" && episode._ref != null]{
+        // إذا لم يكن المستخدم مسجل دخول، لا نحاول جلب البيانات
+        if (!isSignedIn || !user) {
+          setFavoritesData({
+            episodes: 0,
+            articles: 0,
+            recentItems: []
+          });
+          return;
+        }
+
+        // جلب الحلقات المفضلة للمستخدم الحالي باستخدام معرف Clerk
+        const episodesQuery = `*[_type == "favorite" && userId == $userId && episode._ref != null]{
           episode->{
             _id,
             title,
             titleEn,
+            slug,
             duration,
             publishedAt,
-            language
+            language,
+            thumbnail
           }
         }`;
         
-        // جلب المقالات المفضلة
-        const articlesQuery = `*[_type == "favorite" && article._ref != null]{
+        // جلب المقالات المفضلة للمستخدم الحالي
+        const articlesQuery = `*[_type == "favorite" && userId == $userId && article._ref != null]{
           article->{
             _id,
             title,
             titleEn,
+            slug,
             readTime,
             publishedAt,
-            language
+            language,
+            featuredImage
           }
         }`;
         
-        const episodesData = await client.fetch(episodesQuery);
-        const articlesData = await client.fetch(articlesQuery);
+        const episodesData = await client.fetch(episodesQuery, { userId: user.id });
+        const articlesData = await client.fetch(articlesQuery, { userId: user.id });
         
         const episodes = episodesData.map((item: { episode?: FavoriteEpisode }) => item.episode).filter(Boolean) as FavoriteEpisode[];
         const articles = articlesData.map((item: { article?: FavoriteArticle }) => item.article).filter(Boolean) as FavoriteArticle[];
@@ -195,7 +225,7 @@ const PlaylistsPage = () => {
         const filteredEpisodes = episodes.filter((ep: FavoriteEpisode) => ep.language === language);
         const filteredArticles = articles.filter((art: FavoriteArticle) => art.language === language);
         
-        // جلب أحدث العناصر
+        // جلب أحدث العناصر مع ترتيب حسب تاريخ النشر
         const allItems = [...filteredEpisodes, ...filteredArticles]
           .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
           .slice(0, 3);
@@ -207,13 +237,19 @@ const PlaylistsPage = () => {
         });
       } catch (error) {
         console.error("Error fetching favorites data:", error);
+        setFavoritesData({
+          episodes: 0,
+          articles: 0,
+          recentItems: []
+        });
       }
     }
     
-    if (!loading) {
+    // انتظر حتى يتم تحميل حالة المستخدم من Clerk
+    if (isLoaded && !loading) {
       fetchFavoritesData();
     }
-  }, [loading, language]);
+  }, [loading, isLoaded, isSignedIn, user, language]);
 
   useEffect(() => {
     if (!loading) {
@@ -282,7 +318,8 @@ const PlaylistsPage = () => {
   const totalPlaylistsCount = shouldShowFavoritesInSearch() ? filteredPlaylists.length + 1 : filteredPlaylists.length;
   const originalTotalCount = playlists.length + 1; // +1 للمفضلة
 
-  if (loading) {
+  // عرض حالة التحميل حتى يتم تحميل بيانات المستخدم من Clerk
+  if (loading || !isLoaded) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16">
         <div className="text-center">
@@ -389,8 +426,113 @@ const PlaylistsPage = () => {
     );
   };
 
-  // قائمة المفضلات الثابتة مع إحصائيات مبسطة
+  // قائمة المفضلة الثابتة مع إحصائيات مبسطة
   const FavoritesPlaylist = () => {
+    // إذا لم يكن المستخدم مسجل دخول، عرض بطاقة تسجيل الدخول
+    if (!isSignedIn) {
+      return (
+        <div className="group block border-2 rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-700 transform hover:scale-[1.03] bg-gradient-to-br from-pink-50 via-red-50 to-rose-50 dark:from-pink-900/30 dark:via-red-900/30 dark:to-rose-900/30 border-pink-300 dark:border-pink-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-300/50 relative">
+          {/* خلفية متحركة متعددة الطبقات */}
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 via-red-500/10 to-rose-500/10 dark:from-pink-500/20 dark:via-red-500/20 dark:to-rose-500/20 rounded-2xl"></div>
+          
+          {/* تأثيرات الضوء المتحركة */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+            <div className="absolute bottom-0 left-1/2 w-32 h-32 bg-rose-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+          </div>
+          
+          {/* محتوى البطاقة */}
+          <div className="relative p-6 flex flex-col items-center justify-center h-full min-h-[250px] z-10">
+            {/* أيقونة المستخدم */}
+            <div className="relative mb-4">
+              <div className="absolute inset-0 bg-pink-500/30 rounded-full blur-xl animate-pulse"></div>
+              <div className="relative bg-white dark:bg-gray-800 p-4 rounded-full shadow-lg border-2 border-pink-200 dark:border-pink-700">
+                <FaUser className="h-8 w-8 text-pink-500" />
+              </div>
+            </div>
+            
+            {/* النصوص */}
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              {t.loginToViewFavorites}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+              {t.loginPrompt}
+            </p>
+            
+            {/* زر تسجيل الدخول */}
+            <Link
+              href="/sign-in" // رابط تسجيل الدخول الافتراضي في Clerk
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-pink-500 to-red-500 text-white rounded-full hover:opacity-90 transition-all duration-300 transform hover:scale-105 z-20 relative"
+            >
+              <FaSignInAlt className="mr-2" />
+              {t.signIn}
+            </Link>
+          </div>
+          
+          {/* تأثير التوهج عند التمرير - تم إضافة pointer-events-none */}
+          <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-red-500/20 to-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl pointer-events-none"></div>
+          
+          {/* تأثيرات الحواف المتوهجة - تم إضافة pointer-events-none */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-500/30 via-transparent to-red-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+        </div>
+      );
+    }
+
+    // إذا كان المستخدم مسجل دخول ولكن لا توجد عناصر في المفضلة
+    if (favoritesData.episodes === 0 && favoritesData.articles === 0) {
+      return (
+        <Link
+          href="/favorites"
+          className="group block border-2 rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-700 transform hover:scale-[1.03] bg-gradient-to-br from-pink-50 via-red-50 to-rose-50 dark:from-pink-900/30 dark:via-red-900/30 dark:to-rose-900/30 border-pink-300 dark:border-pink-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-300/50 relative"
+        >
+          {/* خلفية متحركة متعددة الطبقات */}
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 via-red-500/10 to-rose-500/10 dark:from-pink-500/20 dark:via-red-500/20 dark:to-rose-500/20 rounded-2xl"></div>
+          
+          {/* تأثيرات الضوء المتحركة */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+            <div className="absolute bottom-0 left-1/2 w-32 h-32 bg-rose-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+          </div>
+          
+          {/* محتوى البطاقة */}
+          <div className="relative p-6 flex flex-col items-center justify-center h-full min-h-[250px] z-10">
+            {/* أيقونة القلب */}
+            <div className="relative mb-4">
+              <div className="absolute inset-0 bg-pink-500/30 rounded-full blur-xl animate-pulse"></div>
+              <div className="relative bg-white dark:bg-gray-800 p-4 rounded-full shadow-lg border-2 border-pink-200 dark:border-pink-700">
+                <FaHeart className="h-8 w-8 text-pink-500" />
+              </div>
+            </div>
+            
+            {/* النصوص */}
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              {t.myFavorites}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+              {t.noFavoritesYet}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 text-center mb-4">
+              {t.startAddingFavorites}
+            </p>
+            
+            {/* زر عرض المفضلة */}
+            <div className="inline-flex items-center px-4 py-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-pink-600 dark:text-pink-400 rounded-full hover:bg-white dark:hover:bg-gray-800 transition-all duration-300 transform hover:scale-105">
+              {t.viewAll}
+            </div>
+          </div>
+          
+          {/* تأثير التوهج عند التمرير - تم إضافة pointer-events-none */}
+          <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-red-500/20 to-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl pointer-events-none"></div>
+          
+          {/* تأثيرات الحواف المتوهجة - تم إضافة pointer-events-none */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-500/30 via-transparent to-red-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+        </Link>
+      );
+    }
+
+    // إذا كان المستخدم مسجل دخول وتوجد عناصر في المفضلة
     return (
       <Link
         href="/favorites"
@@ -400,14 +542,14 @@ const PlaylistsPage = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 via-red-500/10 to-rose-500/10 dark:from-pink-500/20 dark:via-red-500/20 dark:to-rose-500/20 rounded-2xl"></div>
         
         {/* تأثيرات الضوء المتحركة */}
-        <div className="absolute top-0 left-0 w-full h-full">
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
           <div className="absolute top-0 left-0 w-32 h-32 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
           <div className="absolute bottom-0 left-1/2 w-32 h-32 bg-rose-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
         </div>
         
         {/* محتوى البطاقة */}
-        <div className="relative p-6">
+        <div className="relative p-6 z-10">
           {/* الرأس */}
           <div className="flex items-center gap-3 mb-4">
             <div className="relative">
@@ -471,11 +613,11 @@ const PlaylistsPage = () => {
           )}
         </div>
         
-        {/* تأثير التوهج عند التمرير */}
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-red-500/20 to-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"></div>
+        {/* تأثير التوهج عند التمرير - تم إضافة pointer-events-none */}
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-red-500/20 to-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl pointer-events-none"></div>
         
-        {/* تأثيرات الحواف المتوهجة */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-500/30 via-transparent to-red-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+        {/* تأثيرات الحواف المتوهجة - تم إضافة pointer-events-none */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-500/30 via-transparent to-red-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
       </Link>
     );
   };
@@ -642,8 +784,8 @@ const PlaylistsPage = () => {
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {/* قائمة المفضلة الثابتة - تظهر فقط إذا تطابقت مع البحث */}
-              {shouldShowFavoritesInSearch() && <FavoritesPlaylist />}
+              {/* قائمة المفضلة الثابتة - تظهر دائماً */}
+              <FavoritesPlaylist />
               
               {filteredPlaylists.map((playlist, index) => {
                 const playlistWithImage = playlist as PlaylistWithImage;
@@ -700,60 +842,8 @@ const PlaylistsPage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* قائمة المفضلة الثابتة في وضع القائمة - تظهر فقط إذا تطابقت مع البحث */}
-              {shouldShowFavoritesInSearch() && (
-                <Link
-                  href="/favorites"
-                  className="group flex gap-4 items-center border-2 rounded-xl p-4 shadow-xl hover:shadow-2xl transition-all duration-700 transform hover:scale-[1.01] bg-gradient-to-r from-pink-50 via-red-50 to-rose-50 dark:from-pink-900/30 dark:via-red-900/30 dark:to-rose-900/30 border-pink-300 dark:border-pink-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-300/50 relative"
-                >
-                  {/* خلفية متحركة */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-red-500/10 to-rose-500/10 dark:from-pink-500/20 dark:via-red-500/20 dark:to-rose-500/20 rounded-xl"></div>
-                  
-                  {/* أيقونة القلب */}
-                  <div className="relative flex-shrink-0">
-                    <div className="absolute inset-0 bg-pink-500/30 rounded-full blur-xl animate-pulse"></div>
-                    <div className="relative bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg border-2 border-pink-200 dark:border-pink-700">
-                      <FaHeart className="h-6 w-6 text-pink-500 animate-pulse" />
-                    </div>
-                  </div>
-                  
-                  {/* المحتوى */}
-                  <div className="flex-1 relative">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors duration-300">
-                        {t.myFavorites}
-                      </h2>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      {t.favoriteDescription}
-                    </p>
-                    
-                    {/* الإحصائيات في سطر واحد */}
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <FaVideo className="h-4 w-4 text-blue-500" />
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">{favoritesData.episodes}</span>
-                        <span className="text-gray-600 dark:text-gray-400">{t.episodes}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <FaNewspaper className="h-4 w-4 text-green-500" />
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">{favoritesData.articles}</span>
-                        <span className="text-gray-600 dark:text-gray-400">{t.articles}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* سهم التوجيه */}
-                  <div className="text-gray-400 group-hover:text-pink-500 transition-colors duration-300 relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                  
-                  {/* تأثير التوهج عند التمرير */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-red-500/10 to-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-xl"></div>
-                </Link>
-              )}
+              {/* قائمة المفضلة الثابتة في وضع القائمة - تظهر دائماً */}
+              <FavoritesPlaylist />
               
               {filteredPlaylists.map((playlist, index) => {
                 const playlistWithImage = playlist as PlaylistWithImage;
