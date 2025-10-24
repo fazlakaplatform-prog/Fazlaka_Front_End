@@ -6,6 +6,19 @@ import { client, urlFor } from "@/lib/sanity";
 import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useLanguage } from "@/components/LanguageProvider";
+import { 
+  FaHeart, 
+  FaTimes, 
+  FaSearch, 
+  FaFilter, 
+  FaTh, 
+  FaList, 
+  FaPlay, 
+  FaBookOpen, 
+  FaTrashAlt,
+  FaArrowLeft,
+  FaSpinner
+} from "react-icons/fa";
 
 // Updated Episode interface with proper Sanity image structure
 interface Episode {
@@ -159,7 +172,7 @@ const ConfirmationModal = ({
           
           {/* Modal */}
           <motion.div
-            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6 z-10 dark:shadow-[0_0_30px_rgba(139,92,246,0.3)]"
+            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6 z-10"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -167,16 +180,12 @@ const ConfirmationModal = ({
           >
             {/* Decorative elements */}
             <div className="absolute -top-6 -right-6 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <FaTrashAlt className="h-6 w-6 text-white" />
             </div>
             
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <FaTrashAlt className="h-8 w-8 text-red-600 dark:text-red-400" />
               </div>
               
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t.confirmDelete}</h3>
@@ -215,7 +224,7 @@ export default function FavoritesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [fadeIn, setFadeIn] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   // Respect user motion preferences
   const [reduceMotion, setReduceMotion] = useState(false);
   // Swipe to delete state
@@ -260,7 +269,9 @@ export default function FavoritesPage() {
       minute: "دقيقة",
       minutes: "دقائق",
       minRead: "دقيقة قراءة",
-      minReads: "دقائق قراءة"
+      minReads: "دقائق قراءة",
+      filter: "فلتر",
+      close: "إغلاق"
     },
     en: {
       pageTitle: "My Favorites",
@@ -295,7 +306,9 @@ export default function FavoritesPage() {
       minute: "minute",
       minutes: "minutes",
       minRead: "min read",
-      minReads: "mins read"
+      minReads: "mins read",
+      filter: "Filter",
+      close: "Close"
     }
   };
   
@@ -604,40 +617,23 @@ export default function FavoritesPage() {
     exit: { opacity: 0, x: -100, transition: { duration: 0.3 } },
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showCategoryDropdown) {
-        const target = event.target as Element;
-        if (!target.closest('.category-dropdown')) {
-          setShowCategoryDropdown(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCategoryDropdown]);
-
   if (loading) return (
-    <div className="flex justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-purple-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mx-auto"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-300 font-medium">{t.loadingFavorites}</p>
+        <div className="inline-block animate-bounce bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-full mb-4">
+          <FaSpinner className="text-white text-3xl animate-spin" />
+        </div>
+        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">{t.loadingFavorites}</p>
       </div>
     </div>
   );
   
   if (!user) return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-br from-blue-50 to-purple-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="text-center max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-gray-700 dark:shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="text-center max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-gray-700">
         <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-1">
           <div className="h-full w-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+            <FaHeart className="h-10 w-10 text-blue-600 dark:text-blue-400" />
           </div>
         </div>
         <h3 className="mt-6 text-2xl font-bold text-gray-900 dark:text-gray-100">{t.loginRequired}</h3>
@@ -655,505 +651,177 @@ export default function FavoritesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 dark:from-gray-900 dark:to-gray-800 overflow-x-hidden">
-      {/* Enhanced Hero Section with Multiple Waves */}
-      <motion.div 
-        className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 dark:from-blue-800 dark:via-purple-800 dark:to-indigo-900 text-white pt-24"
-        initial="hidden"
-        animate="visible"
-        variants={heroVariants}
-      >
-        {/* Enhanced background with more colorful elements */}
-        <div className="absolute inset-0 bg-black opacity-20"></div>
-        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
-          {/* Larger, more colorful gradient orbs */}
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-40 animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-40 animate-pulse"></div>
-          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-r from-indigo-400 to-blue-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
-          
-          {/* Additional colorful elements */}
-          <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulse"></div>
-          <div className="absolute bottom-1/3 left-1/3 w-72 h-72 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-25 animate-pulse"></div>
-          
-          {/* Multiple Animated Lines */}
-          <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.3" />
-              </linearGradient>
-              <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#EC4899" stopOpacity="0.2" />
-              </linearGradient>
-              <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#6366F1" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.25" />
-              </linearGradient>
-            </defs>
-            <motion.path 
-              d="M0,100 Q150,50 300,100 T600,100" 
-              stroke="url(#grad1)" 
-              strokeWidth="2" 
-              fill="none"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.7 }}
-              transition={{ duration: 2, delay: 0.5 }}
-            />
-            <motion.path 
-              d="M0,200 Q200,150 400,200 T800,200" 
-              stroke="url(#grad2)" 
-              strokeWidth="2" 
-              fill="none"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.5 }}
-              transition={{ duration: 2, delay: 0.7 }}
-            />
-            <motion.path 
-              d="M0,150 Q180,100 360,150 T720,150" 
-              stroke="url(#grad3)" 
-              strokeWidth="1.5" 
-              fill="none"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.4 }}
-              transition={{ duration: 2, delay: 0.9 }}
-            />
-            <motion.path 
-              d="M0,250 Q220,200 440,250 T880,250" 
-              stroke="url(#grad1)" 
-              strokeWidth="1.5" 
-              fill="none"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.3 }}
-              transition={{ duration: 2, delay: 1.1 }}
-            />
-          </svg>
-          
-          {/* Enhanced Favorite Icons with different colors and animations */}
-          <motion.div 
-            className="absolute top-20 left-10"
-            variants={heartVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-300 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-              </svg>
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-blue-400 opacity-30"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            className="absolute bottom-20 right-10"
-            variants={heartVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ delay: 0.2 }}
-          >
-            <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-purple-300 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-              </svg>
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-purple-400 opacity-30"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-              />
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            className="absolute top-1/3 right-1/4"
-            variants={heartVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ delay: 0.4 }}
-          >
-            <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-300 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-              </svg>
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-red-400 opacity-30"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-              />
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            className="absolute top-1/4 left-1/3"
-            variants={heartVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ delay: 0.6 }}
-          >
-            <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-300 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-              </svg>
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-blue-400 opacity-30"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
-              />
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            className="absolute bottom-1/4 right-1/3"
-            variants={heartVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ delay: 0.8 }}
-          >
-            <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-9 w-9 text-purple-300 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-              </svg>
-              <motion.div 
-                className="absolute inset-0 rounded-full bg-purple-400 opacity-30"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.7 }}
-              />
-            </div>
-          </motion.div>
-          
-          {/* Additional decorative elements */}
-          <motion.div 
-            className="absolute top-1/2 left-1/4"
-            animate={{ 
-              y: [0, -20, 0], 
-              rotate: [0, 5, 0] 
-            }}
-            transition={{ 
-              duration: 5, 
-              repeat: Infinity, 
-              repeatType: "reverse" 
-            }}
-          >
-            <div className="w-4 h-4 bg-yellow-300 rounded-full opacity-60 blur-sm"></div>
-          </motion.div>
-          
-          <motion.div 
-            className="absolute bottom-1/3 right-1/4"
-            animate={{ 
-              y: [0, -15, 0], 
-              rotate: [0, -5, 0] 
-            }}
-            transition={{ 
-              duration: 4, 
-              repeat: Infinity, 
-              repeatType: "reverse",
-              delay: 1
-            }}
-          >
-            <div className="w-3 h-3 bg-pink-300 rounded-full opacity-60 blur-sm"></div>
-          </motion.div>
-          
-          <motion.div 
-            className="absolute top-1/4 right-1/2"
-            animate={{ 
-              y: [0, -10, 0], 
-              rotate: [0, 3, 0] 
-            }}
-            transition={{ 
-              duration: 3, 
-              repeat: Infinity, 
-              repeatType: "reverse",
-              delay: 0.5
-            }}
-          >
-            <div className="w-5 h-5 bg-green-300 rounded-full opacity-50 blur-sm"></div>
-          </motion.div>
-        </div>
-        
-        <div className="relative container mx-auto px-4 py-16 sm:py-24">
-          <div className="text-center">
-            <motion.div 
-              className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-sm rounded-full mb-6 shadow-lg"
-              variants={heroVariants}
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </motion.div>
-            <motion.h1 
-              className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100"
-              variants={heroVariants}
-            >
-              {t.pageTitle}
-            </motion.h1>
-            <motion.p 
-              className="mt-6 max-w-2xl mx-auto text-xl text-blue-100"
-              variants={heroVariants}
-            >
-              {t.pageSubtitle}
-            </motion.p>
-          </div>
-
-          {/* Enhanced Stats Cards with colorful shadows */}
-          <motion.div 
-            className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-3xl mx-auto"
-            variants={heroVariants}
-          >
-            <motion.div 
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center shadow-xl border border-white/20 transform transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/30 dark:hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]"
-              variants={statCardVariants}
-              whileHover="hover"
-            >
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-100 to-white bg-clip-text text-transparent">{favorites.length}</div>
-              <div className="text-blue-100">{t.savedItems}</div>
-              <div className="mt-3 flex justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-              </div>
-              <motion.div 
-                className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-400/20 to-transparent opacity-0"
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.div>
-            
-            <motion.div 
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center shadow-xl border border-white/20 transform transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/30 dark:hover:shadow-[0_0_25px_rgba(139,92,246,0.5)]"
-              variants={statCardVariants}
-              whileHover="hover"
-            >
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-100 to-white bg-clip-text text-transparent">{episodeCount}</div>
-              <div className="text-blue-100">{t.episodes}</div>
-              <div className="mt-3 flex justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <motion.div 
-                className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400/20 to-transparent opacity-0"
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.div>
-            
-            <motion.div 
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center shadow-xl border border-white/20 transform transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/30 dark:hover:shadow-[0_0_25px_rgba(99,102,241,0.5)]"
-              variants={statCardVariants}
-              whileHover="hover"
-            >
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-100 to-white bg-clip-text text-transparent">{articleCount}</div>
-              <div className="text-blue-100">{t.articles}</div>
-              <div className="mt-3 flex justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-              </div>
-              <motion.div 
-                className="absolute inset-0 rounded-2xl bg-gradient-to-r from-indigo-400/20 to-transparent opacity-0"
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.div>
-          </motion.div>
-        </div>
-      </motion.div>
-
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 relative">
-        {/* Search and Filters Section - Removed Glow Effects */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="container mx-auto py-4 px-4 max-w-7xl">
+        {/* Back button for mobile */}
         <motion.div 
-          className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 mb-8 border border-gray-100 dark:border-gray-700 relative overflow-hidden"
+          className="mb-4 md:hidden"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+        </motion.div>
+        
+        {/* Enhanced Hero Section with Multiple Waves */}
+        <motion.div 
+          className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 dark:from-blue-800 dark:via-purple-800 dark:to-indigo-900 text-white pt-8 pb-12 rounded-2xl mb-6"
+          initial="hidden"
+          animate="visible"
+          variants={heroVariants}
+        >
+          {/* Enhanced background with more colorful elements */}
+          <div className="absolute inset-0 bg-black opacity-20"></div>
+          <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
+            {/* Larger, more colorful gradient orbs */}
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-40 animate-pulse"></div>
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-40 animate-pulse"></div>
+            <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-r from-indigo-400 to-blue-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
+            
+            {/* Additional colorful elements */}
+            <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulse"></div>
+            <div className="absolute bottom-1/3 left-1/3 w-72 h-72 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full mix-blend-soft-light filter blur-3xl opacity-25 animate-pulse"></div>
+          </div>
+          
+          <div className="relative container mx-auto px-4 py-8">
+            <div className="text-center">
+              <motion.div 
+                className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-sm rounded-full mb-4 shadow-lg"
+                variants={heroVariants}
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <FaHeart className="h-8 w-8" />
+              </motion.div>
+              <motion.h1 
+                className="text-3xl md:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100"
+                variants={heroVariants}
+              >
+                {t.pageTitle}
+              </motion.h1>
+              <motion.p 
+                className="mt-4 max-w-2xl mx-auto text-lg text-blue-100"
+                variants={heroVariants}
+              >
+                {t.pageSubtitle}
+              </motion.p>
+            </div>
+
+            {/* Enhanced Stats Cards with colorful shadows */}
+            <motion.div 
+              className="mt-8 grid grid-cols-3 gap-3 md:gap-4 max-w-3xl mx-auto"
+              variants={heroVariants}
+            >
+              <motion.div 
+                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center shadow-lg border border-white/20"
+                variants={statCardVariants}
+                whileHover="hover"
+              >
+                <div className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-blue-100 to-white bg-clip-text text-transparent">{favorites.length}</div>
+                <div className="text-sm md:text-base text-blue-100">{t.savedItems}</div>
+              </motion.div>
+              
+              <motion.div 
+                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center shadow-lg border border-white/20"
+                variants={statCardVariants}
+                whileHover="hover"
+              >
+                <div className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-purple-100 to-white bg-clip-text text-transparent">{episodeCount}</div>
+                <div className="text-sm md:text-base text-blue-100">{t.episodes}</div>
+              </motion.div>
+              
+              <motion.div 
+                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center shadow-lg border border-white/20"
+                variants={statCardVariants}
+                whileHover="hover"
+              >
+                <div className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-indigo-100 to-white bg-clip-text text-transparent">{articleCount}</div>
+                <div className="text-sm md:text-base text-blue-100">{t.articles}</div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Search and Filters Section */}
+        <motion.div 
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 md:p-5 mb-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="flex-1">
-              <div className="relative max-w-2xl">
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={t.searchPlaceholder}
-                  className="w-full pl-12 pr-12 py-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400 outline-none transition-all duration-300 shadow-lg hover:shadow-xl focus:shadow-2xl"
-                />
-                {/* Clear button on the left */}
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 transition-all duration-200 hover:scale-110"
-                    aria-label={t.clearSearch}
-                    title={t.clearSearch}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-                {/* Search icon on the right */}
-                <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
-              </div>
+          <div className="flex flex-col gap-4">
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                className="w-full pl-12 pr-12 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all duration-300 shadow-sm hover:shadow-md focus:shadow-lg"
+              />
+              {/* Clear button on the left */}
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 transition-all duration-200"
+                  aria-label={t.clearSearch}
+                  title={t.clearSearch}
+                >
+                  <FaTimes className="h-5 w-5" />
+                </button>
+              )}
+              {/* Search icon on the right */}
+              <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500">
+                <FaSearch className="h-5 w-5" />
+              </span>
             </div>
             
-            <div className="flex flex-wrap gap-3 justify-center lg:justify-end">
-              {/* Category Dropdown */}
-              <div className="relative category-dropdown">
-                <button
-                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                  className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-medium transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 hover:from-blue-700 hover:to-purple-700"
+            {/* Filter and View Controls */}
+            <div className="flex items-center justify-between">
+              {/* Filter button for mobile */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowFilterModal(true)}
+                className="md:hidden flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg"
+              >
+                <FaFilter className="h-4 w-4" />
+                <span>{t.filter}</span>
+              </motion.button>
+              
+              {/* Desktop filters */}
+              <div className="hidden md:flex items-center gap-3">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  <span>{t.categories}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showCategoryDropdown && (
-                  <div className={`absolute ${isRTL ? 'right-0' : 'left-0'} mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden`}>
-                    <div className="py-2">
-                      <button
-                        onClick={() => {
-                          setSelectedCategory("all");
-                          setShowCategoryDropdown(false);
-                        }}
-                        className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-3 text-sm transition-colors ${
-                          selectedCategory === "all"
-                            ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-600 dark:text-blue-400"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                        {t.all}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedCategory("episodes");
-                          setShowCategoryDropdown(false);
-                        }}
-                        className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-3 text-sm transition-colors ${
-                          selectedCategory === "episodes"
-                            ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-600 dark:text-blue-400"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        {t.episodesOnly}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedCategory("articles");
-                          setShowCategoryDropdown(false);
-                        }}
-                        className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-3 text-sm transition-colors ${
-                          selectedCategory === "articles"
-                            ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-600 dark:text-blue-400"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
-                        </svg>
-                        {t.articlesOnly}
-                      </button>
-                      
-                      {categories.length > 0 && (
-                        <div className="border-t border-gray-100 dark:border-gray-700 my-2"></div>
-                      )}
-                      
-                      {categories.map((category) => (
-                        <button
-                          key={category}
-                          onClick={() => {
-                            setSelectedCategory(category);
-                            setShowCategoryDropdown(false);
-                          }}
-                          className={`flex items-center w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-3 text-sm transition-colors ${
-                            selectedCategory === category
-                              ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-600 dark:text-blue-400"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h10" />
-                          </svg>
-                          {category}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  <option value="all">{t.all}</option>
+                  <option value="episodes">{t.episodesOnly}</option>
+                  <option value="articles">{t.articlesOnly}</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
               </div>
               
-              <div className="inline-flex items-center rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm transition-all duration-200 ${
-                    viewMode === "grid" 
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md" 
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                  aria-pressed={viewMode === "grid"}
+                  className={`p-2 rounded-lg ${viewMode === "grid" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"}`}
+                  aria-label={t.gridView}
                   title={t.gridView}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zM14 3h7v7h-7V3zM3 14h7v7H3v-7zM14 14h7v7h-7v-7z" />
-                  </svg>
-                  <span className="hidden sm:inline">{t.gridView}</span>
+                  <FaTh className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm transition-all duration-200 ${
-                    viewMode === "list" 
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md" 
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                  aria-pressed={viewMode === "list"}
+                  className={`p-2 rounded-lg ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"}`}
+                  aria-label={t.listView}
                   title={t.listView}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                  <span className="hidden sm:inline">{t.listView}</span>
+                  <FaList className="h-5 w-5" />
                 </button>
               </div>
-              
-              <Link
-                href="/episodes"
-                className="inline-flex items-center px-5 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-sm font-medium transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                title={t.allEpisodes}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isRTL ? 'ml-1' : 'mr-1'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {t.allEpisodes}
-              </Link>
-              <Link
-                href="/articles"
-                className="inline-flex items-center px-5 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl text-sm font-medium transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                title={t.allArticles}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isRTL ? 'ml-1' : 'mr-1'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
-                </svg>
-                {t.allArticles}
-              </Link>
             </div>
           </div>
           
@@ -1171,19 +839,17 @@ export default function FavoritesPage() {
         <div className={`${fadeIn ? "opacity-100" : "opacity-0"} transition-opacity duration-500`}>
           {filteredFavorites.length === 0 ? (
             <motion.div 
-              className="text-center p-12 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-2xl max-w-2xl mx-auto dark:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
+              className="text-center p-8 md:p-12 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-lg max-w-2xl mx-auto"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 p-1">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 md:h-24 md:w-24 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 p-1">
                 <div className="h-full w-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-400 dark:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
+                  <FaHeart className="h-8 w-8 md:h-12 md:w-12 text-blue-400 dark:text-blue-500" />
                 </div>
               </div>
-              <div className="mt-6 text-xl font-medium text-gray-900 dark:text-gray-100">
+              <div className="mt-4 md:mt-6 text-lg md:text-xl font-medium text-gray-900 dark:text-gray-100">
                 {searchTerm || selectedCategory !== "all" ? t.noMatchingFavorites : t.noFavorites}
               </div>
               <div className="mt-2 text-gray-500 dark:text-gray-400">
@@ -1192,16 +858,16 @@ export default function FavoritesPage() {
                   : t.addFavorites}
               </div>
               {!searchTerm && selectedCategory === "all" && (
-                <div className="mt-8 flex flex-wrap justify-center gap-4">
+                <div className="mt-6 md:mt-8 flex flex-wrap justify-center gap-4">
                   <Link
                     href="/episodes"
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition hover:scale-105"
+                    className="inline-flex items-center px-4 py-2 md:px-6 md:py-3 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition hover:scale-105"
                   >
                     {t.exploreEpisodes}
                   </Link>
                   <Link
                     href="/articles"
-                    className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-full shadow-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform transition hover:scale-105"
+                    className="inline-flex items-center px-4 py-2 md:px-6 md:py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-full shadow-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform transition hover:scale-105"
                   >
                     {t.exploreArticles}
                   </Link>
@@ -1209,7 +875,7 @@ export default function FavoritesPage() {
               )}
             </motion.div>
           ) : viewMode === "grid" ? (
-            <motion.div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" layout variants={listVariants} initial="hidden" animate="visible">
+            <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" layout variants={listVariants} initial="hidden" animate="visible">
               <AnimatePresence initial={false}>
                 {filteredFavorites.map((item) => {
                   const itemUrl = getItemUrl(item);
@@ -1232,9 +898,9 @@ export default function FavoritesPage() {
                     >
                       {/* Enhanced Card with Glassmorphism and Glow Effects */}
                       <motion.div
-                        className="relative overflow-hidden rounded-3xl border border-gray-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex flex-col group dark:shadow-[0_0_25px_rgba(99,102,241,0.15)] hover:dark:shadow-[0_0_35px_rgba(99,102,241,0.25)]"
+                        className="relative overflow-hidden rounded-xl border border-gray-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-500 flex flex-col group"
                         whileHover={{ 
-                          y: -8,
+                          y: -5,
                           scale: 1.02,
                         }}
                         transition={{ 
@@ -1246,11 +912,8 @@ export default function FavoritesPage() {
                         {/* Shimmer/Gloss Effect */}
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none"></div>
                         
-                        {/* Glow Effect on Hover */}
-                        <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-                        
                         <Link href={itemUrl} className="group block flex-1">
-                          <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden rounded-t-3xl">
+                          <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden rounded-t-xl">
                             <Image 
                               src={thumbnailUrl} 
                               alt={itemTitle} 
@@ -1261,48 +924,37 @@ export default function FavoritesPage() {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-500">
                               <motion.div 
-                                className="rounded-full bg-black/60 backdrop-blur-sm p-4"
+                                className="rounded-full bg-black/60 backdrop-blur-sm p-3 md:p-4"
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ duration: 0.3, delay: 0.1 }}
                               >
                                 {/* Different icon for articles vs episodes */}
                                 {isEpisodeItem ? (
-                                  <svg viewBox="0 0 24 24" className="h-10 w-10 text-white fill-current">
-                                    <path d="M5 3v18l15-9L5 3z" />
-                                  </svg>
+                                  <FaPlay className="h-6 w-6 md:h-8 md:w-8 text-white" />
                                 ) : (
-                                  <svg viewBox="0 0 24 24" className="h-10 w-10 text-white fill-current" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                  </svg>
+                                  <FaBookOpen className="h-6 w-6 md:h-8 md:w-8 text-white" />
                                 )}
                               </motion.div>
                             </div>
                             
                             {/* Enhanced Type Badge */}
-                            <div className="absolute top-4 right-4">
+                            <div className="absolute top-3 right-3">
                               <motion.div 
-                                className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-bold backdrop-blur-sm shadow-lg ${
+                                className={`inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 rounded-full text-xs font-bold backdrop-blur-sm shadow-lg ${
                                   isEpisodeItem 
-                                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-indigo-500/50" 
-                                    : "bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-purple-500/50"
+                                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white" 
+                                    : "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
                                 }`}
                                 whileHover={{ scale: 1.1 }}
                                 transition={{ type: "spring", stiffness: 400 }}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  {isEpisodeItem ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                  ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
-                                  )}
-                                </svg>
                                 {isEpisodeItem ? t.episode : t.article}
                               </motion.div>
                             </div>
                           </div>
-                          <div className="p-6">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 line-clamp-2 mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300">
+                          <div className="p-4 md:p-6">
+                            <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 line-clamp-2 mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300">
                               {itemTitle}
                             </h3>
                             
@@ -1334,7 +986,7 @@ export default function FavoritesPage() {
                                 {item.categories.slice(0, 2).map((category) => (
                                   <motion.span 
                                     key={category} 
-                                    className="inline-block px-3 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-600 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600"
+                                    className="inline-block px-2 py-1 md:px-3 md:py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full"
                                     whileHover={{ scale: 1.05 }}
                                     transition={{ type: "spring", stiffness: 400 }}
                                   >
@@ -1342,7 +994,7 @@ export default function FavoritesPage() {
                                   </motion.span>
                                 ))}
                                 {item.categories.length > 2 && (
-                                  <span className="inline-block px-3 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-600 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600">
+                                  <span className="inline-block px-2 py-1 md:px-3 md:py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
                                     +{item.categories.length - 2}
                                   </span>
                                 )}
@@ -1350,7 +1002,7 @@ export default function FavoritesPage() {
                             )}
                           </div>
                         </Link>
-                        <div className="mt-auto px-6 pb-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div className="mt-auto px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"></div>
                           <div className="flex items-center gap-2">
                             {/* Enhanced Delete Button */}
@@ -1359,20 +1011,14 @@ export default function FavoritesPage() {
                                 setItemToDelete({ id: item._id, type: isEpisodeItem ? "episode" : "article", title: itemTitle });
                                 setShowConfirmModal(true);
                               }}
-                              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/30 text-red-600 dark:text-red-200 border border-red-200 dark:border-red-800/30 hover:from-red-100 hover:to-red-200 dark:hover:from-red-900/30 dark:hover:to-red-900/40 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-300 shadow-md hover:shadow-lg"
+                              className="inline-flex items-center justify-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 border border-red-200 dark:border-red-800/30 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-300"
                               aria-label={language === 'ar' ? "حذف من المفضلات" : "Remove from favorites"}
                               title={t.remove}
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 6h18" />
-                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                <path d="M10 11v6" />
-                                <path d="M14 11v6" />
-                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                              </svg>
-                              <span className="text-sm font-medium">{t.remove}</span>
+                              <FaTrashAlt className="h-4 w-4" />
+                              <span className="hidden sm:inline text-sm font-medium">{t.remove}</span>
                             </motion.button>
                           </div>
                         </div>
@@ -1407,22 +1053,20 @@ export default function FavoritesPage() {
                     >
                       {/* Delete background that appears when swiping left OR right */}
                       <motion.div 
-                        className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-600 rounded-3xl flex items-center justify-center z-0 shadow-2xl"
+                        className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center z-0 shadow-lg"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: isSwiped ? 1 : 0 }}
                         transition={{ duration: 0.2 }}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-white font-bold text-lg">{t.remove}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          <FaTrashAlt className="h-6 w-6 text-white" />
                         </div>
                       </motion.div>
                       
                       {/* Enhanced List Item */}
                       <motion.div
-                        className="relative flex gap-6 items-center border border-gray-200/50 dark:border-gray-700/50 rounded-3xl overflow-hidden p-2 hover:shadow-2xl transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl group dark:shadow-[0_0_25px_rgba(99,102,241,0.15)] hover:dark:shadow-[0_0_35px_rgba(99,102,241,0.25)] z-10"
+                        className="relative flex gap-4 items-center border border-gray-200/50 dark:border-gray-700/50 rounded-xl overflow-hidden p-3 md:p-4 hover:shadow-lg transition-all duration-500 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl group z-10"
                         drag={isMobile ? "x" : false}
                         dragConstraints={{ left: 0, right: 0 }}
                         dragElastic={0.1}
@@ -1443,10 +1087,10 @@ export default function FavoritesPage() {
                         }}
                       >
                         {/* Shimmer Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none rounded-3xl"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none rounded-xl"></div>
                         
-                        <Link href={itemUrl} className="flex items-center gap-6 flex-1 group">
-                          <div className="relative w-48 h-32 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded-2xl overflow-hidden shadow-lg">
+                        <Link href={itemUrl} className="flex items-center gap-4 flex-1 group">
+                          <div className="relative w-24 h-16 md:w-32 md:h-20 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden shadow-md">
                             <Image 
                               src={thumbnailUrl} 
                               alt={itemTitle} 
@@ -1457,48 +1101,37 @@ export default function FavoritesPage() {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-500">
                               <motion.div 
-                                className="rounded-full bg-black/60 backdrop-blur-sm p-3"
+                                className="rounded-full bg-black/60 backdrop-blur-sm p-2"
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ duration: 0.3, delay: 0.1 }}
                               >
                                 {/* Different icon for articles vs episodes */}
                                 {isEpisodeItem ? (
-                                  <svg viewBox="0 0 24 24" className="h-8 w-8 text-white fill-current">
-                                    <path d="M5 3v18l15-9L5 3z" />
-                                  </svg>
+                                  <FaPlay className="h-4 w-4 md:h-6 md:w-6 text-white" />
                                 ) : (
-                                  <svg viewBox="0 0 24 24" className="h-8 w-8 text-white fill-current" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                  </svg>
+                                  <FaBookOpen className="h-4 w-4 md:h-6 md:w-6 text-white" />
                                 )}
                               </motion.div>
                             </div>
                             
                             {/* Enhanced Type Badge */}
-                            <div className="absolute top-3 right-3">
+                            <div className="absolute top-2 right-2">
                               <motion.div 
-                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-sm shadow-lg ${
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold backdrop-blur-sm shadow-lg ${
                                   isEpisodeItem 
-                                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-indigo-500/50" 
-                                    : "bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-purple-500/50"
+                                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white" 
+                                    : "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
                                 }`}
                                 whileHover={{ scale: 1.1 }}
                                 transition={{ type: "spring", stiffness: 400 }}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  {isEpisodeItem ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                  ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4-H7V8z" />
-                                  )}
-                                </svg>
                                 {isEpisodeItem ? t.episode : t.article}
                               </motion.div>
                             </div>
                           </div>
                           <div className="flex-1">
-                            <div className="flex items-center gap-4 mb-3">
+                            <div className="flex items-center gap-4 mb-2">
                               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                                 <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1519,50 +1152,44 @@ export default function FavoritesPage() {
                                 </div>
                               )}
                             </div>
-                            <h3 className="font-bold text-xl text-gray-900 dark:text-gray-100 line-clamp-2 mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300">
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 line-clamp-2 mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300">
                               {itemTitle}
                             </h3>
                             
                             {/* Categories */}
                             {item.categories && item.categories.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {item.categories.slice(0, 3).map((category) => (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {item.categories.slice(0, 2).map((category) => (
                                   <motion.span 
                                     key={category} 
-                                    className="inline-block px-3 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-600 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600"
+                                    className="inline-block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full"
                                     whileHover={{ scale: 1.05 }}
                                     transition={{ type: "spring", stiffness: 400 }}
                                   >
                                     {category}
                                   </motion.span>
                                 ))}
-                                {item.categories.length > 3 && (
-                                  <span className="inline-block px-3 py-1.5 text-xs bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-600 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600">
-                                    +{item.categories.length - 3}
+                                {item.categories.length > 2 && (
+                                  <span className="inline-block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+                                    +{item.categories.length - 2}
                                   </span>
                                 )}
                               </div>
                             )}
                           </div>
                         </Link>
-                        <div className="flex-shrink-0 flex items-center gap-3 px-4">
+                        <div className="flex-shrink-0 flex items-center gap-3 px-2">
                           <motion.button
                             onClick={() => {
                               setItemToDelete({ id: item._id, type: isEpisodeItem ? "episode" : "article", title: itemTitle });
                               setShowConfirmModal(true);
                             }}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/30 text-red-600 dark:text-red-200 border border-red-200 dark:border-red-800/30 hover:from-red-100 hover:to-red-200 dark:hover:from-red-900/30 dark:hover:to-red-900/40 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-300 shadow-md hover:shadow-lg"
+                            className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-200 border border-red-200 dark:border-red-800/30 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-300"
                             aria-label={language === 'ar' ? "حذف من المفضلات" : "Remove from favorites"}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 6h18" />
-                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                              <path d="M10 11v6" />
-                              <path d="M14 11v6" />
-                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                            </svg>
+                            <FaTrashAlt className="h-4 w-4" />
                             <span className="hidden sm:inline text-sm font-medium">{t.remove}</span>
                           </motion.button>
                         </div>
@@ -1584,6 +1211,109 @@ export default function FavoritesPage() {
           )}
         </div>
       </div>
+      
+      {/* Filter Modal for Mobile */}
+      <AnimatePresence>
+        {showFilterModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowFilterModal(false)}
+          >
+            <motion.div
+              className="bg-white dark:bg-gray-800 w-full rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t.filter}</h3>
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                >
+                  <FaTimes className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                </button>
+              </div>
+              
+              {/* Content type filter */}
+              <div className="mb-6">
+                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Content Type</h4>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      setSelectedCategory("all");
+                      setShowFilterModal(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                      selectedCategory === "all" 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                    }`}
+                  >
+                    {t.all}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory("episodes");
+                      setShowFilterModal(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                      selectedCategory === "episodes" 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                    }`}
+                  >
+                    {t.episodesOnly}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory("articles");
+                      setShowFilterModal(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                      selectedCategory === "articles" 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                    }`}
+                  >
+                    {t.articlesOnly}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Categories filter */}
+              {categories.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Categories</h4>
+                  <div className="space-y-2">
+                    {categories.map((category) => (
+                      <button
+                        key={category}
+                        onClick={() => {
+                          setSelectedCategory(category);
+                          setShowFilterModal(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                          selectedCategory === category 
+                            ? "bg-blue-600 text-white" 
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Confirmation Modal */}
       <ConfirmationModal 

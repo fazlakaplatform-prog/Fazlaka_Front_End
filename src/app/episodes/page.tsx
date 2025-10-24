@@ -14,7 +14,7 @@ import {
   FaPlay, 
   FaGraduationCap, 
   FaSearch, FaTimes, FaTh, FaList,
-  FaChevronDown, FaChevronUp, FaRegBookmark
+  FaChevronDown, FaChevronUp, FaRegBookmark, FaFilter
 } from "react-icons/fa";
 
 // تعريف واجهات البيانات مع دعم اللغة
@@ -102,7 +102,8 @@ const translations = {
     noEpisodes: "لم نتمكن من العثور على حلقات تطابق بحثك.",
     clearFilters: "جرب كلمات مفتاحية أخرى أو احذف عوامل التصفية.",
     allEpisodes: "جميع الحلقات",
-    episodesWithoutSeason: "حلقات بدون موسم"
+    episodesWithoutSeason: "حلقات بدون موسم",
+    filterBySeason: "تصفية حسب الموسم"
   },
   en: {
     loading: "Loading...",
@@ -130,7 +131,8 @@ const translations = {
     noEpisodes: "We couldn't find any episodes matching your search.",
     clearFilters: "Try different keywords or clear filters.",
     allEpisodes: "All Episodes",
-    episodesWithoutSeason: "Episodes without season"
+    episodesWithoutSeason: "Episodes without season",
+    filterBySeason: "Filter by season"
   }
 };
 
@@ -214,6 +216,8 @@ export default function EpisodesPageClient() {
   const [openSeasons, setOpenSeasons] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterSeason, setFilterSeason] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -269,12 +273,20 @@ export default function EpisodesPageClient() {
   }
 
   const filteredBySeason = useMemo(() => {
-    if (!searchTerm.trim()) return episodesBySeason;
+    let result = episodesBySeason;
+    
+    // تطبيق فلتر الموسم إذا تم تحديده
+    if (filterSeason && filterSeason !== t.allEpisodes) {
+      result = { [filterSeason]: episodesBySeason[filterSeason] || [] };
+    }
+    
+    // تطبيق البحث
+    if (!searchTerm.trim()) return result;
     const q = searchTerm.trim().toLowerCase();
     const out: Record<string, Episode[]> = {};
     
     // عند البحث، لا نعرض قسم "جميع الحلقات" لتجنب التكرار
-    Object.entries(episodesBySeason).forEach(([season, episodes]) => {
+    Object.entries(result).forEach(([season, episodes]) => {
       // تخطي قسم "جميع الحلقات" عند البحث
       if (season === t.allEpisodes) return;
       
@@ -286,7 +298,7 @@ export default function EpisodesPageClient() {
       if (matches.length > 0) out[season] = matches;
     });
     return out;
-  }, [episodesBySeason, searchTerm, language, t.allEpisodes]);
+  }, [episodesBySeason, searchTerm, language, t.allEpisodes, filterSeason]);
 
   // تم تعديل هذه الدالة لتجاهل قسم "جميع الحلقات" عند العد
   const totalResults = useMemo(
@@ -344,7 +356,7 @@ export default function EpisodesPageClient() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Hero Section */}
-        <div className="relative mb-12 sm:mb-16 overflow-hidden rounded-3xl">
+        <div className="relative mb-8 sm:mb-12 overflow-hidden rounded-3xl">
           {/* الخلفية المتدرجة */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 dark:from-blue-900 dark:via-purple-900 dark:to-indigo-950"></div>
           
@@ -406,8 +418,9 @@ export default function EpisodesPageClient() {
         
         {/* رأس الصفحة */}
         <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full shadow-sm px-3 py-2 border border-gray-100 dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-200 flex-grow">
+          {/* شريط البحث والفلاتر */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full shadow-sm px-3 py-2 border border-gray-100 dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-200">
               <FaSearch className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <input
                 aria-label={t.search}
@@ -429,49 +442,97 @@ export default function EpisodesPageClient() {
             </div>
             
             {/* أزرار التحكم */}
-            <div className="flex gap-2">
-              {/* أزرار تغيير العرض */}
-              <div className="inline-flex items-center rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="flex flex-wrap gap-2 justify-between items-center">
+              <div className="flex gap-2">
+                {/* أزرار تغيير العرض */}
+                <div className="inline-flex items-center rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`flex items-center justify-center p-2 transition ${
+                      viewMode === "grid"
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                    aria-pressed={viewMode === "grid"}
+                    title={t.grid}
+                  >
+                    <FaTh className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`flex items-center justify-center p-2 transition ${
+                      viewMode === "list"
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                    aria-pressed={viewMode === "list"}
+                    title={t.list}
+                  >
+                    <FaList className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
+                  </button>
+                </div>
+                
+                {/* زر الفلاتر */}
                 <button
-                  onClick={() => setViewMode("grid")}
-                  className={`flex items-center justify-center p-2 transition ${
-                    viewMode === "grid"
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`px-3 py-2 rounded-md text-sm transition flex items-center justify-center shadow-md ${
+                    showFilters 
+                      ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white" 
+                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
                   }`}
-                  aria-pressed={viewMode === "grid"}
-                  title={t.grid}
                 >
-                  <FaTh className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`flex items-center justify-center p-2 transition ${
-                    viewMode === "list"
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                  aria-pressed={viewMode === "list"}
-                  title={t.list}
-                >
-                  <FaList className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
+                  <FaFilter className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">{t.filterBySeason}</span>
                 </button>
               </div>
               
-              {/* رابط المفضلة والمقالات والمواسم */}
-              <Link href="/favorites" className="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
-                <FaHeart className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">{t.favorites}</span>
-              </Link>
-              <Link href="/articles" className="px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
-                <FaCalendarAlt className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">{t.articles}</span>
-              </Link>
-              <Link href="/seasons" className="px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
-                <FaCalendarAlt className="h-4 w-4 ml-1" />
-                <span className="text-xs sm:text-sm">{t.seasons}</span>
-              </Link>
+              {/* روابط التنقل */}
+              <div className="flex gap-2">
+                <Link href="/favorites" className="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
+                  <FaHeart className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline">{t.favorites}</span>
+                </Link>
+                <Link href="/articles" className="px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
+                  <FaCalendarAlt className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline">{t.articles}</span>
+                </Link>
+                <Link href="/seasons" className="px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md text-sm hover:opacity-90 transition-opacity flex items-center justify-center shadow-md">
+                  <FaCalendarAlt className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline">{t.seasons}</span>
+                </Link>
+              </div>
             </div>
+            
+            {/* فلتر المواسم */}
+            {showFilters && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-md border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFilterSeason(null)}
+                    className={`px-3 py-1 rounded-full text-sm transition ${
+                      filterSeason === null
+                        ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {t.allEpisodes}
+                  </button>
+                  {Object.keys(episodesBySeason).filter(season => season !== t.allEpisodes).map(season => (
+                    <button
+                      key={season}
+                      onClick={() => setFilterSeason(season)}
+                      className={`px-3 py-1 rounded-full text-sm transition ${
+                        filterSeason === season
+                          ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      {season}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           {/* عدد النتائج */}
@@ -520,7 +581,7 @@ export default function EpisodesPageClient() {
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                   >
                     {searchResults.map((episode: Episode) => {
                       const slug = episode.slug?.current || episode._id;
@@ -705,7 +766,7 @@ export default function EpisodesPageClient() {
                         style={{ overflow: "hidden" }}
                         className="px-4"
                       >
-                        <motion.div layout className={`py-4 ${viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-4"}`}>
+                        <motion.div layout className={`py-4 ${viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "space-y-4"}`}>
                           {episodes.map((episode: Episode) => {
                             const slug = episode.slug?.current || episode._id;
                             const title = getLocalizedText(episode.title, episode.titleEn, language);

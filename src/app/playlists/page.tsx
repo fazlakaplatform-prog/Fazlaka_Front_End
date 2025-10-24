@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { fetchPlaylists, Playlist } from "@/lib/sanity";
@@ -16,7 +16,8 @@ import {
   FaBook,
   FaFileAlt,
   FaStar,
-  FaHeart
+  FaHeart,
+  FaFilter
 } from "react-icons/fa";
 import { client } from "@/lib/sanity";
 
@@ -83,7 +84,12 @@ const translations = {
     totalEpisodes: " الحلقات",
     totalArticles: " المقالات",
     viewAll: "عرض الكل",
-    totalPlaylists: "إجمالي قوائم التشغيل"
+    totalPlaylists: "إجمالي قوائم التشغيل",
+    filterByType: "تصفية حسب النوع",
+    allTypes: "جميع الأنواع",
+    withEpisodes: "تحتوي على حلقات",
+    withArticles: "تحتوي على مقالات",
+    withBoth: "تحتوي على الاثنين"
   },
   en: {
     loading: "Loading...",
@@ -108,7 +114,12 @@ const translations = {
     totalEpisodes: "Episodes",
     totalArticles: "Articles",
     viewAll: "View All",
-    totalPlaylists: "Total Playlists"
+    totalPlaylists: "Total Playlists",
+    filterByType: "Filter by type",
+    allTypes: "All Types",
+    withEpisodes: "With Episodes",
+    withArticles: "With Articles",
+    withBoth: "With Both"
   }
 };
 
@@ -122,6 +133,8 @@ const PlaylistsPage = () => {
   const [loading, setLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
   const [heroAnimation, setHeroAnimation] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterType, setFilterType] = useState<string | null>(null);
   const [favoritesData, setFavoritesData] = useState({
     episodes: 0,
     articles: 0,
@@ -232,19 +245,38 @@ const PlaylistsPage = () => {
     });
   };
 
-  const filteredPlaylists = playlists.filter(
-    (playlist) => {
-      const playlistWithImage = playlist as PlaylistWithImage;
-      const title = language === 'ar' 
-        ? (playlistWithImage.title || "")
-        : (playlistWithImage.titleEn || playlistWithImage.title || "");
-      
-      return title
-        .toString()
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+  const filteredPlaylists = useMemo(() => {
+    let result = playlists.filter(
+      (playlist) => {
+        const playlistWithImage = playlist as PlaylistWithImage;
+        const title = language === 'ar' 
+          ? (playlistWithImage.title || "")
+          : (playlistWithImage.titleEn || playlistWithImage.title || "");
+        
+        return title
+          .toString()
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+      }
+    );
+    
+    // تطبيق فلتر النوع إذا تم تحديده
+    if (filterType) {
+      result = result.filter((playlist) => {
+        const playlistWithImage = playlist as PlaylistWithImage;
+        const episodesCount = playlistWithImage.episodes?.length || 0;
+        const articlesCount = playlistWithImage.articles?.length || 0;
+        
+        if (filterType === 'episodes') return episodesCount > 0 && articlesCount === 0;
+        if (filterType === 'articles') return articlesCount > 0 && episodesCount === 0;
+        if (filterType === 'both') return episodesCount > 0 && articlesCount > 0;
+        
+        return true; // 'all'
+      });
     }
-  );
+    
+    return result;
+  }, [playlists, searchTerm, language, filterType]);
 
   // حساب العدد الإجمالي لقوائم التشغيل (بما في ذلك المفضلة)
   const totalPlaylistsCount = shouldShowFavoritesInSearch() ? filteredPlaylists.length + 1 : filteredPlaylists.length;
@@ -252,10 +284,12 @@ const PlaylistsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-gray-700 dark:text-gray-300 font-medium">{t.loading}</p>
+          <div className="inline-block animate-bounce bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-full mb-4">
+            <FaList className="text-white text-3xl" />
+          </div>
+          <p className="text-lg font-medium text-gray-700 dark:text-gray-200">{t.loading}</p>
         </div>
       </div>
     );
@@ -263,7 +297,7 @@ const PlaylistsPage = () => {
 
   if (playlists.length === 0) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-16">
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16">
         <div className="text-center max-w-md p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="inline-block p-4 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
             <FaList className="h-8 w-8 text-gray-400 dark:text-gray-500" />
@@ -290,71 +324,35 @@ const PlaylistsPage = () => {
   // Hero Section Component
   const HeroSection = () => {
     return (
-      <div className={`relative mb-12 sm:mb-16 overflow-hidden rounded-3xl transition-all duration-1000 ${heroAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-        {/* الخلفية المتدرجة - تم تعديلها لتكون أغمق في الوضع الفاتح */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-800 via-purple-800 to-indigo-900 dark:bg-[#0b1220]"></div>
+      <div className={`relative mb-8 sm:mb-12 overflow-hidden rounded-3xl transition-all duration-1000 ${heroAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        {/* الخلفية المتدرجة */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 dark:from-blue-900 dark:via-purple-900 dark:to-indigo-950"></div>
         
-        {/* طبقة إضافية لزيادة التباين في الوضع الفاتح */}
-        <div className="absolute inset-0 bg-black/20 dark:bg-black/0"></div>
-        
-        {/* العناصر الزخرفية - بعيدة عن النص */}
+        {/* العناصر الزخرفية */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-          {/* دوائر زخرفية في الأطراف */}
-          <div className="absolute -top-60 -right-60 w-80 h-80 bg-yellow-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-10 animate-pulse-slow dark:opacity-6"></div>
-          <div className="absolute -bottom-60 -left-60 w-96 h-96 bg-yellow-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-10 animate-pulse-slow dark:opacity-6"></div>
+          {/* دوائر زخرفية */}
+          <div className="absolute -top-40 -right-40 w-64 h-64 bg-blue-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulse-slow"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-soft-light filter blur-3xl opacity-20 animate-pulse-slow"></div>
           
           {/* شبكة زخرفية */}
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjwvcmVjdD4KPC9zdmc+')] opacity-6 dark:opacity-4"></div>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPgo8cmVjdCB3aWR0aD0iNSIgaGVpZ2h0PSI1IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjwvcmVjdD4KPC9zdmc+')] opacity-10"></div>
           
-          {/* أيقونات في الزوايا البعيدة */}
-          <div className="absolute top-10 left-10 text-yellow-300/6 transform float-animation">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
+          {/* أيقونات المواد الدراسية في الخلفية */}
+          <div className="absolute top-1/4 left-1/4 text-white/10 transform -translate-x-1/2 -translate-y-1/2 float-animation">
+            <FaList className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
-          <div className="absolute top-10 right-10 text-yellow-300/6 transform float-animation" style={{ animationDelay: '1s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
+          <div className="absolute top-1/3 right-1/4 text-white/10 transform translate-x-1/2 -translate-y-1/2 float-animation" style={{ animationDelay: '1s' }}>
+            <FaPlay className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
-          <div className="absolute bottom-10 left-10 text-yellow-300/6 transform float-animation" style={{ animationDelay: '2s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div className="absolute bottom-10 right-10 text-yellow-300/6 transform float-animation" style={{ animationDelay: '3s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          
-          {/* عناصر إضافية في الأطراف العلوية والسفلية */}
-          <div className="absolute top-0 left-1/4 text-yellow-300/5 transform -translate-x-1/2 float-animation" style={{ animationDelay: '0.5s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="absolute top-0 right-1/4 text-yellow-300/5 transform translate-x-1/2 float-animation" style={{ animationDelay: '1.5s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-          <div className="absolute bottom-0 left-1/4 text-yellow-300/5 transform -translate-x-1/2 float-animation" style={{ animationDelay: '2.5s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </div>
-          <div className="absolute bottom-0 right-1/4 text-yellow-300/5 transform translate-x-1/2 float-animation" style={{ animationDelay: '3.5s' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+          <div className="absolute bottom-1/4 left-1/3 text-white/10 transform -translate-x-1/2 translate-y-1/2 float-animation" style={{ animationDelay: '2s' }}>
+            <FaGraduationCap className="text-7xl sm:text-9xl drop-shadow-lg" />
           </div>
         </div>
         
         {/* المحتوى الرئيسي */}
-        <div className="relative z-10 py-10 sm:py-12 md:py-16 px-4 sm:px-6 md:px-10 flex flex-col items-center justify-center">
-          <div className="w-full text-center mb-6 md:mb-0 mt-8 md:mt-0">
-            <div className="inline-block bg-white/12 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
+        <div className="relative z-10 pt-12 sm:pt-16 pb-10 sm:pb-12 md:pb-16 px-4 sm:px-6 md:px-10 flex flex-col items-center justify-center">
+          <div className="w-full text-center mb-8 md:mb-0">
+            <div className="inline-block bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1 rounded-full mb-4 sm:mb-6">
               <span className="text-white font-medium flex items-center text-sm sm:text-base">
                 <FaStar className="text-yellow-300 mr-2 animate-pulse" />
                 {t.playlists}
@@ -371,42 +369,16 @@ const PlaylistsPage = () => {
             </p>
           </div>
           
-          <div className="w-full max-w-xs sm:max-w-sm md:max-w-md flex justify-center mt-8 md:mt-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-yellow-300/8 backdrop-blur-sm rounded-full filter blur-3xl w-40 h-40 sm:w-56 sm:h-56 md:w-64 md:h-64 animate-pulse-slow"></div>
-              
-              <div className="relative grid grid-cols-3 gap-3 sm:gap-4 w-40 h-40 sm:w-56 sm:h-56 md:w-64 md:h-64">
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.1s' }}>
-                  <div className="bg-white/12 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaVideo className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.2s' }}>
-                  <div className="bg-white/12 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaNewspaper className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.3s' }}>
-                  <div className="bg-white/12 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaPlay className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.4s' }}>
-                  <div className="bg-white/12 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaGraduationCap className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.5s' }}>
-                  <div className="bg-white/12 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaBook className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
-                  </div>
-                </div>
-                <div className="group flex items-center justify-center animate-bounce" style={{ animationDelay: '0.6s' }}>
-                  <div className="bg-white/12 backdrop-blur-sm p-2 sm:p-3 rounded-2xl shadow-lg transition-all duration-700 group-hover:scale-110">
-                    <FaFileAlt className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-300" />
-                  </div>
-                </div>
-              </div>
+          {/* أيقونات المواد الدراسية في الأسفل */}
+          <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-6 flex-wrap">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation">
+              <FaList className="text-yellow-300 text-lg sm:text-xl" />
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '0.5s' }}>
+              <FaPlay className="text-yellow-300 text-lg sm:text-xl" />
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 float-animation" style={{ animationDelay: '1s' }}>
+              <FaGraduationCap className="text-yellow-300 text-lg sm:text-xl" />
             </div>
           </div>
         </div>
@@ -482,7 +454,7 @@ const PlaylistsPage = () => {
             <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-3 border border-pink-200 dark:border-pink-700/50">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  أحدث العناصر
+                  {language === 'ar' ? 'أحدث العناصر' : 'Recent Items'}
                 </span>
                 <span className="text-xs text-pink-600 dark:text-pink-400 font-medium">
                   {t.viewAll} →
@@ -509,112 +481,146 @@ const PlaylistsPage = () => {
   };
 
   return (
-    // غلاف كامل الشاشة بلون داكن واحد في الداكن مود (قابل للتعديل من الكود أدناه)
-    <div className="min-h-screen bg-white dark:bg-[#0b1220] text-gray-900 dark:text-gray-100 py-8 pt-24" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Hero Section */}
         <HeroSection />
         
-        {/* شريط البحث والأزرار المدمج */}
-        <div className="mb-6">
-          {/* الحاوية الرئيسية المدمجة */}
-          <div className="relative group">
-            {/* الخلفية المتدرجة للشريط بأكمله */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 rounded-2xl blur-lg opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
+        {/* رأس الصفحة */}
+        <div className="flex flex-col gap-4 mb-6">
+          {/* شريط البحث والفلاتر */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full shadow-sm px-3 py-2 border border-gray-100 dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-200">
+              <FaSearch className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              <input
+                aria-label={t.searchPlaceholder}
+                className="bg-transparent outline-none flex-grow text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 py-1"
+                placeholder={t.searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm ? (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                  aria-label={t.clearSearch}
+                  title={t.clearSearch}
+                >
+                  <FaTimes className="h-4 w-4 text-gray-500 dark:text-gray-300" />
+                </button>
+              ) : null}
+            </div>
             
-            {/* الشريط المدمج */}
-            <div className="relative flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden">
-              
-              {/* قسم البحث - يأخذ معظم المساحة */}
-              <div className="flex-1 relative">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder={t.searchPlaceholder}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pr-12 pl-12 py-4 bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-lg"
-                    aria-label={t.searchPlaceholder}
-                  />
-                  
-                  {/* أيقونة البحث في اليسار */}
-                  <div className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500`}>
-                    <FaSearch className="h-6 w-6" />
-                  </div>
-                  
-                  {/* زر المسح بشكل X في اليمين */}
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm("")}
-                      className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 bg-gray-100 dark:bg-gray-700 rounded-full p-1 text-gray-500 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 shadow-sm animate-pulse`}
-                      aria-label={t.clearSearch}
-                      title={t.clearSearch}
-                    >
-                      <FaTimes className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              {/* الفاصل العمودي */}
-              <div className="w-px h-12 bg-gray-200 dark:bg-gray-700 mx-2"></div>
-              
-              {/* قسم أزرار العرض */}
-              <div className="flex items-center px-2">
-                <div className="inline-flex items-center rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-600 overflow-hidden">
+            {/* أزرار التحكم */}
+            <div className="flex flex-wrap gap-2 justify-between items-center">
+              <div className="flex gap-2">
+                {/* أزرار تغيير العرض */}
+                <div className="inline-flex items-center rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-300 ${
+                    className={`flex items-center justify-center p-2 transition ${
                       viewMode === "grid"
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg"
-                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                     aria-pressed={viewMode === "grid"}
                     title={t.gridView}
                   >
                     <FaTh className={`h-5 w-5 ${viewMode === "grid" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
-                    <span className="hidden sm:inline">{t.gridView}</span>
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-300 ${
+                    className={`flex items-center justify-center p-2 transition ${
                       viewMode === "list"
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg"
-                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                     aria-pressed={viewMode === "list"}
                     title={t.listView}
                   >
                     <FaList className={`h-5 w-5 ${viewMode === "list" ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
-                    <span className="hidden sm:inline">{t.listView}</span>
+                  </button>
+                </div>
+                
+                {/* زر الفلاتر */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`px-3 py-2 rounded-md text-sm transition flex items-center justify-center shadow-md ${
+                    showFilters 
+                      ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white" 
+                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  <FaFilter className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">{t.filterByType}</span>
+                </button>
+              </div>
+            </div>
+            
+            {/* فلتر الأنواع */}
+            {showFilters && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-md border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFilterType(null)}
+                    className={`px-3 py-1 rounded-full text-sm transition ${
+                      filterType === null
+                        ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {t.allTypes}
+                  </button>
+                  <button
+                    onClick={() => setFilterType('episodes')}
+                    className={`px-3 py-1 rounded-full text-sm transition ${
+                      filterType === 'episodes'
+                        ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {t.withEpisodes}
+                  </button>
+                  <button
+                    onClick={() => setFilterType('articles')}
+                    className={`px-3 py-1 rounded-full text-sm transition ${
+                      filterType === 'articles'
+                        ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {t.withArticles}
+                  </button>
+                  <button
+                    onClick={() => setFilterType('both')}
+                    className={`px-3 py-1 rounded-full text-sm transition ${
+                      filterType === 'both'
+                        ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {t.withBoth}
                   </button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
           
-          {/* عنوان البحث */}
-          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {t.searchInPlaylists}
-          </div>
-        </div>
-        
-        {/* عرض عدد قوائم التشغيل */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FaList className="h-5 w-5 text-blue-500" />
-            <span className="text-lg font-medium text-gray-700 dark:text-gray-300">
-              {t.totalPlaylists}: <span className="font-bold text-blue-600 dark:text-blue-400">{totalPlaylistsCount}</span>
-            </span>
-          </div>
-          {searchTerm && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {language === 'ar' 
-                ? `عرض ${totalPlaylistsCount} من أصل ${originalTotalCount} قائمة`
-                : `Showing ${totalPlaylistsCount} of ${originalTotalCount} playlists`
-              }
+          {/* عدد النتائج */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+              <FaList className="ml-2" />
+              {totalPlaylistsCount} {language === 'ar' ? 'قائمة تشغيل' : 'playlists'}
             </div>
-          )}
+            {searchTerm && (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {language === 'ar' 
+                  ? `عرض ${totalPlaylistsCount} من أصل ${originalTotalCount} قائمة`
+                  : `Showing ${totalPlaylistsCount} of ${originalTotalCount} playlists`
+                }
+              </div>
+            )}
+          </div>
         </div>
         
         {/* محتوى القوائم مع الرسوم المتحركة */}
@@ -635,7 +641,7 @@ const PlaylistsPage = () => {
               </button>
             </div>
           ) : viewMode === "grid" ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {/* قائمة المفضلة الثابتة - تظهر فقط إذا تطابقت مع البحث */}
               {shouldShowFavoritesInSearch() && <FavoritesPlaylist />}
               
