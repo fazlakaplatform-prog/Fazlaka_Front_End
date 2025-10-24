@@ -8,7 +8,7 @@ import { fetchFromSanity } from "@/lib/sanity";
 import { useLanguage } from "@/components/LanguageProvider"; // استيراد هوك اللغة
 import { 
   FaQuestionCircle, FaEnvelope, FaComments, FaStar, FaLightbulb, FaPaperPlane, 
-  FaGlobe, FaHeart, FaSearch, FaTimes, FaFilter, FaHeadset, FaArrowRight
+  FaGlobe, FaHeart, FaSearch, FaTimes, FaFilter, FaHeadset, FaArrowRight, FaInfoCircle
 } from "react-icons/fa";
 
 type FaqItem = { 
@@ -93,7 +93,9 @@ const translations = {
     questionOpened: "لقد تم فتح السؤال الذي بحثت عنه أدناه",
     noQuestionsAvailable: "لا توجد أسئلة شائعة حالياً",
     noTitle: "(بدون عنوان)",
-    noAnswer: "لا يوجد جواب."
+    noAnswer: "لا يوجد جواب.",
+    aboutUs: "من نحن",
+    aboutUsDescription: "تعرف على رؤيتنا وقصتنا والفريق الذي يقف وراء فذلكة"
   },
   en: {
     home: "Home",
@@ -158,7 +160,9 @@ const translations = {
     questionOpened: "The question you searched for has been opened below",
     noQuestionsAvailable: "No frequently asked questions available at the moment",
     noTitle: "(No title)",
-    noAnswer: "No answer available."
+    noAnswer: "No answer available.",
+    aboutUs: "About Us",
+    aboutUsDescription: "Learn about our vision, story, and the team behind Falthaka"
   }
 };
 
@@ -183,6 +187,7 @@ function FaqContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showContactAnimation, setShowContactAnimation] = useState(true);
+  const [showAboutAnimation, setShowAboutAnimation] = useState(true);
   
   const reduceMotion = useReducedMotion();
   const searchParams = useSearchParams();
@@ -474,6 +479,58 @@ function FaqContent() {
     );
   };
 
+  const AboutUsSection = () => {
+    return (
+      <motion.div 
+        initial={showAboutAnimation ? (reduceMotion ? {} : { opacity: 0, y: 20 }) : {}}
+        animate={showAboutAnimation ? (reduceMotion ? {} : { opacity: 1, y: 0 }) : {}}
+        transition={{ delay: 0.2, duration: 0.5 }}
+        className="mb-16"
+        onAnimationComplete={() => setShowAboutAnimation(false)}
+      >
+        <div className="relative bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-3xl p-6 md:p-8 border border-teal-100 dark:border-teal-800 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+            <div className="absolute top-10 left-10 w-16 h-16 bg-teal-200/30 dark:bg-teal-700/20 rounded-full blur-xl"></div>
+            <div className="absolute top-20 right-20 w-20 h-20 bg-cyan-200/30 dark:bg-cyan-700/20 rounded-full blur-xl"></div>
+            <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-blue-200/30 dark:bg-blue-700/20 rounded-full blur-xl"></div>
+            <div className="absolute bottom-10 right-1/3 w-18 h-18 bg-green-200/30 dark:bg-green-700/20 rounded-full blur-xl"></div>
+            <div className="absolute top-1/4 left-1/4 w-8 h-8 border-2 border-teal-300/30 dark:border-teal-600/30 rotate-45"></div>
+            <div className="absolute top-1/3 right-1/4 w-6 h-6 border-2 border-cyan-300/30 dark:border-cyan-600/30 rounded-full"></div>
+            <div className="absolute bottom-1/4 left-1/3 w-10 h-10 border-2 border-blue-300/30 dark:border-blue-600/30 rotate-12"></div>
+            <div className="absolute bottom-1/3 right-1/3 w-5 h-5 border-2 border-green-300/30 dark:border-green-600/30 rotate-45"></div>
+          </div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className={`text-center ${isRTL ? 'md:text-right' : 'md:text-left'}`}>
+              <div className="flex items-center justify-center md:justify-start mb-4">
+                <div className="bg-teal-100 dark:bg-teal-800/50 p-4 rounded-full shadow-lg">
+                  <FaInfoCircle className="text-teal-600 dark:text-teal-300 text-3xl" />
+                </div>
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                {t.aboutUs}
+              </h3>
+              <p className="text-gray-700 dark:text-gray-300 text-lg max-w-2xl">
+                {t.aboutUsDescription}
+              </p>
+            </div>
+            
+            <Link href="/about">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold py-4 px-8 md:px-10 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center transform hover:-translate-y-1"
+              >
+                {t.aboutUs}
+                <FaArrowRight className={`${isRTL ? 'ml-3' : 'mr-3'} text-xl`} />
+              </motion.button>
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   const getBoxShadow = () => {
     if (isDarkMode) {
       return '0 20px 40px -10px rgba(99, 102, 241, 0.3), 0 15px 25px -5px rgba(139, 92, 246, 0.2), 0 10px 15px -3px rgba(236, 72, 153, 0.1)';
@@ -720,6 +777,9 @@ function FaqContent() {
             </div>
           )}
         </motion.main>
+        
+        {/* تم نقل قسم "من نحن" ليكون بعد قسم الأسئلة الشائعة */}
+        {!faqLoading && !faqError && <AboutUsSection />}
         
         {!faqLoading && !faqError && <ContactSection />}
       </div>
