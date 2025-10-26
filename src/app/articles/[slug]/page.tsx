@@ -1,9 +1,10 @@
 "use client";
-import React, { useEffect, useState, useCallback, JSX } from 'react';
+
+import React, { useEffect, useState, JSX } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useUser, SignedIn, SignedOut } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,12 +12,41 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { useLanguage } from '@/components/LanguageProvider';
 import { getLocalizedText } from '@/lib/sanity';
-// الأيقونات المستخدمة في الواجهة
-import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo, FaReply, FaTrash, FaUser, FaShare, FaHeart, FaBookmark } from 'react-icons/fa';
-// Sanity للتعامل مع قاعدة البيانات
+import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo } from 'react-icons/fa';
 import { client, urlForImage } from '@/lib/sanity';
-// المكونات
 import FavoriteButton from '@/components/FavoriteButton';
+import CommentsClient from '@/components/comments/CommentsClient';
+
+// تعريفات الأنواع التي تم استيرادها سابقاً من '@/types/sanity'
+interface Comment {
+  _id: string;
+  name: string;
+  email: string;
+  comment: string;
+  createdAt: string;
+  parentId?: string;
+  replies?: Comment[];
+}
+
+interface PortableTextBlock {
+  _type: string;
+  style?: string;
+  listItem?: string;
+  level?: number;
+  children: {
+    _type: string;
+    text: string;
+    marks?: string[];
+  }[];
+}
+
+interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
+  };
+}
 
 // تعريف واجهات البيانات المستخدمة في التطبيق
 interface Article {
@@ -104,73 +134,6 @@ interface SeasonItem {
     };
   };
   language?: 'ar' | 'en';
-}
-
-interface Comment {
-  _id?: string;
-  _type?: string;
-  content?: string;
-  name?: string;
-  email?: string;
-  createdAt?: string | Date;
-  article?: {
-    _ref: string;
-  };
-  episode?: {
-    _ref: string;
-  };
-  parentComment?: {
-    _ref: string;
-  };
-  replies?: Comment[];
-  userId?: string;
-  userFirstName?: string;
-  userLastName?: string;
-  userImageUrl?: string;
-}
-
-// تعريف أنواع Portable Text المستخدمة في محتوى المقالات
-interface PortableTextBlock {
-  _type: 'block';
-  style?: 'normal' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'blockquote' | 'code';
-  children: PortableTextSpan[];
-  listItem?: string;
-  level?: number;
-  markDefs?: MarkDef[];
-}
-
-interface PortableTextSpan {
-  _type: 'span';
-  text: string;
-  marks?: string[];
-  _key?: string;
-}
-
-interface MarkDef {
-  _key: string;
-  _type: string;
-  href?: string;
-}
-
-// تعريف واجهة صورة Sanity
-interface SanityImage {
-  _type: 'image';
-  asset: {
-    _ref: string;
-    _type: 'reference';
-  };
-  hotspot?: {
-    x: number;
-    y: number;
-    height: number;
-    width: number;
-  };
-  crop?: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-  };
 }
 
 // كائن الترجمات للغتين العربية والإنجليزية
@@ -338,7 +301,7 @@ function blocksToText(blocks: PortableTextBlock[]): string {
       
       // إضافة النص مع التنسيق
       markdown += block.children
-        .map((child: PortableTextSpan) => {
+        .map((child) => {
           let text = child.text || '';
           
           // إضافة تنسيق النص
@@ -377,597 +340,6 @@ function blocksToText(blocks: PortableTextBlock[]): string {
     .join('\n');
 }
 
-// تعريف واجهة بيانات المستخدم لمعالجة مشكلة النوع
-interface UserData {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  imageUrl?: string;
-  emailAddresses?: Array<{ emailAddress: string }>;
-}
-
-// مكون التعليق الفردي
-function CommentItem({ 
-  comment, 
-  onReply, 
-  onDelete, 
-  isRTL,
-  language,
-  t,
-  user,
-  contentId,
-  type
-}: { 
-  comment: Comment; 
-  onReply: (parentId: string, content: string) => Promise<void>;
-  onDelete: (commentId: string) => Promise<void>;
-  isRTL: boolean;
-  language: 'ar' | 'en';
-  t: typeof translations.ar | typeof translations.en;
-  user: UserData | null; // تعديل النوع هنا لحل المشكلة
-  contentId: string;
-  type: "article" | "episode";
-}) {
-  const [showReplyForm, setShowReplyForm] = useState(false);
-  const [replyContent, setReplyContent] = useState("");
-  const [replying, setReplying] = useState(false);
-  const [showReplies, setShowReplies] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  
-  const createdAt = comment.createdAt ? new Date(comment.createdAt) : new Date();
-  const isOwner = user && (comment.userId === user.id || comment.email === user.emailAddresses?.[0]?.emailAddress);
-  
-  // دالة للحصول على اسم العرض للمستخدم
-  const getDisplayName = () => {
-    if (comment.userFirstName && comment.userLastName) {
-      return `${comment.userFirstName} ${comment.userLastName}`;
-    }
-    return comment.name || "مستخدم";
-  };
-  
-  // دالة للحصول على صورة المستخدم
-  const getUserImage = () => {
-    if (comment.userImageUrl) {
-      return comment.userImageUrl;
-    }
-    return null;
-  };
-  
-  const handleReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyContent.trim()) return;
-    
-    setReplying(true);
-    try {
-      await onReply(comment._id!, replyContent);
-      setReplyContent("");
-      setShowReplyForm(false);
-      // تحديث قائمة الردود
-      if (!showReplies) {
-        setShowReplies(true);
-      }
-    } catch (error) {
-      console.error("Error replying to comment:", error);
-    } finally {
-      setReplying(false);
-    }
-  };
-  
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await onDelete(comment._id!);
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-    } finally {
-      setDeleting(false);
-      setDeleteConfirm(false);
-    }
-  };
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={`bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-4 mb-4 border border-gray-100 dark:border-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}
-    >
-      <div className="flex items-start gap-3">
-        {/* صورة المستخدم */}
-        <div className="flex-shrink-0">
-          {getUserImage() ? (
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-700">
-              <Image
-                src={getUserImage() || ''}
-                alt={getDisplayName()}
-                width={40}
-                height={40}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
-              <FaUser className="text-sm" />
-            </div>
-          )}
-        </div>
-        
-        {/* محتوى التعليق */}
-        <div className="flex-grow">
-          <div className="flex items-center justify-between mb-1">
-            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{getDisplayName()}</h4>
-            <div className="flex items-center gap-2">
-              <time dateTime={createdAt.toISOString()} className="text-xs text-gray-500 dark:text-gray-400">
-                {createdAt.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </time>
-              {isOwner && (
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setDeleteConfirm(true)}
-                    className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                    title={t.delete}
-                  >
-                    <FaTrash className="text-xs" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <p className="text-gray-700 dark:text-gray-300 mb-2">{comment.content}</p>
-          
-          {/* زر الرد */}
-          <div className="flex items-center gap-2 mt-2">
-            <button
-              onClick={() => setShowReplyForm(!showReplyForm)}
-              className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-            >
-              <FaReply className="text-xs" />
-              {t.reply}
-            </button>
-            
-            {comment.replies && comment.replies.length > 0 && (
-              <button
-                onClick={() => setShowReplies(!showReplies)}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              >
-                {showReplies ? t.hideReplies : t.showReplies} ({comment.replies.length})
-              </button>
-            )}
-          </div>
-          
-          {/* نموذج الرد */}
-          {showReplyForm && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-            >
-              <form onSubmit={handleReply}>
-                <textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  rows={3}
-                  className="w-full border p-2 rounded mb-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm"
-                  placeholder={`${t.writeReply} ${getDisplayName()}...`}
-                  required
-                  disabled={replying}
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowReplyForm(false)}
-                    className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-                  >
-                    {t.cancel}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={replying || !replyContent.trim()}
-                    className={`px-3 py-1 text-sm rounded text-white ${
-                      replying || !replyContent.trim()
-                        ? "bg-gray-400 dark:bg-gray-600"
-                        : "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600"
-                    } transition-colors`}
-                  >
-                    {replying ? t.replying : t.sendReply}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-          
-          {/* عرض الردود */}
-          {showReplies && comment.replies && comment.replies.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {comment.replies.map((reply) => (
-                <CommentItem
-                  key={reply._id}
-                  comment={reply}
-                  onReply={onReply}
-                  onDelete={onDelete}
-                  isRTL={isRTL}
-                  language={language}
-                  t={t}
-                  user={user}
-                  contentId={contentId}
-                  type={type}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* نافذة تأكيد الحذف */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-            className="bg-white dark:bg-gray-800 rounded-xl p-4 max-w-sm w-full shadow-xl"
-          >
-            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">
-              {t.confirmDelete}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-              {t.confirmDelete}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setDeleteConfirm(false)}
-                className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                {t.cancel}
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className={`px-3 py-1 text-sm rounded text-white ${
-                  deleting
-                    ? "bg-gray-400 dark:bg-gray-600"
-                    : "bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600"
-                } transition-colors`}
-              >
-                {deleting ? "جاري الحذف..." : t.delete}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-// مكون التعليقات
-function CommentsClient({ 
-  contentId, 
-  type = "article" 
-}: { 
-  contentId: string; 
-  type?: "article" | "episode" 
-}) {
-  const { language, isRTL } = useLanguage();
-  const t = translations[language];
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const { user, isLoaded } = useUser();
-  
-  // تحويل بيانات المستخدم من Clerk إلى النوع المحدد
-  const userData: UserData | null = user ? {
-    id: user.id,
-    firstName: user.firstName || undefined,
-    lastName: user.lastName || undefined,
-    fullName: user.fullName || undefined,
-    imageUrl: user.imageUrl || undefined,
-    emailAddresses: user.emailAddresses?.map(email => ({ emailAddress: email.emailAddress })) || []
-  } : null;
-  
-  const fetchComments = useCallback(async () => {
-    try {
-      const query = `*[_type == "comment" && ${type}._ref == $contentId && !defined(parentComment)]{
-        _id,
-        name,
-        email,
-        content,
-        createdAt,
-        userId,
-        userFirstName,
-        userLastName,
-        userImageUrl,
-        "replies": *[_type == "comment" && parentComment._ref == ^._id] | order(createdAt asc) {
-          _id,
-          name,
-          email,
-          content,
-          createdAt,
-          userId,
-          userFirstName,
-          userLastName,
-          userImageUrl
-        }
-      } | order(createdAt desc)`;
-      const comments = await client.fetch(query, { contentId });
-      setComments(comments);
-    } catch (err) {
-      console.error("Error fetching comments:", err);
-    }
-  }, [type, contentId]);
-  
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    if (!content.trim()) {
-      setErrorMsg(t.writeCommentFirst);
-      return;
-    }
-    if (!isLoaded || !userData) {
-      setErrorMsg(t.signInRequired);
-      return;
-    }
-    setLoading(true);
-    
-    try {
-      // استخدام API route فقط
-      const apiResponse = await fetch('/api/comments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content,
-          name: userData.firstName && userData.lastName ? `${userData.firstName} ${userData.lastName}` : (userData.firstName || userData.fullName || "مستخدم"),
-          email: userData.emailAddresses?.[0]?.emailAddress || "",
-          userId: userData.id,
-          userFirstName: userData.firstName || "",
-          userLastName: userData.lastName || "",
-          userImageUrl: userData.imageUrl || "",
-          [type]: contentId,
-        }),
-      });
-
-      if (apiResponse.ok) {
-        const data = await apiResponse.json();
-        console.log("Comment created via API:", data);
-        setSuccessMsg(language === 'ar' ? "تم إرسال تعليقك بنجاح!" : "Your comment has been sent successfully!");
-        setContent("");
-        fetchComments();
-      } else {
-        const errorData = await apiResponse.json();
-        throw new Error(errorData.error || "Failed to create comment");
-      }
-    } catch (err: unknown) {
-      console.error("Error sending comment:", err);
-      if (err instanceof Error) {
-        if (err.message.includes("Insufficient permissions")) {
-          setErrorMsg(language === 'ar' ? "ليس لديك صلاحية لإرسال التعليقات. يرجى التواصل مع الإدارة." : "You don't have permission to send comments. Please contact the administration.");
-        } else {
-          setErrorMsg(language === 'ar' ? `حدث خطأ أثناء الإرسال: ${err.message}` : `An error occurred while sending: ${err.message}`);
-        }
-      } else {
-        setErrorMsg(language === 'ar' ? "حدث خطأ أثناء الإرسال." : "An error occurred while sending.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleReply = async (parentId: string, replyContent: string) => {
-    if (!isLoaded || !userData) {
-      setErrorMsg(t.signInRequired);
-      return;
-    }
-    
-    try {
-      // استخدام API route فقط
-      const apiResponse = await fetch('/api/comments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: replyContent,
-          name: userData.firstName && userData.lastName ? `${userData.firstName} ${userData.lastName}` : (userData.firstName || userData.fullName || "مستخدم"),
-          email: userData.emailAddresses?.[0]?.emailAddress || "",
-          userId: userData.id,
-          userFirstName: userData.firstName || "",
-          userLastName: userData.lastName || "",
-          userImageUrl: userData.imageUrl || "",
-          parentComment: parentId,
-          [type]: contentId,
-        }),
-      });
-
-      if (apiResponse.ok) {
-        setSuccessMsg(t.replySuccess);
-        fetchComments();
-      } else {
-        const errorData = await apiResponse.json();
-        throw new Error(errorData.error || "Failed to create reply");
-      }
-    } catch (err: unknown) {
-      console.error("Error replying to comment:", err);
-      if (err instanceof Error) {
-        setErrorMsg(language === 'ar' ? `حدث خطأ أثناء الرد: ${err.message}` : `An error occurred while replying: ${err.message}`);
-      } else {
-        setErrorMsg(language === 'ar' ? "حدث خطأ أثناء الرد." : "An error occurred while replying.");
-      }
-    }
-  };
-  
-  const handleDelete = async (commentId: string) => {
-    if (!isLoaded || !userData) {
-      setErrorMsg(t.signInRequired);
-      return;
-    }
-    
-    try {
-      // استخدام API route فقط
-      const apiResponse = await fetch(`/api/comments?id=${commentId}`, {
-        method: 'DELETE',
-      });
-
-      if (apiResponse.ok) {
-        setSuccessMsg(t.deleteSuccess);
-        fetchComments();
-      } else {
-        const errorData = await apiResponse.json();
-        throw new Error(errorData.error || "Failed to delete comment");
-      }
-    } catch (err: unknown) {
-      console.error("Error deleting comment:", err);
-      if (err instanceof Error) {
-        setErrorMsg(language === 'ar' ? `حدث خطأ أثناء الحذف: ${err.message}` : `An error occurred while deleting: ${err.message}`);
-      } else {
-        setErrorMsg(language === 'ar' ? "حدث خطأ أثناء الحذف." : "An error occurred while deleting.");
-      }
-    }
-  };
-  
-  // دالة للحصول على صورة المستخدم الحالي
-  const getCurrentUserImage = () => {
-    if (userData?.imageUrl) {
-      return userData.imageUrl;
-    }
-    return null;
-  };
-  
-  // دالة للحصول على اسم العرض للمستخدم الحالي
-  const getCurrentUserDisplayName = () => {
-    if (userData?.firstName && userData?.lastName) {
-      return `${userData.firstName} ${userData.lastName}`;
-    }
-    return userData?.firstName || userData?.fullName || "مستخدم";
-  };
-  
-  return (
-    <div className="mt-6 rounded-xl overflow-hidden">
-      <SignedOut>
-        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-          <p className="mb-2 text-blue-800 dark:text-blue-200">{t.signInToComment}</p>
-          <Link
-            href="/sign-in"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-colors"
-          >
-            {t.signIn}
-          </Link>
-        </div>
-      </SignedOut>
-      <SignedIn>
-        <form onSubmit={handleSubmit} className="mb-6">
-          <div className="flex items-start gap-3">
-            {/* صورة المستخدم */}
-            <div className="flex-shrink-0">
-              {getCurrentUserImage() ? (
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-200 dark:border-purple-700">
-                  <Image
-                    src={getCurrentUserImage() || ''}
-                    alt={getCurrentUserDisplayName()}
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
-                  {userData?.firstName ? (
-                    <span className="text-sm font-bold">
-                      {userData.firstName.charAt(0).toUpperCase()}
-                    </span>
-                  ) : (
-                    <FaUser className="text-sm" />
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {/* مربع إدخال التعليق */}
-            <div className="flex-grow">
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={4}
-                className="w-full border p-3 rounded-lg mb-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder={t.commentPlaceholder}
-                required
-                disabled={loading}
-                aria-label="تعليق"
-              />
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  {errorMsg && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>
-                  )}
-                  {successMsg && (
-                    <p className="text-sm text-green-600 dark:text-green-400">{successMsg}</p>
-                  )}
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading || !content.trim()}
-                  className={`px-4 py-2 rounded-lg text-white font-medium transition-all ${
-                    loading || !content.trim()
-                      ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                      : "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 shadow-md hover:shadow-lg"
-                  }`}
-                  aria-busy={loading}
-                >
-                  {loading ? t.sending : t.sendComment}
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
-      </SignedIn>
-      
-      {/* قائمة التعليقات */}
-      <div className="space-y-4">
-        {comments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <FaComment className="text-4xl mx-auto mb-2 opacity-50" />
-            <p>{t.noCommentsYet}</p>
-          </div>
-        ) : (
-          comments.map((comment) => (
-            <CommentItem
-              key={comment._id}
-              comment={comment}
-              onReply={handleReply}
-              onDelete={handleDelete}
-              isRTL={isRTL}
-              language={language}
-              t={t}
-              user={userData} // استخدام userData بدلاً من user
-              contentId={contentId}
-              type={type}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
 // مكون الأزرار المحسّن
 function ActionButtons({ 
   contentId, 
@@ -984,8 +356,8 @@ function ActionButtons({
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
-  const { user } = useUser();
-  const { isRTL, language } = useLanguage();
+  const { data: session } = useSession();
+  const { language } = useLanguage();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
@@ -1023,7 +395,7 @@ function ActionButtons({
   };
 
   const handleBookmark = () => {
-    if (!user || bookmarkLoading) return;
+    if (!session || bookmarkLoading) return;
     
     setBookmarkLoading(true);
     
@@ -1171,7 +543,7 @@ function ActionButtons({
 
 export default function ArticleDetailPageClient() {
   const { language, isRTL } = useLanguage();
-  const { user } = useUser();
+  const { data: session } = useSession();
   const t = translations[language];
   const params = useParams() as Record<string, string | string[]>;
   const rawSlug = params?.slug;
@@ -1292,10 +664,10 @@ export default function ArticleDetailPageClient() {
   
   // التحقق من حالة المفضلة
   useEffect(() => {
-    if (user && article) {
+    if (session?.user && article) {
       const checkFavorite = async () => {
         try {
-          const response = await fetch(`/api/favorites?userId=${user.id}&contentId=${article._id}&contentType=article`);
+          const response = await fetch(`/api/favorites?userId=${session.user.id}&contentId=${article._id}&contentType=article`);
           if (response.ok) {
             const data = await response.json();
             setIsFavorite(data.isFavorite);
@@ -1307,7 +679,7 @@ export default function ArticleDetailPageClient() {
 
       checkFavorite();
     }
-  }, [user, article]);
+  }, [session, article]);
   
   if (loading)
     return (
@@ -2196,7 +1568,7 @@ export default function ArticleDetailPageClient() {
               <div className="flex-grow h-px bg-gradient-to-r from-yellow-200 to-transparent"></div>
             </div>
             
-            {/* استخدام _id بدلاً من id */}
+            {/* استخدام المكون الجديد للتعليقات */}
             <CommentsClient contentId={article._id} type="article" />
           </motion.section>
         </div>

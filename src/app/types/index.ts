@@ -1,3 +1,30 @@
+import NextAuth from "next-auth"
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      name?: string | null
+      email?: string | null
+      image?: string | null
+    }
+  }
+
+  interface User {
+    id: string
+    name?: string | null
+    email?: string | null
+    image?: string | null
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string
+    image?: string | null
+  }
+}
+
 export interface SanityImage {
   _type: 'image'
   asset: {
@@ -41,7 +68,7 @@ export interface Episode {
   title: string
   slug: SanitySlug
   description?: string
-  content?: PortableTextBlock[] // استبدل any[] بنوع محدد
+  content?: PortableTextBlock[]
   videoUrl?: string
   thumbnail?: SanityImage
   season?: Season
@@ -54,7 +81,7 @@ export interface Article {
   title: string
   slug: SanitySlug
   excerpt?: string
-  content?: PortableTextBlock[] // استبدل any[] بنوع محدد
+  content?: PortableTextBlock[]
   featuredImage?: SanityImage
 }
 
@@ -89,4 +116,27 @@ export function isSanityDocument(doc: unknown): doc is SanityDocument {
     typeof doc._id === 'string' &&
     typeof doc._type === 'string'
   )
+}
+
+// نوع المستخدم مع حقول التحقق
+export interface SanityUser {
+  _id: string
+  _type: 'user'
+  name: string
+  email: string
+  password?: string
+  image?: string // تغيير من SanityImage إلى string لتخزين رابط الصورة
+  isActive: boolean
+  verificationToken?: string
+  verificationTokenExpiry?: string
+  resetToken?: string
+  resetTokenExpiry?: string
+  magicToken?: string
+  magicTokenExpiry?: string
+  otpCode?: string
+  otpExpiry?: string
+  otpPurpose?: 'login' | 'register' | 'reset' | 'verify'
+  otpVerified?: boolean
+  createdAt: string
+  updatedAt?: string
 }

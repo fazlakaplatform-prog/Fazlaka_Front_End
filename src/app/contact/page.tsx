@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDropzone } from "react-dropzone";
 import { 
@@ -16,11 +16,11 @@ import {
 import { FaXTwitter } from "react-icons/fa6";
 
 export default function ContactPage() {
-  const { user } = useUser();
+  const { data: session, status: sessionStatus } = useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [formStatus, setFormStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -83,11 +83,11 @@ export default function ContactPage() {
   }, [previewUrl, isRTL]);
   
   useEffect(() => {
-    if (user) {
-      setEmail(user.emailAddresses?.[0]?.emailAddress || "");
-      setName(user.firstName || "");
+    if (session?.user) {
+      setEmail(session.user.email || "");
+      setName(session.user.name || "");
     }
-  }, [user]);
+  }, [session]);
   
   // Text translations based on language
   const texts = {
@@ -143,13 +143,11 @@ export default function ContactPage() {
       fileSizeError: "حجم الصورة أكبر من 5 ميجا",
       tryAgain: "حاول مرةً أخرى أو بلغ الإدارة",
       platformName: "فذلكه",
-      // New messages for enhanced sign-in prompt
       unlockFeatures: "فتح جميع الميزات",
       signInPrompt: "سجل دخولك الآن لإرسال رسالة والاستفادة من جميع ميزات منصة فذلكه",
       createAccount: "انشاء حساب",
       exclusiveAccess: "وصول حصري",
       personalizedExperience: "تجربة مخصصة لك",
-      // New messages for direct contact section
       directContact: "تواصل مباشر",
       contactUsDirectly: "تواصل معنا مباشرة",
       directContactSubtitle: "يمكنك التواصل معنا مباشرة عبر دسكورد أو البريد الإلكتروني للحصول على إجابات سريعة",
@@ -215,13 +213,11 @@ export default function ContactPage() {
       fileSizeError: "Image size is larger than 5 MB",
       tryAgain: "Try again or contact support",
       platformName: "Falthaka",
-      // New messages for enhanced sign-in prompt
       unlockFeatures: "Unlock All Features",
       signInPrompt: "Sign in now to send a message and take advantage of all features of the Falthaka platform",
       createAccount: "Create Account",
       exclusiveAccess: "Exclusive Access",
       personalizedExperience: "A personalized experience for you",
-      // New messages for direct contact section
       directContact: "Direct Contact",
       contactUsDirectly: "Contact Us Directly",
       directContactSubtitle: "You can contact us directly via Discord or email for quick responses",
@@ -287,33 +283,35 @@ export default function ContactPage() {
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setStatus("sending");
+    setFormStatus("sending");
     setErrorMsg("");
     try {
-      const form = e.currentTarget;
-      const fd = new FormData(form);
-      fd.set("name", name);
-      fd.set("email", email);
-      fd.set("message", message);
+      const formData = new FormData();
+      formData.set("name", name);
+      formData.set("email", email);
+      formData.set("message", message);
       
-      // التعديل الرئيسي هنا: تغيير اسم الحقل من "files" إلى "attachment"
+      // إضافة الملفات إلى FormData
       files.forEach(file => {
-        fd.append("attachment", file);
+        formData.append("attachment", file);
       });
       
-      const res = await fetch("/api/contact", { method: "POST", body: fd });
+      const res = await fetch("/api/contact", { 
+        method: "POST", 
+        body: formData
+      });
+      
       if (res.ok) {
-        setStatus("success");
+        setFormStatus("success");
         setShowToast(true);
-        form.reset();
         setMessage("");
         setFiles([]);
         closePreview();
         setTimeout(() => setShowToast(false), 3500);
       } else {
         const data = await res.json().catch(() => null);
-        setErrorMsg(data?.message || (isRTL ? "تعذر الإرسال." : "Failed to send."));
-        setStatus("error");
+        setErrorMsg(data?.error || (isRTL ? "تعذر الإرسال." : "Failed to send."));
+        setFormStatus("error");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 4500);
       }
@@ -321,7 +319,7 @@ export default function ContactPage() {
       console.error("Error submitting form:", err);
       const errorMessage = err instanceof Error ? err.message : (isRTL ? "تعذر الإرسال." : "Failed to send.");
       setErrorMsg(errorMessage);
-      setStatus("error");
+      setFormStatus("error");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 4500);
     }
@@ -1130,7 +1128,11 @@ export default function ContactPage() {
             {t.sendMessage}
           </h2>
           
-          <SignedOut>
+          {sessionStatus === "loading" ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : !session ? (
             <motion.div 
               initial={reduceMotion ? {} : { opacity: 0, scale: 0.95 }}
               animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
@@ -1198,9 +1200,7 @@ export default function ContactPage() {
                 </div>
               </div>
             </motion.div>
-          </SignedOut>
-          
-          <SignedIn>
+          ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-8 relative z-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <motion.div 
@@ -1287,7 +1287,7 @@ export default function ContactPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full border border-gray-300 dark:border-gray-600 p-4 pr-12 h-14 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-all duration-300 shadow-sm hover:shadow-md focus:shadow-lg"
                       required
-                      disabled={!!user}
+                      disabled={!!session?.user?.email}
                     />
                   </div>
                 </motion.div>
@@ -1673,9 +1673,9 @@ export default function ContactPage() {
                   whileTap={{ scale: 0.99 }}
                   type="submit" 
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 px-8 rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-60 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-xl flex items-center justify-center"
-                  disabled={status === "sending"}
+                  disabled={formStatus === "sending"}
                 >
-                  {status === "sending" ? (
+                  {formStatus === "sending" ? (
                     <span className="flex items-center justify-center">
                       <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1701,7 +1701,7 @@ export default function ContactPage() {
                 </motion.button>
                 
                 <div className="mt-4 text-center">
-                  {status === "success" && (
+                  {formStatus === "success" && (
                     <motion.p 
                       initial={reduceMotion ? {} : { opacity: 0, scale: 0.8 }}
                       animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
@@ -1713,7 +1713,7 @@ export default function ContactPage() {
                       </span>
                     </motion.p>
                   )}
-                  {status === "error" && (
+                  {formStatus === "error" && (
                     <motion.p 
                       initial={reduceMotion ? {} : { opacity: 0, scale: 0.8 }}
                       animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
@@ -1728,7 +1728,7 @@ export default function ContactPage() {
                 </div>
               </motion.div>
             </form>
-          </SignedIn>
+          )}
         </motion.main>
         
         {/* Social Media Section - منفصل عن نموذج الإرسال */}
@@ -1748,7 +1748,7 @@ export default function ContactPage() {
             aria-live="polite"
           >
             <div className={`${
-              status === "success" 
+              formStatus === "success" 
                 ? "bg-gradient-to-r from-green-500 to-emerald-600" 
                 : "bg-gradient-to-r from-red-500 to-rose-600"
             } text-white rounded-2xl px-6 py-5 flex items-center gap-4 shadow-lg backdrop-blur-sm border border-white border-opacity-20 relative overflow-hidden`}>
@@ -1756,7 +1756,7 @@ export default function ContactPage() {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               
               <div className="flex-shrink-0">
-                {status === "success" ? (
+                {formStatus === "success" ? (
                   <motion.div
                     animate={reduceMotion ? {} : { 
                       scale: [1, 1.1, 1],
@@ -1786,10 +1786,10 @@ export default function ContactPage() {
               </div>
               <div className="flex flex-col min-w-0">
                 <span className={`font-bold text-lg truncate ${isRTL ? '' : 'font-sans'}`}>
-                  {status === "success" ? t.successMessage : t.errorMessage}
+                  {formStatus === "success" ? t.successMessage : t.errorMessage}
                 </span>
                 <span className={`text-sm opacity-90 ${isRTL ? '' : 'font-sans'}`}>
-                  {status === "success" 
+                  {formStatus === "success" 
                     ? (isRTL ? "شكراً لتواصلك معنا، سنرد عليك قريباً" : "Thank you for contacting us, we will get back to you soon") 
                     : (errorMsg || (isRTL ? "يرجى المحاولة مرة أخرى لاحقاً" : "Please try again later"))}
                 </span>

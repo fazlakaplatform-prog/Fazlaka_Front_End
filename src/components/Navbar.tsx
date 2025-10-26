@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { SignedIn, SignedOut, useUser, useClerk } from '@clerk/nextjs';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchFromSanity, urlFor, getAllNotifications, NotificationItem } from '@/lib/sanity';
@@ -127,7 +127,8 @@ const translations = {
     fontSize: "حجم الخط",
     small: "صغير",
     medium: "متوسط",
-    large: "كبير"
+    large: "كبير",
+    changePassword: "تغيير كلمة المرور"
   },
   en: {
     home: "Home",
@@ -175,7 +176,8 @@ const translations = {
     fontSize: "Font Size",
     small: "Small",
     medium: "Medium",
-    large: "Large"
+    large: "Large",
+    changePassword: "Change Password"
   }
 };
 
@@ -2157,7 +2159,7 @@ const NotificationButton = ({
   );
 };
 
-// المكون الرئيسي للشريط العلوي مع دعم اللغة
+// المكون الرئيسي للشريط العلوي مع دعم next-auth
 export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -2173,8 +2175,7 @@ export default function Navbar() {
   
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { data: session, status } = useSession();
   const t = translations[isRTL ? 'ar' : 'en'];
   
   useEffect(() => {
@@ -2242,30 +2243,9 @@ export default function Navbar() {
     }
   }, [fontSize, mounted]);
   
-  function resolveAvatarRaw(raw: string | undefined): string | undefined {
-    if (!raw) return undefined;
-    try {
-      if (typeof raw === "string") return raw;
-      return undefined;
-    } catch {
-      return undefined;
-    }
-  }
+  const displayName = session?.user?.name || (isRTL ? "المستخدم" : "User");
+  const userEmail = session?.user?.email;
   
-  const rawAvatarCandidate = user?.imageUrl;
-  const [avatarSrc, setAvatarSrc] = useState<string | undefined>(
-    () => resolveAvatarRaw(rawAvatarCandidate)
-  );
-  
-  useEffect(() => {
-    setAvatarSrc(
-      resolveAvatarRaw(
-        user?.imageUrl
-      )
-    );
-  }, [user]);
-  
-  const displayName = user?.fullName || user?.firstName || (isRTL ? "المستخدم" : "User");
   const initials = (displayName || (isRTL ? "مستخدم" : "User"))
     .split(" ")
     .filter(Boolean)
@@ -2284,12 +2264,14 @@ export default function Navbar() {
     setTimeout(() => router.push("/favorites"), 100);
   };
   
+  const handleChangePassword = () => {
+    setProfileOpen(false);
+    setTimeout(() => router.push("/change-password"), 100);
+  };
+
   const handleSignOut = async () => {
     setProfileOpen(false);
-    setTimeout(async () => {
-      await signOut();
-      router.push("/");
-    }, 100);
+    await signOut({ callbackUrl: "/" });
   };
   
   const toggleMobileMenu = (e?: React.MouseEvent) => {
@@ -2557,7 +2539,7 @@ export default function Navbar() {
               setFontSize={setFontSize}
             />
             
-            <SignedOut>
+            {status === "unauthenticated" && (
               <div className="flex items-center space-x-1">
                 <Link href="/sign-in" className="px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white">
                   {t.signIn}
@@ -2566,93 +2548,103 @@ export default function Navbar() {
                   {t.signUp}
                 </Link>
               </div>
-            </SignedOut>
+            )}
             
-            <SignedIn>
-              {/* زر الإشعارات المحدث */}
-              <div className="notification-dropdown">
-                <NotificationButton 
-                  showNotifications={showNotifications} 
-                  setShowNotifications={setShowNotifications}
-                  isRTL={isRTL}
-                />
-              </div>
-              
-              <div className="relative" ref={profileRef}>
-                <button
-                  onClick={() => setProfileOpen(prev => !prev)}
-                  aria-expanded={profileOpen}
-                  className="flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-all duration-300"
-                >
-                  {avatarSrc ? (
-                    <Image
-                      src={avatarSrc}
-                      alt={displayName}
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full object-cover border-2 border-white/30"
-                      referrerPolicy="no-referrer"
-                      onError={() => setAvatarSrc(undefined)}
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
-                      {initials}
-                    </div>
-                  )}
-                  <span className="hidden sm:inline text-sm font-medium text-gray-900 dark:text-white">{displayName}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 text-gray-500 transition-transform duration-300 ${profileOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
-                </button>
+            {status === "authenticated" && (
+              <>
+                {/* زر الإشعارات المحدث */}
+                <div className="notification-dropdown">
+                  <NotificationButton 
+                    showNotifications={showNotifications} 
+                    setShowNotifications={setShowNotifications}
+                    isRTL={isRTL}
+                  />
+                </div>
                 
-                <AnimatePresence>
-                  {profileOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg text-gray-900 dark:text-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-50`}
-                    >
-                      <div className="p-1">
-                        <div className="px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{user?.emailAddresses?.[0]?.emailAddress}</p>
-                        </div>
-                        <button
-                          onClick={handleManage}
-                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
-                        >
-                          <span className="text-sm font-medium">{t.manageAccount}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={handleFavorites}
-                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
-                        >
-                          <span className="text-sm font-medium">{t.favorites}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                          </svg>
-                        </button>
-                        <div className="border-t border-gray-200/50 dark:border-gray-700/50 my-1"></div>
-                        <button
-                          onClick={handleSignOut}
-                          className="w-full text-right px-4 py-3 rounded-lg hover:bg-red-50/50 dark:hover:bg-red-900/20 transition-colors duration-200 flex items-center justify-between group"
-                        >
-                          <span className="text-sm font-medium text-red-600 dark:text-red-400">{t.signOut}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
-                          </svg>
-                        </button>
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setProfileOpen(prev => !prev)}
+                    aria-expanded={profileOpen}
+                    className="flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none transition-all duration-300"
+                  >
+                    {session.user?.image ? (
+                      <Image
+                        src={session.user.image}
+                        alt={displayName}
+                        width={24}
+                        height={24}
+                        className="w-6 h-6 rounded-full object-cover border-2 border-white/30"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
+                        {initials}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </SignedIn>
+                    )}
+                    <span className="hidden sm:inline text-sm font-medium text-gray-900 dark:text-white">{displayName}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 text-gray-500 transition-transform duration-300 ${profileOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                    </svg>
+                  </button>
+                  
+                  <AnimatePresence>
+                    {profileOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg text-gray-900 dark:text-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden z-50`}
+                      >
+                        <div className="p-1">
+                          <div className="px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{displayName}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{userEmail}</p>
+                          </div>
+                          <button
+                            onClick={handleManage}
+                            className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
+                          >
+                            <span className="text-sm font-medium">{t.manageAccount}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={handleFavorites}
+                            className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
+                          >
+                            <span className="text-sm font-medium">{t.favorites}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={handleChangePassword}
+                            className="w-full text-right px-4 py-3 rounded-lg hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center justify-between group"
+                          >
+                            <span className="text-sm font-medium">{t.changePassword}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                          <div className="border-t border-gray-200/50 dark:border-gray-700/50 my-1"></div>
+                          <button
+                            onClick={handleSignOut}
+                            className="w-full text-right px-4 py-3 rounded-lg hover:bg-red-50/50 dark:hover:bg-red-900/20 transition-colors duration-200 flex items-center justify-between group"
+                          >
+                            <span className="text-sm font-medium text-red-600 dark:text-red-400">{t.signOut}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 group-hover:text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -2662,38 +2654,39 @@ export default function Navbar() {
         <div className="flex justify-between items-center">
           {/* القسم الأيسر - حساب المستخدم والإشعارات */}
           <div className="flex items-center space-x-2">
-            <SignedIn>
-              <button
-                onClick={() => router.push("/profile")}
-                className="flex items-center"
-              >
-                {avatarSrc ? (
-                  <Image
-                    src={avatarSrc}
-                    alt={displayName}
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-white/30"
-                    referrerPolicy="no-referrer"
-                    onError={() => setAvatarSrc(undefined)}
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
-                    {initials}
-                  </div>
-                )}
-              </button>
-              
-              {/* زر الإشعارات بجنب زر الحساب في الموبايل */}
-              <NotificationButton 
-                showNotifications={showNotifications} 
-                setShowNotifications={setShowNotifications}
-                isRTL={isRTL}
-                isMobile={true}
-              />
-            </SignedIn>
+            {status === "authenticated" && (
+              <>
+                <button
+                  onClick={() => router.push("/profile")}
+                  className="flex items-center"
+                >
+                  {session.user?.image ? (
+                    <Image
+                      src={session.user.image}
+                      alt={displayName}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-white/30"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-blue-800 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-xs">
+                      {initials}
+                    </div>
+                  )}
+                </button>
+                
+                {/* زر الإشعارات بجنب زر الحساب في الموبايل */}
+                <NotificationButton 
+                  showNotifications={showNotifications} 
+                  setShowNotifications={setShowNotifications}
+                  isRTL={isRTL}
+                  isMobile={true}
+                />
+              </>
+            )}
             
-            <SignedOut>
+            {status === "unauthenticated" && (
               <Link href="/sign-in">
                 <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
@@ -2701,7 +2694,7 @@ export default function Navbar() {
                   </svg>
                 </div>
               </Link>
-            </SignedOut>
+            )}
           </div>
           
           {/* القسم الأوسط - الشعار */}
@@ -2794,7 +2787,7 @@ export default function Navbar() {
                   {/* خلفية متحركة */}
                   <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-                    <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
+                    <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-1/2 translate-y/2"></div>
                   </div>
                   
                   <div className="relative z-10">
@@ -2813,17 +2806,16 @@ export default function Navbar() {
                     </div>
                     
                     {/* معلومات المستخدم */}
-                    <SignedIn>
+                    {status === "authenticated" && (
                       <div className="flex items-center">
-                        {avatarSrc ? (
+                        {session.user?.image ? (
                           <Image
-                            src={avatarSrc}
+                            src={session.user.image}
                             alt={displayName}
                             width={56}
                             height={56}
                             className="w-14 h-14 rounded-full object-cover border-2 border-white/30"
                             referrerPolicy="no-referrer"
-                            onError={() => setAvatarSrc(undefined)}
                           />
                         ) : (
                           <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center font-semibold border-2 border-white/30 text-lg">
@@ -2832,12 +2824,12 @@ export default function Navbar() {
                         )}
                         <div className="mr-3">
                           <p className="font-semibold text-lg">{displayName}</p>
-                          <p className="text-sm opacity-80">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                          <p className="text-sm opacity-80">{userEmail}</p>
                         </div>
                       </div>
-                    </SignedIn>
+                    )}
                     
-                    <SignedOut>
+                    {status === "unauthenticated" && (
                       <div className="flex items-center">
                         <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -2849,7 +2841,7 @@ export default function Navbar() {
                           <p className="text-sm opacity-80">{isRTL ? 'مرحباً بك' : 'Welcome'}</p>
                         </div>
                       </div>
-                    </SignedOut>
+                    )}
                   </div>
                 </div>
                 
@@ -2958,7 +2950,7 @@ export default function Navbar() {
                     />
                     
                     {/* إضافة رابط الإشعارات في قائمة الموبايل */}
-                    <SignedIn>
+                    {status === "authenticated" && (
                       <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -2983,10 +2975,10 @@ export default function Navbar() {
                           <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                         </Link>
                       </motion.div>
-                    </SignedIn>
+                    )}
                   </div>
                   
-                  <SignedOut>
+                  {status === "unauthenticated" && (
                     <div className="pt-4 mt-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-3">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -3033,9 +3025,9 @@ export default function Navbar() {
                         </Link>
                       </motion.div>
                     </div>
-                  </SignedOut>
+                  )}
                   
-                  <SignedIn>
+                  {status === "authenticated" && (
                     <div className="pt-4 mt-4 border-t border-gray-200/50 dark:border-gray-700/50 space-y-3">
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -3088,6 +3080,30 @@ export default function Navbar() {
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Link
+                          href="/change-password"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-lg font-medium text-gray-900 dark:text-white">{t.changePassword}</span>
+                            <div className="h-0.5 w-0 bg-gradient-to-r from-amber-500 to-yellow-500 group-hover:w-full transition-all duration-300"></div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                      
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -3108,7 +3124,7 @@ export default function Navbar() {
                         </button>
                       </motion.div>
                     </div>
-                  </SignedIn>
+                  )}
                 </div>
                 
                 {/* تذييل القائمة */}

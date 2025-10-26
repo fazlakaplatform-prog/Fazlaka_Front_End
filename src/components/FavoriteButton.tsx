@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { Heart } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 
@@ -17,7 +17,7 @@ export default function FavoriteButton({
   isFavorite: propIsFavorite,
   onToggle: propOnToggle 
 }: FavoriteButtonProps) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const { isRTL, language } = useLanguage();
   const [isFavorite, setIsFavorite] = useState(propIsFavorite || false);
   const [loading, setLoading] = useState(true);
@@ -48,11 +48,11 @@ export default function FavoriteButton({
     }
     
     // خلاف ذلك، تحقق من API
-    if (user) {
+    if (session?.user) {
       // Check if the content is in favorites
       const checkFavorite = async () => {
         try {
-          const response = await fetch(`/api/favorites?userId=${user.id}&contentId=${contentId}&contentType=${contentType}`);
+          const response = await fetch(`/api/favorites?userId=${session.user.id}&contentId=${contentId}&contentType=${contentType}`);
           if (response.ok) {
             const data = await response.json();
             setIsFavorite(data.isFavorite);
@@ -68,10 +68,10 @@ export default function FavoriteButton({
     } else {
       setLoading(false);
     }
-  }, [user, contentId, contentType, propIsFavorite]);
+  }, [session, contentId, contentType, propIsFavorite]);
 
   async function handleToggle() {
-    if (!user || actionLoading) return;
+    if (!session?.user || actionLoading) return;
     
     setActionLoading(true);
     
@@ -83,7 +83,7 @@ export default function FavoriteButton({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: user.id,
+          userId: session.user.id,
           contentId,
           contentType,
         }),

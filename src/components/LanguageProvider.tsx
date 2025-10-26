@@ -1,8 +1,7 @@
-// components/LanguageProvider.tsx
+// components/LanguageProvider.tsx (النسخة المعدلة والخالية من Clerk)
+
 "use client";
 
-import { ClerkProvider } from "@clerk/nextjs";
-import { arSA, enUS } from "@clerk/localizations";
 import { useState, useEffect, createContext, useContext } from "react";
 
 // إنشاء سياق اللغة
@@ -22,13 +21,12 @@ export const useLanguage = () => useContext(LanguageContext);
 export default function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [isRTL, setIsRTL] = useState(true);
   const [language, setLanguageState] = useState<'ar' | 'en'>('ar');
-  const [clerkLocalization, setClerkLocalization] = useState(arSA);
   const [mounted, setMounted] = useState(false);
 
+  // تم تعديل الدالة لإزالة منطق Clerk
   const setLanguage = (lang: 'ar' | 'en') => {
     setLanguageState(lang);
     setIsRTL(lang === 'ar');
-    setClerkLocalization(lang === 'ar' ? arSA : enUS);
     localStorage.setItem('language', lang);
   };
 
@@ -54,11 +52,10 @@ export default function LanguageProvider({ children }: { children: React.ReactNo
 
   if (!mounted) return null;
 
+  // تمت إزالة ClerkProvider
   return (
     <LanguageContext.Provider value={{ isRTL, language, setLanguage }}>
-      <ClerkProvider localization={clerkLocalization}>
-        {children}
-      </ClerkProvider>
+      {children}
     </LanguageContext.Provider>
   );
 }

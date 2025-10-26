@@ -7,8 +7,8 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import { useParams, useRouter } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
-import { UserResource } from "@clerk/types";
+import { useSession } from "next-auth/react";
+import { Session } from "next-auth";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -20,7 +20,7 @@ import { client, urlForImage, fetchFromSanity, fetchArrayFromSanity } from "@/li
 import { useLanguage } from "@/components/LanguageProvider";
 import { getLocalizedText } from "@/lib/sanity";
 
-import { FaPlay, FaShare, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive, FaReply, FaTrash, FaHeart, FaBookmark } from "react-icons/fa";
+import { FaPlay, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive, FaReply, FaTrash } from "react-icons/fa";
 
 // تعريف الأنواع مباشرة في الملف مع دعم اللغة
 interface SanityImage {
@@ -105,6 +105,12 @@ interface SanitySpan {
   _type?: "span" | "link";
   href?: string;
 }
+
+// تعريف أنواع Props للمكونات - تم تحسينها لتكون متوافقة مع HTMLAttributes
+type MarkdownComponentProps = React.HTMLAttributes<HTMLElement>;
+type CodeComponentProps = React.HTMLAttributes<HTMLElement> & {
+  inline?: boolean;
+};
 
 // كائن الترجمات
 const translations = {
@@ -373,7 +379,7 @@ function CommentItem({
   isRTL: boolean;
   language: 'ar' | 'en';
   t: typeof translations.ar | typeof translations.en;
-  user: UserResource | null;
+  user: Session["user"] | null;
   contentId: string;
   type: "article" | "episode";
 }) {
@@ -385,7 +391,7 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false);
   
   const createdAt = comment.createdAt ? new Date(comment.createdAt) : new Date();
-  const isOwner = user && (comment.userId === user.id || comment.email === user.emailAddresses?.[0]?.emailAddress);
+  const isOwner = user && (comment.userId === user.id || comment.email === user.email);
   
   // دالة للحصول على اسم العرض الكامل
   const getDisplayName = () => {
@@ -629,7 +635,7 @@ function CommentsClient({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const { user, isLoaded } = useUser();
+  const { data: session, status } = useSession();
   
   const fetchComments = useCallback(async () => {
     try {
@@ -674,14 +680,13 @@ function CommentsClient({
       setErrorMsg(t.writeCommentBeforeSend);
       return;
     }
-    if (!isLoaded || !user) {
+    if (status !== "authenticated" || !session?.user) {
       setErrorMsg(t.signInToComment);
       return;
     }
     setLoading(true);
     
     try {
-      // استخدام API route فقط
       const apiResponse = await fetch('/api/comments', {
         method: 'POST',
         headers: {
@@ -689,12 +694,12 @@ function CommentsClient({
         },
         body: JSON.stringify({
           content,
-          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || user.fullName || "مستخدم"),
-          email: user.emailAddresses?.[0]?.emailAddress || "",
-          userId: user.id,
-          userFirstName: user.firstName || "",
-          userLastName: user.lastName || "",
-          userImageUrl: user.imageUrl || "",
+          name: session.user.name || "مستخدم",
+          email: session.user.email || "",
+          userId: session.user.id,
+          userFirstName: session.user.name?.split(' ')[0] || "",
+          userLastName: session.user.name?.split(' ').slice(1).join(' ') || "",
+          userImageUrl: session.user.image || "",
           [type]: contentId,
         }),
       });
@@ -726,13 +731,12 @@ function CommentsClient({
   };
   
   const handleReply = async (parentId: string, replyContent: string) => {
-    if (!isLoaded || !user) {
+    if (status !== "authenticated" || !session?.user) {
       setErrorMsg(t.signInToComment);
       return;
     }
     
     try {
-      // استخدام API route فقط
       const apiResponse = await fetch('/api/comments', {
         method: 'POST',
         headers: {
@@ -740,12 +744,12 @@ function CommentsClient({
         },
         body: JSON.stringify({
           content: replyContent,
-          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || user.fullName || "مستخدم"),
-          email: user.emailAddresses?.[0]?.emailAddress || "",
-          userId: user.id,
-          userFirstName: user.firstName || "",
-          userLastName: user.lastName || "",
-          userImageUrl: user.imageUrl || "",
+          name: session.user.name || "مستخدم",
+          email: session.user.email || "",
+          userId: session.user.id,
+          userFirstName: session.user.name?.split(' ')[0] || "",
+          userLastName: session.user.name?.split(' ').slice(1).join(' ') || "",
+          userImageUrl: session.user.image || "",
           parentComment: parentId,
           [type]: contentId,
         }),
@@ -769,13 +773,12 @@ function CommentsClient({
   };
   
   const handleDelete = async (commentId: string) => {
-    if (!isLoaded || !user) {
+    if (status !== "authenticated" || !session?.user) {
       setErrorMsg(t.signInToComment);
       return;
     }
     
     try {
-      // استخدام API route فقط
       const apiResponse = await fetch(`/api/comments?id=${commentId}`, {
         method: 'DELETE',
       });
@@ -799,27 +802,22 @@ function CommentsClient({
   
   // دالة للحصول على صورة المستخدم الحالي مع التحقق من null
   const getCurrentUserImage = (): string => {
-    if (user?.imageUrl) {
-      return user.imageUrl;
+    if (session?.user?.image) {
+      return session.user.image;
     }
     // صورة افتراضية إذا لم توجد صورة
-    const displayName = user?.firstName && user?.lastName 
-      ? `${user.firstName} ${user.lastName}` 
-      : (user?.firstName || user?.fullName || "مستخدم");
+    const displayName = session?.user?.name || "مستخدم";
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=8b5cf6&color=fff`;
   };
   
   // دالة للحصول على اسم العرض الكامل للمستخدم الحالي
   const getCurrentUserDisplayName = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    return user?.firstName || user?.fullName || "مستخدم";
+    return session?.user?.name || "مستخدم";
   };
   
   return (
     <div className="mt-6 rounded-xl overflow-hidden">
-      <SignedOut>
+      {status !== "authenticated" && (
         <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
           <p className="mb-2 text-blue-800 dark:text-blue-200">{t.signInToComment}</p>
           <Link
@@ -829,8 +827,8 @@ function CommentsClient({
             {t.signIn}
           </Link>
         </div>
-      </SignedOut>
-      <SignedIn>
+      )}
+      {status === "authenticated" && (
         <form onSubmit={handleSubmit} className="mb-6">
           <div className="flex items-start gap-3">
             {/* صورة المستخدم */}
@@ -883,7 +881,7 @@ function CommentsClient({
             </div>
           </div>
         </form>
-      </SignedIn>
+      )}
       
       {/* قائمة التعليقات */}
       <div className="space-y-4">
@@ -902,7 +900,7 @@ function CommentsClient({
               isRTL={isRTL}
               language={language}
               t={t}
-              user={user || null}
+              user={session?.user || null}
               contentId={contentId}
               type={type}
             />
@@ -920,7 +918,7 @@ function FavoriteButton({ contentId, contentType, isFavorite, onToggle }: {
   isFavorite: boolean;
   onToggle: () => void;
 }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const { language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -942,15 +940,15 @@ function FavoriteButton({ contentId, contentType, isFavorite, onToggle }: {
   const t = texts[language];
 
   useEffect(() => {
-    if (user) {
+    if (session) {
       setLoading(false);
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [session]);
 
   async function handleToggle() {
-    if (!user || actionLoading) return;
+    if (!session?.user || actionLoading) return;
     
     setActionLoading(true);
     
@@ -962,7 +960,7 @@ function FavoriteButton({ contentId, contentType, isFavorite, onToggle }: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: user.id,
+          userId: session.user.id,
           contentId,
           contentType,
         }),
@@ -988,7 +986,7 @@ function FavoriteButton({ contentId, contentType, isFavorite, onToggle }: {
   return (
     <button
       onClick={handleToggle}
-      disabled={actionLoading}
+      disabled={actionLoading || !session?.user}
       aria-label={isFavorite ? t.removeFromFavorites : t.addToFavorites}
       className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 overflow-hidden"
     >
@@ -1049,30 +1047,10 @@ function ActionButtons({
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
-  const { user } = useUser();
-  const { isRTL, language } = useLanguage();
+  const { data: session } = useSession();
+  const { language } = useLanguage();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
-
-  // نصوص التطبيق حسب اللغة
-  const texts = {
-    ar: {
-      share: "مشاركة",
-      comment: "تعليق",
-      bookmark: "حفظ",
-      bookmarked: "تم الحفظ",
-      errorMessage: "حدث خطأ. يرجى المحاولة مرة أخرى."
-    },
-    en: {
-      share: "Share",
-      comment: "Comment",
-      bookmark: "Bookmark",
-      bookmarked: "Bookmarked",
-      errorMessage: "An error occurred. Please try again."
-    }
-  };
-
-  const t = texts[language];
 
   const handleShare = () => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -1088,7 +1066,7 @@ function ActionButtons({
   };
 
   const handleBookmark = () => {
-    if (!user || bookmarkLoading) return;
+    if (!session?.user || bookmarkLoading) return;
     
     setBookmarkLoading(true);
     
@@ -1184,7 +1162,7 @@ function ActionButtons({
         <div className="flex flex-col items-center gap-3">
           <button
             onClick={handleBookmark}
-            disabled={bookmarkLoading}
+            disabled={bookmarkLoading || !session?.user}
             className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-hidden disabled:opacity-50"
           >
             {/* خلفية متدرجة */}
@@ -1238,7 +1216,7 @@ export default function EpisodeDetailPageClient() {
   const params = useParams();
   const router = useRouter();
   const { isRTL, language } = useLanguage();
-  const { user } = useUser(); // إضافة useUser hook هنا
+  const { data: session } = useSession();
   const t = translations[language];
   const rawSlug = params?.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug ?? "";
@@ -1608,21 +1586,21 @@ export default function EpisodeDetailPageClient() {
                               </a>
                             );
                           },
-                          strong: ({ ...props }) => <strong className="font-bold" {...props} />,
-                          em: ({ ...props }) => <em className="italic" {...props} />,
-                          u: ({ ...props }) => <u className="underline" {...props} />,
-                          code: ({ inline, children, ...props }: {inline?: boolean; children?: React.ReactNode}) => {
-                            if (inline) {
+                          strong: (props: MarkdownComponentProps) => <strong className="font-bold" {...props} />,
+                          em: (props: MarkdownComponentProps) => <em className="italic" {...props} />,
+                          u: (props: MarkdownComponentProps) => <u className="underline" {...props} />,
+                          code: (props: CodeComponentProps) => {
+                            if (props.inline) {
                               return (
                                 <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
-                                  {children}
+                                  {props.children}
                                 </code>
                               );
                             }
-                            return <code {...props}>{children}</code>;
+                            return <code {...props}>{props.children}</code>;
                           },
                           // منع إنشاء فقرات متداخلة
-                          p: ({ children, ...props }) => <span {...props}>{children}</span>,
+                          p: (props: MarkdownComponentProps) => <span {...props}>{props.children}</span>,
                         }}
                       >
                         {line}
@@ -1694,21 +1672,21 @@ export default function EpisodeDetailPageClient() {
                       </a>
                     );
                   },
-                  strong: ({ ...props }) => <strong className="font-bold" {...props} />,
-                  em: ({ ...props }) => <em className="italic" {...props} />,
-                  u: ({ ...props }) => <u className="underline" {...props} />,
-                  code: ({ inline, children, ...props }: {inline?: boolean; children?: React.ReactNode}) => {
-                    if (inline) {
+                  strong: (props: MarkdownComponentProps) => <strong className="font-bold" {...props} />,
+                  em: (props: MarkdownComponentProps) => <em className="italic" {...props} />,
+                  u: (props: MarkdownComponentProps) => <u className="underline" {...props} />,
+                  code: (props: CodeComponentProps) => {
+                    if (props.inline) {
                       return (
                         <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm" {...props}>
-                          {children}
+                          {props.children}
                         </code>
                       );
                     }
-                    return <code {...props}>{children}</code>;
+                    return <code {...props}>{props.children}</code>;
                   },
                   // منع إنشاء فقرات متداخلة
-                  p: ({ children, ...props }) => <span {...props}>{children}</span>,
+                  p: (props: MarkdownComponentProps) => <span {...props}>{props.children}</span>,
                 }}
               >
                 {line}
@@ -1805,10 +1783,10 @@ export default function EpisodeDetailPageClient() {
   
   // التحقق من حالة المفضلة
   useEffect(() => {
-    if (user && episode) {
+    if (session?.user && episode) {
       const checkFavorite = async () => {
         try {
-          const response = await fetch(`/api/favorites?userId=${user.id}&contentId=${episode._id}&contentType=episode`);
+          const response = await fetch(`/api/favorites?userId=${session.user.id}&contentId=${episode._id}&contentType=episode`);
           if (response.ok) {
             const data = await response.json();
             setIsFavorite(data.isFavorite);
@@ -1820,7 +1798,7 @@ export default function EpisodeDetailPageClient() {
 
       checkFavorite();
     }
-  }, [user, episode]);
+  }, [session, episode]);
   
   if (loading)
     return (

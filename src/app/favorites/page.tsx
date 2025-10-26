@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { client, urlFor } from "@/lib/sanity";
 import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -16,7 +16,6 @@ import {
   FaPlay, 
   FaBookOpen, 
   FaTrashAlt,
-  FaArrowLeft,
   FaSpinner
 } from "react-icons/fa";
 
@@ -215,7 +214,7 @@ const ConfirmationModal = ({
 };
 
 export default function FavoritesPage() {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const { language, isRTL } = useLanguage();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,7 +374,7 @@ export default function FavoritesPage() {
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (!session?.user) {
       setLoading(false);
       return;
     }
@@ -412,8 +411,9 @@ export default function FavoritesPage() {
           }
         }`;
         
-        const episodeFavs = await client.fetch(episodeQuery, { userId: user!.id });
-        const articleFavs = await client.fetch(articleQuery, { userId: user!.id });
+        // Fix: Use non-null assertion since we already checked for session?.user above
+        const episodeFavs = await client.fetch(episodeQuery, { userId: session!.user.id });
+        const articleFavs = await client.fetch(articleQuery, { userId: session!.user.id });
         
         // Extract episodes and articles
         const episodes = episodeFavs.map((fav: { episode: Episode }) => fav.episode).filter(Boolean);
@@ -440,7 +440,7 @@ export default function FavoritesPage() {
     }
     
     fetchFavorites();
-  }, [user, language]); // Add language as dependency
+  }, [session, language]); // Add language as dependency
 
   useEffect(() => {
     if (!loading) {
@@ -450,7 +450,7 @@ export default function FavoritesPage() {
   }, [loading]);
 
   async function handleRemove(itemId: string, contentType: "episode" | "article") {
-    if (!user) return;
+    if (!session?.user) return;
     
     try {
       const response = await fetch(`/api/favorites`, {
@@ -459,7 +459,8 @@ export default function FavoritesPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: user!.id, // Non-null assertion
+          // Fix: Use non-null assertion since we already checked for session?.user above
+          userId: session!.user.id,
           contentId: itemId,
           contentType,
         }),
@@ -628,7 +629,7 @@ export default function FavoritesPage() {
     </div>
   );
   
-  if (!user) return (
+  if (!session?.user) return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="text-center max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-100 dark:border-gray-700">
         <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-1">

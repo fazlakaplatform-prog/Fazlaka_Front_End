@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Autoplay, Navigation } from 'swiper/modules';
-import { SignedIn, SignedOut, useUser } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import "swiper/css";
 import "swiper/css/pagination";
@@ -2483,7 +2483,7 @@ const AboutUsSection = () => {
 const UnifiedMembershipSection = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
-  const { user } = useUser();
+  const { data: session } = useSession();
   const { scrollYProgress } = useScroll();
   const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.8, 1, 0.8]);
   const borderRadius = useTransform(scrollYProgress, [0, 0.5, 1], ["2rem", "1.5rem", "2rem"]);
@@ -2666,7 +2666,7 @@ const UnifiedMembershipSection = () => {
           </motion.div>
           
           {/* قسم المستخدم المسجل/غير المسجل مع أنيميشن متقدم */}
-          <SignedIn>
+          {session ? (
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -2691,7 +2691,7 @@ const UnifiedMembershipSection = () => {
                     transition={{ duration: 0.5, delay: 0.1 }}
                   >
                     <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                      {t.welcome} {user?.firstName || user?.username || t.noUser}!
+                      {t.welcome} {session.user?.name || t.noUser}!
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto">
                       {t.welcomeMessage}
@@ -2711,17 +2711,17 @@ const UnifiedMembershipSection = () => {
                       transition: { duration: 0.5 }
                     }}
                   >
-                    {user?.imageUrl ? (
+                    {session.user?.image ? (
                       <Image 
-                        src={user.imageUrl} 
-                        alt={user.firstName || "المستخدم"} 
+                        src={session.user.image} 
+                        alt={session.user.name || "المستخدم"} 
                         width={120}
                         height={120}
                         className="w-32 h-32 rounded-full border-4 border-indigo-200 dark:border-indigo-800 shadow-xl object-cover"
                       />
                     ) : (
                       <div className="w-32 h-32 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold shadow-xl">
-                        {user?.firstName?.[0] || user?.username?.[0] || "U"}
+                        {session.user?.name?.[0] || "U"}
                       </div>
                     )}
                   </motion.div>
@@ -2766,9 +2766,7 @@ const UnifiedMembershipSection = () => {
                 </div>
               </div>
             </motion.div>
-          </SignedIn>
-          
-          <SignedOut>
+          ) : (
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -2836,7 +2834,7 @@ const UnifiedMembershipSection = () => {
                 </motion.div>
               </div>
             </motion.div>
-          </SignedOut>
+          )}
           
           {/* قسم المميزات - تصميم عصري مع أنيميشن متقدم */}
           <div className="grid lg:grid-cols-2 gap-12 mb-16">
@@ -3016,6 +3014,7 @@ const UnifiedMembershipSection = () => {
 export default function Home() {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
+  const { data: session } = useSession();
   
   // حالات المكون
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
