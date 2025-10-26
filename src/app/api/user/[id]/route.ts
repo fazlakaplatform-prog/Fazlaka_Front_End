@@ -45,12 +45,13 @@ export async function PUT(
     const body = await request.json()
     const { name, bio, image } = body
 
+    // تحديث المستخدم في Sanity
     const updatedUser = await client
       .patch(id)
       .set({
-        name,
-        bio,
-        image,
+        ...(name && { name }),
+        ...(bio && { bio }),
+        ...(image && { image }), // هنا يتم تخزين رابط الصورة من ImgBB
         updatedAt: new Date().toISOString(),
       })
       .commit()

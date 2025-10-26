@@ -1,10 +1,12 @@
+// File: src/app/profile/[[...rest]]/page.tsx
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { User, Mail, Calendar, Edit, Shield } from "lucide-react"
+import { User, Mail, Calendar, Edit, Shield, Camera, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useLanguage } from "@/components/LanguageProvider"
@@ -27,6 +29,12 @@ const translations = {
     noBio: "لا توجد نبذة شخصية",
     user: "مستخدم",
     security: "الأمان والخصوصية",
+    changeProfilePicture: "تغيير الصورة الشخصية",
+    uploading: "جاري الرفع...",
+    uploadFailed: "فشل رفع الصورة",
+    imageTooLarge: "حجم الصورة كبير جدًا (الحد الأقصى 5 ميجابايت)",
+    invalidImageType: "نوع الملف غير مدعوم (يرجى رفع صورة بصيغة JPEG, PNG, أو WebP)",
+    imageUpdated: "تم تحديث الصورة الشخصية بنجاح",
   },
   en: {
     profile: "Profile",
@@ -44,19 +52,29 @@ const translations = {
     noBio: "No bio available",
     user: "User",
     security: "Security & Privacy",
+    changeProfilePicture: "Change Profile Picture",
+    uploading: "Uploading...",
+    uploadFailed: "Failed to upload image",
+    imageTooLarge: "Image too large (max 5MB)",
+    invalidImageType: "Invalid file type (please upload JPEG, PNG, or WebP)",
+    imageUpdated: "Profile image updated successfully",
   }
 };
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const router = useRouter()
   const { isRTL, language } = useLanguage()
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState("")
   const [bio, setBio] = useState("")
+  const [image, setImage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [imageError, setImageError] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const t = translations[language]
 
   useEffect(() => {
@@ -74,6 +92,7 @@ export default function ProfilePage() {
           const userData = await response.json()
           setName(userData.name || "")
           setBio(userData.bio || "")
+          setImage(userData.image || session.user?.image || "")
         }
       } catch (error) {
         console.error("Error fetching user data:", error)
@@ -82,6 +101,77 @@ export default function ProfilePage() {
 
     fetchUserData()
   }, [session, status, router])
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // التحقق من حجم الملف
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError(t.imageTooLarge)
+      return
+    }
+
+    // التحقق من نوع الملف
+    if (!file.type.match(/image\/(jpeg|jpg|png|webp)/)) {
+      setImageError(t.invalidImageType)
+      return
+    }
+
+    setImageError("")
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const imageUrl = data.url
+        
+        // تحديث الصورة في الحالة
+        setImage(imageUrl)
+        
+        // حفظ الصورة مباشرة في قاعدة البيانات
+        const updateResponse = await fetch(`/api/user/${session!.user.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image: imageUrl,
+          }),
+        })
+
+        if (updateResponse.ok) {
+          // تحديث الجلسة لتعكس التغييرات الجديدة
+          await update({
+            ...session!, // <-- التعديل هنا
+            user: {
+              ...session!.user, // <-- والتعديل هنا
+              image: imageUrl,
+            }
+          })
+          
+          setMessage(t.imageUpdated)
+          setTimeout(() => setMessage(""), 3000)
+        } else {
+          setImageError(t.updateFailed)
+        }
+      } else {
+        setImageError(t.uploadFailed)
+      }
+    } catch (error) {
+      setImageError(t.uploadFailed)
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const handleSaveProfile = async () => {
     setIsLoading(true)
@@ -97,6 +187,7 @@ export default function ProfilePage() {
         body: JSON.stringify({
           name,
           bio,
+          image,
         }),
       })
 
@@ -105,6 +196,16 @@ export default function ProfilePage() {
       if (response.ok) {
         setMessage(t.profileUpdated)
         setIsEditing(false)
+        
+        // تحديث الجلسة لتعكس التغييرات الجديدة
+        await update({
+          ...session!, // <-- التعديل هنا
+          user: {
+            ...session!.user, // <-- والتعديل هنا
+            name,
+            image,
+          }
+        })
       } else {
         setError(data.error || t.updateFailed)
       }
@@ -157,10 +258,10 @@ export default function ProfilePage() {
                 transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.2 }}
                 className="relative"
               >
-                {session.user?.image ? (
+                {image || session.user?.image ? (
                   <Image
-                    src={session.user.image}
-                    alt={session.user.name || "User"}
+                    src={image || session.user?.image || ""}
+                    alt={session.user?.name || "User"}
                     width={128}
                     height={128}
                     className="rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg"
@@ -170,6 +271,28 @@ export default function ProfilePage() {
                     <User className="h-16 w-16 text-gray-400" />
                   </div>
                 )}
+                
+                {/* Change Profile Picture Button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+                  aria-label={t.changeProfilePicture}
+                >
+                  {isUploading ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  ) : (
+                    <Camera className="h-5 w-5" />
+                  )}
+                </button>
+                
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
               </motion.div>
             </div>
 
@@ -189,6 +312,19 @@ export default function ProfilePage() {
                   {t.joinDate} {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
               </div>
+              
+              {/* Success/Error Messages */}
+              {message && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-sm">
+                  {message}
+                </div>
+              )}
+              
+              {imageError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
+                  {imageError}
+                </div>
+              )}
             </div>
           </div>
 
