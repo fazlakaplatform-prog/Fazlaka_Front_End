@@ -1,4 +1,3 @@
-// @/lib/auth.ts
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
@@ -19,7 +18,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email) {
-          return null
+          throw new Error("EmailIsRequired")
         }
 
         try {
@@ -29,12 +28,12 @@ export const authOptions: NextAuthOptions = {
           )
 
           if (!user) {
-            return null
+            throw new Error("UserNotFound")
           }
 
           // التحقق من أن الحساب مفعل
           if (!user.isActive) {
-            return null
+            throw new Error("AccountNotVerified")
           }
 
           // إذا كانت كلمة المرور فارغة، فهذا يعني أن المستخدم يستخدم الرابط السحري
@@ -54,7 +53,7 @@ export const authOptions: NextAuthOptions = {
           )
 
           if (!isPasswordValid) {
-            return null
+            throw new Error("IncorrectPassword")
           }
 
           return {
@@ -65,7 +64,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error("Auth error:", error)
-          return null
+          throw error
         }
       }
     })
