@@ -2,8 +2,6 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { client } from "@/lib/sanity"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,22 +47,6 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date().toISOString(),
       })
       .commit()
-
-    // الحصول على الجلسة الحالية
-    const session = await getServerSession(authOptions)
-    
-    // إذا كانت هناك جلسة نشطة، قم بتحديثها
-    if (session && session.user.email === currentEmail) {
-      // لا يمكن تحديث الجلسة مباشرة من هنا، ولكن يمكننا إرجاع معلومات للمساعدة في تحديثها
-      return NextResponse.json(
-        { 
-          message: "Email changed successfully",
-          requiresSessionUpdate: true,
-          newEmail: newEmail
-        },
-        { status: 200 }
-      )
-    }
 
     return NextResponse.json(
       { message: "Email changed successfully" },

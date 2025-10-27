@@ -1,4 +1,5 @@
 // File: src/app/api/auth/[...nextauth]/route.ts
+
 import NextAuth from "next-auth"
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
@@ -108,10 +109,14 @@ const authOptions: NextAuthOptions = {
         return token
       }
 
-      // عند تحديث الجلسة (مثلاً عند تغيير الصورة)
+      // عند تحديث الجلسة (مثلاً عند تغيير الصورة أو الإيميل)
       if (trigger === "update" && session) {
         token.name = session.user.name
         token.image = session.user.image
+        // إضافة تحديث الإيميل
+        if (session.user.email) {
+          token.email = session.user.email
+        }
       }
 
       return token
@@ -121,6 +126,10 @@ const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
         session.user.name = token.name as string
         session.user.image = token.image as string
+        // إضافة الإيميل للجلسة
+        if (token.email) {
+          session.user.email = token.email as string
+        }
       }
       return session
     },

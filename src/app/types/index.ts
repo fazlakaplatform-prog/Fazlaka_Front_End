@@ -1,3 +1,5 @@
+// File: src/types/index.ts
+
 import NextAuth from "next-auth"
 
 declare module "next-auth" {
@@ -137,6 +139,10 @@ export interface SanityUser {
   otpExpiry?: string
   otpPurpose?: 'login' | 'register' | 'reset' | 'verify'
   otpVerified?: boolean
+  // حقول تغيير الإيميل
+  emailChangeCode?: string
+  emailChangeCodeExpiry?: string
+  newEmail?: string
   createdAt: string
   updatedAt?: string
 }

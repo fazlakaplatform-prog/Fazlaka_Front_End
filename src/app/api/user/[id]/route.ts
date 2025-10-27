@@ -1,3 +1,5 @@
+// File: src/app/api/user/[id]/route.ts
+
 import { NextRequest, NextResponse } from "next/server"
 import { client } from "@/lib/sanity"
 
@@ -14,6 +16,8 @@ export async function GET(
         email,
         image,
         bio,
+        location,
+        website,
         createdAt
       }`,
       { id }
@@ -43,7 +47,7 @@ export async function PUT(
   try {
     const { id } = await context.params;
     const body = await request.json()
-    const { name, bio, image } = body
+    const { name, bio, image, location, website } = body
 
     // تحديث المستخدم في Sanity
     const updatedUser = await client
@@ -52,6 +56,8 @@ export async function PUT(
         ...(name && { name }),
         ...(bio && { bio }),
         ...(image && { image }), // هنا يتم تخزين رابط الصورة من ImgBB
+        ...(location && { location }),
+        ...(website && { website }),
         updatedAt: new Date().toISOString(),
       })
       .commit()
