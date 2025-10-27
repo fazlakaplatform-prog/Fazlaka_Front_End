@@ -144,7 +144,7 @@ export default function ResetPasswordPage() {
         },
         body: JSON.stringify({
           token,
-          password,
+          password, // Changed from newPassword to password
         }),
       })
 

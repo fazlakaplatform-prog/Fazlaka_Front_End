@@ -1,3 +1,5 @@
+// File: src/app/api/auth/resend-verification/route.ts
+
 import { NextRequest, NextResponse } from "next/server"
 import { client } from "@/lib/sanity"
 import { v4 as uuidv4 } from "uuid"
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
     })
 
     // إعداد محتوى البريد الإلكتروني
-    const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${verificationToken}`
+    const verificationUrl = `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL}/verify-email?token=${verificationToken}`
 
     const mailOptions = {
       from: process.env.EMAIL_FROM,

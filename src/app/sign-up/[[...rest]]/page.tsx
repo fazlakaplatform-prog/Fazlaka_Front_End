@@ -1,3 +1,5 @@
+// File: src/app/sign-up/page.tsx
+
 "use client"
 
 import { useState, useEffect } from "react"

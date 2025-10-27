@@ -1,77 +1,71 @@
-// File: src/app/api/auth/verify-email-change/route.ts
+// File: src/app/api/auth/verify-email/route.ts
 
 import { NextRequest, NextResponse } from "next/server"
 import { client } from "@/lib/sanity"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
-    const { currentEmail, newEmail, verificationCode } = await request.json()
+    const { token } = await request.json()
 
-    if (!currentEmail || !newEmail || !verificationCode) {
+    if (!token) {
       return NextResponse.json(
-        { error: "Current email, new email, and verification code are required" },
+        { error: "Verification token is required" },
         { status: 400 }
       )
     }
 
-    console.log("Verifying email change from:", currentEmail, "to:", newEmail)
+    console.log("Verifying email with token:", token.substring(0, 10) + "...")
 
-    // جلب المستخدم بكود OTP
+    // جلب المستخدم برمز التحقق
     const user = await client.fetch(
-      `*[_type == "user" && email == $currentEmail && emailChangeCode == $verificationCode && newEmail == $newEmail && emailChangeCodeExpiry > $now][0]`,
+      `*[_type == "user" && verificationToken == $token && verificationTokenExpiry > $now][0]`,
       { 
-        currentEmail, 
-        verificationCode, 
-        newEmail,
+        token, 
         now: new Date().toISOString() 
       }
     )
 
     if (!user) {
+      console.log("User not found with token:", token.substring(0, 10) + "...")
+      
+      // محاولة البحث عن المستخدم بالرمز بغض النظر عن انتهاء الصلاحية
+      const userWithExpiredToken = await client.fetch(
+        `*[_type == "user" && verificationToken == $token][0]`,
+        { token }
+      )
+      
+      if (userWithExpiredToken) {
+        return NextResponse.json(
+          { error: "Verification token has expired. Please request a new one." },
+          { status: 400 }
+        )
+      }
+      
       return NextResponse.json(
-        { error: "Invalid or expired verification code" },
+        { error: "Invalid verification token" },
         { status: 400 }
       )
     }
 
-    console.log("Email change verification successful")
+    console.log("Email verification successful for user:", user._id)
 
-    // تحديث بريد المستخدم وإزالة حقول التحقق
+    // تحديث المستخدم لتفعيل الحساب وإزالة رمز التحقق
     await client
       .patch(user._id)
       .set({
-        email: newEmail,
-        emailChangeCode: undefined,
-        emailChangeCodeExpiry: undefined,
-        newEmail: undefined,
+        isActive: true,
+        verificationToken: undefined,
+        verificationTokenExpiry: undefined,
         updatedAt: new Date().toISOString(),
       })
       .commit()
 
-    // الحصول على الجلسة الحالية
-    const session = await getServerSession(authOptions)
-    
-    // إذا كانت هناك جلسة نشطة، قم بتحديثها
-    if (session && session.user.email === currentEmail) {
-      // لا يمكن تحديث الجلسة مباشرة من هنا، ولكن يمكننا إرجاع معلومات للمساعدة في تحديثها
-      return NextResponse.json(
-        { 
-          message: "Email changed successfully",
-          requiresSessionUpdate: true,
-          newEmail: newEmail
-        },
-        { status: 200 }
-      )
-    }
-
     return NextResponse.json(
-      { message: "Email changed successfully" },
+      { message: "Email verified successfully" },
       { status: 200 }
     )
   } catch (error) {
-    console.error("Email change verification error:", error)
+    console.error("Email verification error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
