@@ -71,10 +71,9 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, user, account, trigger, session }) {
+    async jwt({ token, user, account }) {
       // عند تسجيل الدخول لأول مرة باستخدام Google
       if (account && account.provider === "google" && user) {
         // تحقق مما إذا كان المستخدم موجودًا بالفعل
@@ -105,22 +104,12 @@ export const authOptions: NextAuthOptions = {
         token.image = user.image
       }
 
-      // عند تحديث الجلسة يدوياً من العميل (trigger === "update")
-      if (trigger === "update" && session) {
-        token.name = session.user.name
-        token.image = session.user.image
-        token.email = session.user.email
-        return token
-      }
-
       return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string
-        session.user.name = token.name as string
         session.user.image = token.image as string
-        session.user.email = token.email as string
       }
       return session
     },

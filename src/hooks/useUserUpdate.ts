@@ -3,10 +3,10 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react"; // <-- تم تصحيح الاستيراد هنا
+import { useSession } from "next-auth/react"; // <-- تم حذف 'update' من هنا
 
 export function useUserUpdate() {
-  // <-- تم تصحيح التفكيك (destructuring) هنا
+  // <-- تم إضافة 'update' هنا من قيمة useSession
   const { data: session, update } = useSession(); 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export function useUserUpdate() {
 
       // 2. تحديث الجلسة على العميل بالبيانات الجديدة
       // هذا يستدعي callback الـ jwt مع trigger: "update"
+      // الآن نستخدم دالة 'update' التي حصلنا عليها من useSession
       await update({
         ...session.user,
         name: userData.name ?? session.user.name,
