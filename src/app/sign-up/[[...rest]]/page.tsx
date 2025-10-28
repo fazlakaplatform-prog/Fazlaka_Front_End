@@ -1,3 +1,5 @@
+// File: src/app/sign-up/page.tsx
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -156,9 +158,7 @@ export default function SignUpPage() {
       termsAndConditions: "الشروط والأحكام",
       privacyPolicy: "سياسة الخصوصية",
       acceptTerms: "أوافق على",
-      and: "و",
-      acceptTermsError: "يجب الموافقة على الشروط والأحكام وسياسة الخصوصية",
-      seconds: "ثانية"
+      and: "و"
     },
     en: {
       title: "Create New Account",
@@ -217,9 +217,7 @@ export default function SignUpPage() {
       termsAndConditions: "Terms and Conditions",
       privacyPolicy: "Privacy Policy",
       acceptTerms: "I agree to",
-      and: "and",
-      acceptTermsError: "You must agree to the Terms and Conditions and Privacy Policy",
-      seconds: "seconds"
+      and: "and"
     }
   };
   
@@ -278,8 +276,8 @@ export default function SignUpPage() {
   const handleGoogleSignUp = async () => {
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.acceptTermsError)
-      return
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
+      return;
     }
     
     setIsLoading(true)
@@ -313,8 +311,8 @@ export default function SignUpPage() {
     
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.acceptTermsError)
-      return
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
+      return;
     }
     
     setIsLoading(true)
@@ -412,7 +410,7 @@ export default function SignUpPage() {
 
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.acceptTermsError)
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
       setIsLoading(false)
       return
     }
@@ -1083,7 +1081,7 @@ export default function SignUpPage() {
                           className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 disabled:text-gray-400 disabled:cursor-not-allowed"
                         >
                           {countdown > 0 
-                            ? `${t.resendIn} ${countdown} ${t.seconds}` 
+                            ? `${t.resendIn} ${countdown} ثانية` 
                             : t.resendCode
                           }
                         </button>

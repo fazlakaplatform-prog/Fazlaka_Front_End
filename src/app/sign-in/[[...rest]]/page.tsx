@@ -175,8 +175,6 @@ export default function SignInPage() {
       checkSpam: "لم تستلم البريد؟ تحقق من مجلد الرسائل غير المرغوب فيها (Spam).",
       needHelp: "تحتاج مساعدة؟",
       contactSupport: "تواصل مع الدعم الفني",
-      // رسالة الخطأ الجديدة
-      mustAcceptTerms: "يجب الموافقة على الشروط والأحكام وسياسة الخصوصية",
     },
     en: {
       title: "Sign In",
@@ -253,8 +251,6 @@ export default function SignInPage() {
       checkSpam: "Didn't receive the email? Check your spam folder.",
       needHelp: "Need help?",
       contactSupport: "Contact support",
-      // رسالة الخطأ الجديدة
-      mustAcceptTerms: "You must agree to the Terms and Conditions and Privacy Policy",
     }
   };
   
@@ -315,7 +311,7 @@ export default function SignInPage() {
     
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.mustAcceptTerms);
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
       return;
     }
     
@@ -382,7 +378,7 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.mustAcceptTerms);
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
       return;
     }
     
@@ -417,7 +413,7 @@ export default function SignInPage() {
     
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.mustAcceptTerms);
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
       return;
     }
     
@@ -519,7 +515,7 @@ export default function SignInPage() {
     
     // التحقق من قبول الشروط والأحكام
     if (!acceptTerms) {
-      setError(t.mustAcceptTerms);
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية");
       return;
     }
     
