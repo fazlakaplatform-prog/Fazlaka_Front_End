@@ -582,7 +582,7 @@ export async function getMainTerms(language: string = 'ar'): Promise<TermsConten
 // جلب المصطلحات القانونية مع دعم اللغة
 export async function getLegalTerms(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'legalTerm" && language == $language] | order(term asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'legalTerm' && language == $language] | order(term asc) {
       _id,
       term,
       termEn,
@@ -601,7 +601,7 @@ export async function getLegalTerms(language: string = 'ar'): Promise<TermsConte
 // جلب الحقوق والمسؤوليات مع دعم اللغة
 export async function getRightsResponsibilities(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'rightsResponsibility" && language == $language] | order(rightsType asc, title asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'rightsResponsibility' && language == $language] | order(rightsType asc, title asc) {
       _id,
       title,
       titleEn,
@@ -622,7 +622,7 @@ export async function getRightsResponsibilities(language: string = 'ar'): Promis
 // جلب السياسات الإضافية مع دعم اللغة
 export async function getAdditionalPolicies(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'additionalPolicy" && language == $language] | order(title asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'additionalPolicy' && language == $language] | order(title asc) {
       _id,
       title,
       titleEn,
@@ -644,7 +644,7 @@ export async function getAdditionalPolicies(language: string = 'ar'): Promise<Te
 // جلب إعدادات الموقع مع دعم اللغة
 export async function getSiteSettings(language: string = 'ar'): Promise<TermsContent | null> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'siteSettings" && language == $language][0]{
+    const query = `*[_type == "termsContent" && sectionType == 'siteSettings' && language == $language][0]{
       siteTitle,
       siteTitleEn,
       siteDescription,
@@ -716,7 +716,7 @@ export interface PrivacyContent {
 // دوال للتعامل مع سياسة الخصوصية مع دعم اللغة
 export async function getPrivacyPolicy(language: string = 'ar'): Promise<PrivacyContent | null> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == 'mainPolicy" && language == $language][0] {
+    const query = `*[_type == "privacyContent" && sectionType == 'mainPolicy' && language == $language][0] {
       title,
       titleEn,
       content,
@@ -733,7 +733,7 @@ export async function getPrivacyPolicy(language: string = 'ar'): Promise<Privacy
 
 export async function getUserRights(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == 'userRight" && language == $language] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == 'userRight' && language == $language] | order(title asc) {
       _id,
       title,
       titleEn,
@@ -1070,7 +1070,7 @@ export interface HeroSlider {
   description: string;
   descriptionEn?: string;
   mediaType: 'image' | 'video';
-  imageUrl?: string;
+  image?: string;
   videoUrl?: string;
   link?: {
     text?: string;
@@ -1092,7 +1092,7 @@ export async function fetchHeroSliders(language: string = 'ar'): Promise<HeroSli
       description,
       descriptionEn,
       mediaType,
-      imageUrl,
+      image,
       videoUrl,
       link,
       orderRank,
@@ -1116,8 +1116,8 @@ export function getVideoUrl(slider: HeroSlider): string | null {
 
 // دالة للحصول على رابط الصورة
 export function getImageUrl(slider: HeroSlider): string | null {
-  if (slider.mediaType === 'image' && slider.imageUrl) {
-    return slider.imageUrl;
+  if (slider.mediaType === 'image' && slider.image) {
+    return slider.image;
   }
   return null;
 }

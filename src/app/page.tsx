@@ -1941,9 +1941,9 @@ const FeaturedContentSlider = () => {
                 <SwiperSlide key={slider._id} className="relative pb-[56.25%]">
                   <div className="absolute inset-0 w-full h-full">
                     {/* الخلفية - تظهر دائماً */}
-                    {slider.mediaType === 'image' && slider.imageUrl && (
+                    {slider.mediaType === 'image' && slider.image && (
                       <Image
-                        src={slider.imageUrl || '/placeholder.png'}
+                        src={slider.image || '/placeholder.png'} // استخدام slider.image بدلاً من slider.imageUrl
                         alt={getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
                         fill
                         className="object-cover"
