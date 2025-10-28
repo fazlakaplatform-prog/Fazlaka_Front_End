@@ -61,6 +61,8 @@ interface SearchResult {
   contentEn?: PortableTextBlock[];
   sectionType?: string;
   imageUrl?: string;
+  thumbnailUrl?: string;
+  featuredImageUrl?: string;
   question?: string;
   questionEn?: string;
   name?: string;
@@ -95,9 +97,27 @@ interface SanityImage {
   };
 }
 
-function buildMediaUrl(image?: SanityImage): string {
+// دالة محدثة للحصول على رابط الصورة
+function buildMediaUrl(image?: SanityImage | string): string {
   if (!image) return "/placeholder.png";
-  return urlFor(image) || "/placeholder.png";
+  
+  // إذا كانت الصورة عبارة عن رابط نصي مباشر، قم بإعادته كما هو
+  if (typeof image === 'string') {
+    return image;
+  }
+  
+  // وإلا، فهي كائن صورة من Sanity، استخدم urlFor ثم .url() لتحويله إلى نص
+  const imageUrl = urlFor(image);
+  if (typeof imageUrl === 'string') {
+    return imageUrl;
+  }
+  
+  // التحقق من وجود دالة url
+  if (imageUrl && typeof imageUrl === 'object' && 'url' in imageUrl && typeof imageUrl.url === 'function') {
+    return imageUrl.url() || "/placeholder.png";
+  }
+  
+  return "/placeholder.png";
 }
 
 function escapeRegExp(str = ""): string {
@@ -527,7 +547,7 @@ export default function SearchResults() {
           slug,
           description,
           descriptionEn,
-          thumbnail,
+          thumbnailUrl,
           season->{
             _id,
             title,
@@ -545,7 +565,7 @@ export default function SearchResults() {
           slug,
           excerpt,
           excerptEn,
-          featuredImage,
+          featuredImageUrl,
           episode->{
             _id,
             title,
@@ -563,7 +583,7 @@ export default function SearchResults() {
           slug,
           description,
           descriptionEn,
-          "imageUrl": image.asset->url,
+          imageUrl,
           language
         }`;
         
@@ -585,7 +605,7 @@ export default function SearchResults() {
           title,
           titleEn,
           slug,
-          thumbnail,
+          thumbnailUrl,
           language
         }`;
         
@@ -597,7 +617,7 @@ export default function SearchResults() {
           role,
           roleEn,
           slug,
-          image,
+          imageUrl,
           bio,
           bioEn,
           language
@@ -702,7 +722,7 @@ export default function SearchResults() {
           role?: string;
           roleEn?: string;
           slug?: { current: string };
-          image?: SanityImage;
+          imageUrl?: string;
           bio?: string;
           bioEn?: string;
           language?: 'ar' | 'en';
@@ -1533,14 +1553,20 @@ const SearchResultCard = ({ result, viewMode, searchTerm, language }: SearchResu
     }
   };
 
-  // تحديد الصورة المناسبة حسب نوع النتيجة
+  // تحديد الصورة المناسبة حسب نوع النتيجة - محدث للتعامل مع نظام URL الجديد
   const getImageUrl = () => {
+    // استخدام الأولويات التالية للصور:
+    // 1. thumbnailUrl للصور المصغرة
+    // 2. featuredImageUrl للصور المميزة
+    // 3. imageUrl للصور العامة
+    // 4. كائنات صور Sanity
+    
+    if (result.thumbnailUrl) return buildMediaUrl(result.thumbnailUrl);
+    if (result.featuredImageUrl) return buildMediaUrl(result.featuredImageUrl);
+    if (result.imageUrl) return buildMediaUrl(result.imageUrl);
     if (result.thumbnail) return buildMediaUrl(result.thumbnail);
     if (result.featuredImage) return buildMediaUrl(result.featuredImage);
     if (result.image) return buildMediaUrl(result.image);
-    if (result._type === "playlist" && result.imageUrl) {
-      return result.imageUrl;
-    }
     
     // صور افتراضية للشروط والأحكام وسياسة الخصوصية
     if (result._type === "terms") {

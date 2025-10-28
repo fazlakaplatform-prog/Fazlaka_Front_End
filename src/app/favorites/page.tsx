@@ -7,7 +7,6 @@ import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useLanguage } from "@/components/LanguageProvider";
 import { 
-  FaHeart, 
   FaTimes, 
   FaSearch, 
   FaFilter, 
@@ -16,10 +15,20 @@ import {
   FaPlay, 
   FaBookOpen, 
   FaTrashAlt,
-  FaSpinner
+  FaSpinner,
+  FaHeart 
 } from "react-icons/fa";
 
-// Updated Episode interface with proper Sanity image structure
+// Sanity Image type for more specific typing
+interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
+  };
+}
+
+// Updated Episode interface with direct URL for thumbnail
 interface Episode {
   _id: string;
   title: string;
@@ -27,20 +36,15 @@ interface Episode {
   slug: {
     current: string;
   };
-  thumbnail?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  thumbnailUrl?: string; // Direct URL instead of Sanity image reference
+  thumbnail?: SanityImage; // Sanity image reference
   duration?: number;
   publishedAt?: string;
   categories?: string[];
   language?: 'ar' | 'en';
 }
 
-// Updated Article interface with proper Sanity image structure
+// Updated Article interface with direct URL for featured image
 interface Article {
   _id: string;
   title: string;
@@ -48,13 +52,8 @@ interface Article {
   slug: {
     current: string;
   };
-  featuredImage?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  featuredImageUrl?: string; // Direct URL instead of Sanity image reference
+  featuredImage?: SanityImage; // Sanity image reference
   publishedAt?: string;
   readTime?: number;
   categories?: string[];
@@ -66,7 +65,7 @@ type FavoriteItem = Episode | Article;
 
 // Helper function to determine if an item is an episode
 function isEpisode(item: FavoriteItem): item is Episode {
-  return (item as Episode).thumbnail !== undefined;
+  return (item as Episode).thumbnailUrl !== undefined || (item as Episode).thumbnail !== undefined;
 }
 
 // Helper function to get the URL for a favorite item
@@ -78,12 +77,37 @@ function getItemUrl(item: FavoriteItem): string {
   }
 }
 
-// Helper function to get the image URL for a favorite item
+// Helper function to get the image URL for a favorite item - updated for direct URLs
 function getItemImageUrl(item: FavoriteItem): string {
   if (isEpisode(item)) {
-    return item.thumbnail ? urlFor(item.thumbnail) : "/placeholder.png";
+    // 'item' is now correctly typed as 'Episode' by the type guard
+    const episode = item;
+    // Try direct URL first, then fallback to Sanity image reference
+    if (episode.thumbnailUrl) {
+      return episode.thumbnailUrl;
+    }
+    // Type assertion is now safer because we defined SanityImage
+    // FIX: Check the type of the result from urlFor before calling .url()
+    if (episode.thumbnail) {
+      const builder = urlFor(episode.thumbnail);
+      return typeof builder === 'string' ? builder : builder.url();
+    }
+    return "/placeholder.png";
   } else {
-    return item.featuredImage ? urlFor(item.featuredImage) : "/placeholder.png";
+    // 'item' is of type 'Article' here. We can use a type assertion or another type guard.
+    // For simplicity, we'll use the assertion as in the original logic.
+    const article = item as Article;
+    // Try direct URL first, then fallback to Sanity image reference
+    if (article.featuredImageUrl) {
+      return article.featuredImageUrl;
+    }
+    // Type assertion is now safer because we defined SanityImage
+    // FIX: Check the type of the result from urlFor before calling .url()
+    if (article.featuredImage) {
+      const builder = urlFor(article.featuredImage);
+      return typeof builder === 'string' ? builder : builder.url();
+    }
+    return "/placeholder.png";
   }
 }
 
@@ -388,7 +412,7 @@ export default function FavoritesPage() {
             title,
             titleEn,
             slug,
-            thumbnail{ _type, asset },
+            thumbnailUrl, // Direct URL field
             duration,
             publishedAt,
             categories,
@@ -403,7 +427,7 @@ export default function FavoritesPage() {
             title,
             titleEn,
             slug,
-            featuredImage{ _type, asset },
+            featuredImageUrl, // Direct URL field
             publishedAt,
             readTime,
             categories,
@@ -588,28 +612,6 @@ export default function FavoritesPage() {
     hover: { scale: 1.02, y: -4, transition: { duration: 0.16 } },
     exit: { opacity: 0, y: 6, scale: 0.98, transition: { duration: 0.22 } },
   } as const;
-
-  const heartVariants = {
-    hidden: { opacity: 0, scale: 0 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      transition: { 
-        duration: 0.8,
-        type: "spring" as const,
-        stiffness: 100,
-        damping: 10
-      } 
-    },
-    hover: { 
-      scale: 1.2, 
-      transition: { 
-        duration: 0.3,
-        repeat: Infinity,
-        repeatType: "reverse" as const,
-      } 
-    }
-  };
 
   // Swipe to delete variants
   const swipeItemVariants = {

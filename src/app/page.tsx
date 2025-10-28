@@ -64,7 +64,7 @@ interface EpisodeData {
   description?: string;
   descriptionEn?: string;
   publishedAt?: string;
-  thumbnail?: SanityImage;
+  thumbnailUrl?: string;
   season?: {
     _id: string;
     title?: string;
@@ -82,7 +82,7 @@ interface ArticleData {
   excerpt?: string;
   excerptEn?: string;
   publishedAt?: string;
-  featuredImage?: SanityImage;
+  featuredImageUrl?: string;
   category?: string;
   categoryEn?: string;
   language?: string;
@@ -783,14 +783,96 @@ const AnimatedQuestion = ({ question, questionEn, answer, answerEn, index }: {
   );
 };
 
-// مكون بطاقة المقال
+// مكون بطاقة الحلقة - محسن للتعامل مع الصور URL
+const EpisodeCard = ({ episode }: { episode: EpisodeData }) => {
+  const { language } = useLanguage();
+  const t = translations[language];
+  
+  // استخدام الدالة الجديدة للحصول على رابط الصورة
+  const imageUrl = episode.thumbnailUrl || "/placeholder.png";
+    
+  const title = getLocalizedTextEnhanced(episode.title, episode.titleEn, language);
+  const description = getLocalizedTextEnhanced(episode.description, episode.descriptionEn, language);
+    
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.995 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, amount: 0.2 }}
+      whileHover={{ y: -6, boxShadow: "0 20px 25px -5px rgba(59, 130, 246, 0.3), 0 10px 10 -5px rgba(59, 130, 246, 0.2)" }}
+      className="card relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-gray-700 flex flex-col dark:shadow-blue-900/20 hover:dark:shadow-blue-900/40"
+    >
+      <Link href={`/episodes/${encodeURIComponent(String(episode.slug.current))}`} className="block flex-grow flex flex-col">
+        <div className="relative h-48 md:h-56 overflow-hidden flex-shrink-0">
+          <Image
+            src={imageUrl}
+            alt={title}
+            fill
+            className="object-cover transition-transform duration-500 hover:scale-110"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder.png";
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <FaPlay className="text-white text-xl ml-1" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-5 flex-grow flex flex-col">
+          <h3
+            className="text-lg font-bold leading-tight text-gray-900 dark:text-white mb-2"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {title}
+          </h3>
+          
+          {description && (
+            <p 
+              className="text-gray-600 dark:text-gray-400 mb-4 text-sm"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
+              {description}
+            </p>
+          )}
+          
+          <div className="mt-auto pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                {t.episode}
+              </span>
+              {episode.publishedAt && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {new Date(episode.publishedAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+};
+
+// مكون بطاقة المقال - محسن للتعامل مع الصور URL
 const ArticleCard = ({ article }: { article: ArticleData }) => {
   const { language } = useLanguage();
   const t = translations[language];
   
-  const imageUrl = article.featuredImage 
-    ? imageUrlBuilder(client).image(article.featuredImage).width(500).height(300).url()
-    : "/placeholder.png";
+  // استخدام الدالة الجديدة للحصول على رابط الصورة
+  const imageUrl = article.featuredImageUrl || "/placeholder.png";
     
   const title = getLocalizedTextEnhanced(article.title, article.titleEn, language);
   const excerpt = getLocalizedTextEnhanced(article.excerpt, article.excerptEn, language);
@@ -812,6 +894,10 @@ const ArticleCard = ({ article }: { article: ArticleData }) => {
             fill
             className="object-cover transition-transform duration-500 hover:scale-110"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder.png";
+            }}
           />
           {category && (
             <div className="absolute top-4 right-4 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
@@ -1855,9 +1941,9 @@ const FeaturedContentSlider = () => {
                 <SwiperSlide key={slider._id} className="relative pb-[56.25%]">
                   <div className="absolute inset-0 w-full h-full">
                     {/* الخلفية - تظهر دائماً */}
-                    {slider.mediaType === 'image' && slider.image && (
+                    {slider.mediaType === 'image' && slider.imageUrl && (
                       <Image
-                        src={getImageUrl(slider) || '/placeholder.png'}
+                        src={slider.imageUrl || '/placeholder.png'}
                         alt={getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
                         fill
                         className="object-cover"
@@ -1896,15 +1982,10 @@ const FeaturedContentSlider = () => {
                               />
                             )}
                           </>
-                        ) : slider.video && (
-                          <video
-                            src={getVideoUrl(slider) || ''}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                          />
+                        ) : (
+                          <div className="absolute inset-0 w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                            <p className="text-gray-500 dark:text-gray-400">No video available</p>
+                          </div>
                         )}
                       </div>
                     )}
@@ -3061,7 +3142,7 @@ export default function Home() {
           slug,
           description,
           descriptionEn,
-          thumbnail,
+          thumbnailUrl,
           season->{
             _id,
             title,
@@ -3105,7 +3186,7 @@ export default function Home() {
           slug,
           excerpt,
           excerptEn,
-          featuredImage,
+          featuredImageUrl,
           category,
           categoryEn,
           publishedAt
@@ -3730,65 +3811,9 @@ export default function Home() {
               dir={isRTL ? "rtl" : "ltr"}
             >
               {episodes.map((ep: EpisodeData) => {
-                const slug = ep.slug.current;
-                const title = getLocalizedTextEnhanced(ep.title, ep.titleEn, language);
-                const thumbnailUrl = ep.thumbnail 
-                  ? imageBuilder.image(ep.thumbnail).width(500).height(300).url()
-                  : "/placeholder.png";
-                
                 return (
                   <SwiperSlide key={ep._id} className="flex justify-center items-start">
-                    <motion.div
-                      initial={{ opacity: 0, y: 12, scale: 0.995 }}
-                      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                      viewport={{ once: true, amount: 0.2 }}
-                      whileHover={{ y: -6, boxShadow: "0 20px 25px -5px rgba(59, 130, 246, 0.3), 0 10px 10 -5px rgba(59, 130, 246, 0.2)" }}
-                      className="card relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-gray-700 flex flex-col dark:shadow-blue-900/20 hover:dark:shadow-blue-900/40"
-                    >
-                      <Link href={`/episodes/${encodeURIComponent(String(slug))}`} className="block flex-grow flex flex-col">
-                        <div className="relative h-48 md:h-56 overflow-hidden flex-shrink-0">
-                          <Image
-                            src={thumbnailUrl}
-                            alt={title}
-                            fill
-                            className="object-cover transition-transform duration-500 hover:scale-110"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                              <FaPlay className="text-white text-xl ml-1" />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="p-5 flex-grow flex flex-col">
-                          <h3
-                            className="text-lg font-bold leading-tight text-gray-900 dark:text-white mb-2"
-                            style={{
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {title}
-                          </h3>
-                          
-                          <div className="mt-auto pt-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                {t.episode}
-                              </span>
-                              {ep.publishedAt && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {new Date(ep.publishedAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    </motion.div>
+                    <EpisodeCard episode={ep} />
                   </SwiperSlide>
                 );
               })}

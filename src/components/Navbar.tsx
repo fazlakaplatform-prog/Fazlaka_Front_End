@@ -33,6 +33,8 @@ interface SearchResult {
   contentEn?: PortableTextBlock[];
   sectionType?: string;
   imageUrl?: string;
+  thumbnailUrl?: string;
+  featuredImageUrl?: string;
   question?: string;
   questionEn?: string;
   name?: string;
@@ -75,6 +77,7 @@ interface TeamMemberResult extends SearchResult {
   roleEn?: string;
   slug?: { current: string };
   image?: SanityImage;
+  imageUrl?: string;
   bio?: string;
   bioEn?: string;
 }
@@ -181,12 +184,15 @@ const translations = {
   }
 };
 
-// دوال مساعدة
-function buildSearchMediaUrl(image?: SanityImage): string {
+// دوال مساعدة - محدثة للتعامل مع نظام URL الجديد
+function buildSearchMediaUrl(image?: SanityImage | string): string {
   if (!image) return "/placeholder.png";
+  
+  // استخدام دالة urlFor من lib/sanity.ts للتعامل مع كل من URL المباشر وكائنات صور Sanity
   try {
     const url = urlFor(image);
-    return url || "/placeholder.png";
+    // تحويل ImageUrlBuilder إلى string
+    return typeof url === 'string' ? url : url.toString() || "/placeholder.png";
   } catch (error) {
     console.error("Error building image URL:", error);
     return "/placeholder.png";
@@ -498,20 +504,20 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
     try {
       // استعلامات Sanity لجلب البيانات مع دعم اللغة
       const episodesQuery = `*[_type == "episode"]{
-        _id, _type, title, titleEn, slug, description, descriptionEn, thumbnail,
+        _id, _type, title, titleEn, slug, description, descriptionEn, thumbnailUrl,
         season->{_id, title, titleEn, slug},
         language
       }`;
       
       const articlesQuery = `*[_type == "article"]{
-        _id, _type, title, titleEn, slug, excerpt, excerptEn, featuredImage,
+        _id, _type, title, titleEn, slug, excerpt, excerptEn, featuredImageUrl,
         episode->{_id, title, titleEn, slug},
         language
       }`;
       
       const playlistsQuery = `*[_type == "playlist"]{
         _id, _type, title, titleEn, slug, description, descriptionEn,
-        "imageUrl": image.asset->url,
+        imageUrl,
         language
       }`;
       
@@ -521,12 +527,12 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
       }`;
       
       const seasonsQuery = `*[_type == "season"]{
-        _id, _type, title, titleEn, slug, thumbnail,
+        _id, _type, title, titleEn, slug, thumbnailUrl,
         language
       }`;
       
       const teamMembersQuery = `*[_type == "teamMember"]{
-        _id, _type, name, nameEn, role, roleEn, slug, image, bio, bioEn,
+        _id, _type, name, nameEn, role, roleEn, slug, imageUrl, bio, bioEn,
         language
       }`;
       
@@ -884,6 +890,7 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
     }
   };
   
+  // دالة محدثة للحصول على رابط الصورة مع دعم نظام URL الجديد
   const getImageUrl = (result: SearchResult): string => {
     // للأنواع التي لا يجب أن يكون لها صور (FAQ, Terms, Privacy) نرجع سلسلة فارغة
     if (result._type === "faq" || result._type === "terms" || result._type === "privacy") {
@@ -891,21 +898,18 @@ const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boole
     }
     
     try {
-      if (result.thumbnail) {
-        const url = buildSearchMediaUrl(result.thumbnail);
-        return url;
-      }
-      if (result.featuredImage) {
-        const url = buildSearchMediaUrl(result.featuredImage);
-        return url;
-      }
-      if (result.image) {
-        const url = buildSearchMediaUrl(result.image);
-        return url;
-      }
-      if (result._type === "playlist" && result.imageUrl) {
-        return result.imageUrl;
-      }
+      // استخدام الأولويات التالية للصور:
+      // 1. thumbnailUrl للصور المصغرة
+      // 2. featuredImageUrl للصور المميزة
+      // 3. imageUrl للصور العامة
+      // 4. كائنات صور Sanity
+      
+      if (result.thumbnailUrl) return buildSearchMediaUrl(result.thumbnailUrl);
+      if (result.featuredImageUrl) return buildSearchMediaUrl(result.featuredImageUrl);
+      if (result.imageUrl) return buildSearchMediaUrl(result.imageUrl);
+      if (result.thumbnail) return buildSearchMediaUrl(result.thumbnail);
+      if (result.featuredImage) return buildSearchMediaUrl(result.featuredImage);
+      if (result.image) return buildSearchMediaUrl(result.image);
       
       return "/placeholder.png";
     } catch (error) {
@@ -2787,7 +2791,7 @@ export default function Navbar() {
                   {/* خلفية متحركة */}
                   <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-                    <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-1/2 translate-y/2"></div>
+                    <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-1/2 translate-y-2"></div>
                   </div>
                   
                   <div className="relative z-10">

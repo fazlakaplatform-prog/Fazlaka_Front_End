@@ -29,13 +29,7 @@ interface Member {
   slug: {
     current: string;
   };
-  image?: {
-    _type: "image";
-    asset: {
-      _type: "reference";
-      _ref: string;
-    };
-  };
+  imageUrl?: string;
   socialMedia?: Array<{
     platform: string;
     url: string;
@@ -763,13 +757,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
         bio,
         bioEn,
         slug,
-        image {
-          _type,
-          asset {
-            _type,
-            _ref
-          }
-        },
+        imageUrl,
         socialMedia[] {
           platform,
           url
@@ -799,7 +787,14 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       
       // تحديد نوع المعلمات بشكل صريح بدلاً من استخدام any
       const queryParams: { slug: string; language: string } = { slug, language };
-      const memberData = await fetchFromSanity(query, queryParams);
+      let memberData = await fetchFromSanity(query, queryParams);
+      
+      // If not found with current language, try with the other language
+      if (!memberData) {
+        const fallbackLanguage = language === 'ar' ? 'en' : 'ar';
+        const fallbackParams = { slug, language: fallbackLanguage };
+        memberData = await fetchFromSanity(query, fallbackParams);
+      }
       
       // التحقق من أن العضو يحتوي على الخصائص الأساسية باستخدام type guard
       if (!memberData || !isMember(memberData)) {
@@ -888,24 +883,10 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   
   // استخدام نهج دفاعي للحصول على رابط الصورة
   let photoUrl = "/placeholder.png";
-  if (member.image) {
+  if (member.imageUrl) {
     try {
-      const imageBuilder = urlFor(member.image);
-      
-      // التحقق إذا كان imageBuilder هو سلسلة نصية مباشرة
-      if (typeof imageBuilder === 'string') {
-        photoUrl = imageBuilder;
-      } 
-      // التحقق إذا كان imageBuilder يحتوي على الدوال المطلوبة
-      else if (imageBuilder && 
-               typeof imageBuilder === 'object' && 
-               'width' in imageBuilder && 
-               typeof (imageBuilder as ImageUrlBuilder).width === 'function') {
-        photoUrl = (imageBuilder as ImageUrlBuilder)
-          .width(300)
-          .height(300)
-          .url();
-      }
+      // Since imageUrl is now a string URL, we can use it directly
+      photoUrl = member.imageUrl;
     } catch (error) {
       console.error("Error generating image URL:", error);
       // الاحتفاظ بالرابط الافتراضي في حالة الخطأ

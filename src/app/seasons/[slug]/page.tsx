@@ -85,39 +85,47 @@ const translations = {
   }
 };
 
-function buildMediaUrl(thumbnail?: SanityImage | null) {
-  if (!thumbnail) return "/placeholder.png";
-  
-  try {
-    // Check if urlFor returns a string directly
-    const result = urlFor(thumbnail);
-    
-    // If it's a string, return it directly
-    if (typeof result === 'string') {
-      return result;
-    }
-    
-    // Otherwise, try to use it as an object with methods
-    // Convert to unknown first to satisfy TypeScript
-    const builder = result as unknown;
-    
-    // Check if it has the methods we need
-    if (builder && 
-        typeof builder === 'object' && 
-        'width' in builder && 
-        'url' in builder &&
-        typeof (builder as { width: (w: number) => unknown }).width === 'function' &&
-        typeof (builder as { url: () => string }).url === 'function') {
-      // Now we can safely use the methods
-      return (builder as { width: (w: number) => { url: () => string } }).width(500).url() || "/placeholder.png";
-    }
-    
-    // If it doesn't match our expected shape, return fallback
-    return "/placeholder.png";
-  } catch {
-    // Fallback if anything fails
-    return "/placeholder.png";
+function buildMediaUrl(thumbnail?: SanityImage | null, thumbnailUrl?: string) {
+  // إذا كان هناك رابط مباشر للصورة، استخدمه أولاً
+  if (thumbnailUrl) {
+    return thumbnailUrl;
   }
+  
+  // إذا لم يكن هناك رابط مباشر ولكن هناك أصل صورة من Sanity، استخدم urlFor
+  if (thumbnail) {
+    try {
+      // Check if urlFor returns a string directly
+      const result = urlFor(thumbnail);
+      
+      // If it's a string, return it directly
+      if (typeof result === 'string') {
+        return result;
+      }
+      
+      // Otherwise, try to use it as an object with methods
+      // Convert to unknown first to satisfy TypeScript
+      const builder = result as unknown;
+      
+      // Check if it has the methods we need
+      if (builder && 
+          typeof builder === 'object' && 
+          'width' in builder && 
+          'url' in builder &&
+          typeof (builder as { width: (w: number) => unknown }).width === 'function' &&
+          typeof (builder as { url: () => string }).url === 'function') {
+        // Now we can safely use the methods
+        return (builder as { width: (w: number) => { url: () => string } }).width(500).url() || "/placeholder.png";
+      }
+      
+      // If it doesn't match our expected shape, return fallback
+      return "/placeholder.png";
+    } catch {
+      // Fallback if anything fails
+      return "/placeholder.png";
+    }
+  }
+  
+  return "/placeholder.png";
 }
 
 function normalizeForSearch(value?: unknown) {
@@ -177,6 +185,7 @@ interface SeasonData {
     _type: "slug";
   };
   thumbnail?: SanityImage;
+  thumbnailUrl?: string; // إضافة حقل رابط الصورة المباشر
   language?: 'ar' | 'en';
 }
 
@@ -196,6 +205,7 @@ interface EpisodeData {
     _type: "slug";
   };
   thumbnail?: SanityImage;
+  thumbnailUrl?: string; // إضافة حقل رابط الصورة المباشر
   publishedAt?: string;
   language?: 'ar' | 'en';
 }
@@ -212,6 +222,7 @@ interface ArticleData {
     _type: "slug";
   };
   featuredImage?: SanityImage;
+  featuredImageUrl?: string; // إضافة حقل رابط الصورة المباشر
   publishedAt?: string;
   language?: 'ar' | 'en';
 }
@@ -252,6 +263,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           descriptionEn,
           slug,
           thumbnail,
+          thumbnailUrl, // إضافة حقل رابط الصورة المباشر
           language
         }`;
         
@@ -276,6 +288,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           summaryEn,
           slug,
           thumbnail,
+          thumbnailUrl, // إضافة حقل رابط الصورة المباشر
           publishedAt,
           language
         }`;
@@ -291,6 +304,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
           excerptEn,
           slug,
           featuredImage,
+          featuredImageUrl, // إضافة حقل رابط الصورة المباشر
           publishedAt,
           language
         }`;
@@ -516,7 +530,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
   
   const seasonTitle = getLocalizedText(season.title, season.titleEn, language) ?? (language === 'ar' ? "موسم" : "Season");
   const seasonDescription = getLocalizedText(season.description, season.descriptionEn, language) ?? "";
-  const seasonThumbnailUrl = buildMediaUrl(season.thumbnail);
+  const seasonThumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl); // تمرير كلا الحقلين
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -833,7 +847,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredEpisodes.map((ep: EpisodeData, index) => {
                     const title = getLocalizedText(ep.title, ep.titleEn, language) ?? getLocalizedText(ep.name, ep.nameEn, language) ?? (language === 'ar' ? "حلقة" : "Episode");
-                    const thumbnailUrl = buildMediaUrl(ep.thumbnail);
+                    const thumbnailUrl = buildMediaUrl(ep.thumbnail, ep.thumbnailUrl); // تمرير كلا الحقلين
                     const slug = ep.slug?.current ?? ep._id;
                     const episodeDate = formatDate(ep.publishedAt);
                     
@@ -921,7 +935,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredEpisodes.map((ep: EpisodeData, index) => {
                     const title = getLocalizedText(ep.title, ep.titleEn, language) ?? getLocalizedText(ep.name, ep.nameEn, language) ?? (language === 'ar' ? "حلقة" : "Episode");
-                    const thumbnailUrl = buildMediaUrl(ep.thumbnail);
+                    const thumbnailUrl = buildMediaUrl(ep.thumbnail, ep.thumbnailUrl); // تمرير كلا الحقلين
                     const slug = ep.slug?.current ?? ep._id;
                     const episodeDate = formatDate(ep.publishedAt);
                     
@@ -1014,7 +1028,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredArticles.map((art: ArticleData, index) => {
                     const title = getLocalizedText(art.title, art.titleEn, language) ?? (language === 'ar' ? "مقال" : "Article");
-                    const thumbnailUrl = buildMediaUrl(art.featuredImage);
+                    const thumbnailUrl = buildMediaUrl(art.featuredImage, art.featuredImageUrl); // تمرير كلا الحقلين
                     const slug = art.slug?.current ?? art._id;
                     const articleDate = formatDate(art.publishedAt);
                     
@@ -1084,7 +1098,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredArticles.map((art: ArticleData, index) => {
                     const title = getLocalizedText(art.title, art.titleEn, language) ?? (language === 'ar' ? "مقال" : "Article");
-                    const thumbnailUrl = buildMediaUrl(art.featuredImage);
+                    const thumbnailUrl = buildMediaUrl(art.featuredImage, art.featuredImageUrl); // تمرير كلا الحقلين
                     const slug = art.slug?.current ?? art._id;
                     const articleDate = formatDate(art.publishedAt);
                     

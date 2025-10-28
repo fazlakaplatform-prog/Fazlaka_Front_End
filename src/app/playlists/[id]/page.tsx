@@ -1,3 +1,4 @@
+// app/playlists/[id]/page.tsx
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
@@ -20,6 +21,15 @@ import {
   FaArrowLeft
 } from "react-icons/fa";
 
+// تعريف واجهة لكائن صورة Sanity
+interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
+  };
+}
+
 // تعريف الواجهات مع دعم اللغة
 interface Playlist {
   _id: string;
@@ -29,7 +39,7 @@ interface Playlist {
   description?: string;
   descriptionEn?: string;
   imageUrl?: string;
-  image?: SanityImage;
+  image?: SanityImage; // تم التغيير من any إلى SanityImage
   episodes?: Episode[];
   articles?: Article[];
   language?: 'ar' | 'en';
@@ -40,7 +50,8 @@ interface Episode {
   slug: { current: string };
   title: string;
   titleEn?: string;
-  imageUrl?: string;
+  thumbnailUrl?: string;
+  image?: SanityImage; // تم التغيير من any إلى SanityImage
   content?: Record<string, unknown>;
   videoUrl?: string;
   publishedAt?: string;
@@ -52,7 +63,8 @@ interface Article {
   slug: { current: string };
   title: string;
   titleEn?: string;
-  imageUrl?: string;
+  featuredImageUrl?: string;
+  image?: SanityImage; // تم التغيير من any إلى SanityImage
   excerpt?: string;
   excerptEn?: string;
   content?: Record<string, unknown>;
@@ -62,27 +74,6 @@ interface Article {
 
 interface Props {
   params: Promise<{ id: string }>;
-}
-
-// تعريف واجهة SanityImage
-interface SanityImage {
-  _type: 'image'
-  asset: {
-    _ref: string
-    _type: 'reference'
-  }
-  hotspot?: {
-    x: number
-    y: number
-    height: number
-    width: number
-  }
-  crop?: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
 }
 
 // كائن الترجمات
@@ -142,20 +133,19 @@ function buildMediaUrl(image?: SanityImage | string): string {
   if (!image) return "/placeholder.png";
   
   try {
-    // التحقق مما إذا كان هناك رابط مباشر
+    // If it's a string URL, return it directly
     if (typeof image === 'string') {
       return image;
     }
     
-    // إذا كان كائن صورة من Sanity
-    if (image.asset) {
-      const result = urlForImage(image);
-      return result.url();
+    // If it's a Sanity image object, use urlForImage
+    if (image && (image._type === 'image' || image.asset)) {
+      return urlForImage(image).url();
     }
     
     return "/placeholder.png";
-  } catch {
-    // بديل في حالة حدوث أي خطأ
+  } catch (error) {
+    console.error('Error building media URL:', error);
     return "/placeholder.png";
   }
 }
@@ -176,17 +166,6 @@ function formatDate(dateString?: string, language: string = 'ar'): string {
     return dateString;
   }
 }
-
-// Loading skeleton component
-const LoadingSkeleton = () => (
-  <div className="animate-pulse">
-    <div className="bg-gray-200 dark:bg-gray-700 h-48 rounded-t-xl"></div>
-    <div className="p-4">
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-    </div>
-  </div>
-);
 
 export default function PlaylistDetails({ params }: Props) {
   const resolvedParams = React.use(params);
@@ -840,7 +819,8 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض الحلقات */}
               {displayEpisodes && filteredEpisodes.map((ep, idx) => {
                 const slug = encodeURIComponent(ep.slug.current);
-                const thumbnailUrl = ep.imageUrl || "/placeholder.png";
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
+                const thumbnailUrl = buildMediaUrl(ep.image || ep.thumbnailUrl);
                 const episodeTitle = getLocalizedText(ep.title, ep.titleEn, language);
                 
                 return (
@@ -910,7 +890,8 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض المقالات */}
               {displayArticles && filteredArticles.map((article, idx) => {
                 const slug = encodeURIComponent(article.slug.current);
-                const thumbnailUrl = article.imageUrl || "/placeholder.png";
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
+                const thumbnailUrl = buildMediaUrl(article.image || article.featuredImageUrl);
                 const articleTitle = getLocalizedText(article.title, article.titleEn, language);
                 const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                 
@@ -983,7 +964,8 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض الحلقات */}
               {displayEpisodes && filteredEpisodes.map((ep, idx) => {
                 const slug = encodeURIComponent(ep.slug.current);
-                const thumbnailUrl = ep.imageUrl || "/placeholder.png";
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
+                const thumbnailUrl = buildMediaUrl(ep.image || ep.thumbnailUrl);
                 const episodeTitle = getLocalizedText(ep.title, ep.titleEn, language);
                 
                 return (
@@ -1051,7 +1033,8 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض المقالات */}
               {displayArticles && filteredArticles.map((article, idx) => {
                 const slug = encodeURIComponent(article.slug.current);
-                const thumbnailUrl = article.imageUrl || "/placeholder.png";
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
+                const thumbnailUrl = buildMediaUrl(article.image || article.featuredImageUrl);
                 const articleTitle = getLocalizedText(article.title, article.titleEn, language);
                 const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                 

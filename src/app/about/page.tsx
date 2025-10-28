@@ -1,3 +1,4 @@
+// app/about/page.tsx
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -30,13 +31,7 @@ interface Member {
   slug: {
     current: string;
   };
-  image?: {
-    _type: "image";
-    asset: {
-      _ref: string;
-      _type: "reference";
-    };
-  };
+  imageUrl?: string; // Changed from image to imageUrl
   skills?: string[];
   language: 'ar' | 'en';
 }
@@ -822,9 +817,7 @@ interface MemberCardProps {
 }
 
 const MemberCard = ({ member, index, isRTL }: MemberCardProps) => {
-  const imageUrl = member.image && member.image.asset && member.image.asset._ref
-    ? urlFor(member.image)
-    : "/placeholder.png";
+  const imageUrl = member.imageUrl || "/placeholder.png"; // Changed from image to imageUrl
   
   const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
   const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');

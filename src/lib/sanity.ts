@@ -10,23 +10,46 @@ export const client = createClient({
   token: process.env.SANITY_API_TOKEN,
 })
 
+// Create a builder for Sanity images
 const builder = imageUrlBuilder(client)
 
-// دالة urlFor الأصلية للتعامل مع الحالات العامة
-export function urlFor(source: SanityImage | string | undefined | null): string {
+// Define the SanityImage interface for type safety
+export interface SanityImage {
+  _type: 'image';
+  asset: {
+    _ref: string;
+    _type: 'reference';
+  };
+}
+
+// Define the valid modes for Sanity image transformations
+type SanityFitMode = 'fill' | 'crop' | 'scale' | 'clip' | 'max' | 'min'
+type SanityCropMode = 'top' | 'bottom' | 'left' | 'right' | 'center' | 'focalpoint' | 'entropy'
+type SanityAutoMode = 'format'
+type SanityFormat = 'jpg' | 'png' | 'webp' | 'avif' | 'gif' | 'svg'
+
+// Updated urlFor function to handle both direct URLs and Sanity image objects
+export function urlFor(source: string | SanityImage | undefined) {
   if (!source) {
     return '/placeholder.png'
   }
   
+  // If it's a string URL, return it directly
   if (typeof source === 'string') {
     return source
   }
   
-  return builder.image(source).url()
+  // If it's a Sanity image object, use the builder
+  if (source && source._type === 'image' && source.asset) {
+    return builder.image(source)
+  }
+  
+  // Fallback
+  return '/placeholder.png'
 }
 
-// دالة متخصصة للصور مع خيارات الحجم
-export function urlForImage(source: SanityImage | undefined | null) {
+// Updated urlForImage function to handle both direct URLs and Sanity image objects
+export function urlForImage(source: string | SanityImage | undefined) {
   if (!source) {
     return {
       url: () => '/placeholder.png',
@@ -41,7 +64,153 @@ export function urlForImage(source: SanityImage | undefined | null) {
     }
   }
   
-  return builder.image(source)
+  // If it's a string URL, return a simple object with url method
+  if (typeof source === 'string') {
+    return {
+      url: () => source,
+      width: () => ({ url: () => source }),
+      height: () => ({ url: () => source }),
+      fit: () => ({ url: () => source }),
+      crop: () => ({ url: () => source }),
+      auto: () => ({ url: () => source }),
+      format: () => ({ url: () => source }),
+      quality: () => ({ url: () => source }),
+      bg: () => ({ url: () => source }),
+    }
+  }
+  
+  // If it's a Sanity image object, use the builder
+  if (source && source._type === 'image' && source.asset) {
+    const imageBuilder = builder.image(source)
+    return {
+      url: () => imageBuilder.url(),
+      width: (w: number) => ({
+        url: () => imageBuilder.width(w).url(),
+        height: () => ({ url: () => imageBuilder.width(w).url() }),
+        fit: () => ({ url: () => imageBuilder.width(w).url() }),
+        crop: () => ({ url: () => imageBuilder.width(w).url() }),
+        auto: () => ({ url: () => imageBuilder.width(w).url() }),
+        format: () => ({ url: () => imageBuilder.width(w).url() }),
+        quality: () => ({ url: () => imageBuilder.width(w).url() }),
+        bg: () => ({ url: () => imageBuilder.width(w).url() }),
+      }),
+      height: (h: number) => ({
+        url: () => imageBuilder.height(h).url(),
+        width: () => ({ url: () => imageBuilder.height(h).url() }),
+        fit: () => ({ url: () => imageBuilder.height(h).url() }),
+        crop: () => ({ url: () => imageBuilder.height(h).url() }),
+        auto: () => ({ url: () => imageBuilder.height(h).url() }),
+        format: () => ({ url: () => imageBuilder.height(h).url() }),
+        quality: () => ({ url: () => imageBuilder.height(h).url() }),
+        bg: () => ({ url: () => imageBuilder.height(h).url() }),
+      }),
+      fit: (f: SanityFitMode) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        url: () => (imageBuilder.fit as any)(f).url(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        width: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        height: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        crop: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        auto: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        format: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        quality: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bg: () => ({ url: () => (imageBuilder.fit as any)(f).url() }),
+      }),
+      crop: (c: SanityCropMode) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        url: () => (imageBuilder.crop as any)(c).url(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        width: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        height: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fit: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        auto: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        format: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        quality: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bg: () => ({ url: () => (imageBuilder.crop as any)(c).url() }),
+      }),
+      auto: (a: SanityAutoMode) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        url: () => (imageBuilder.auto as any)(a).url(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        width: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        height: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fit: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        crop: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        format: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        quality: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bg: () => ({ url: () => (imageBuilder.auto as any)(a).url() }),
+      }),
+      format: (f: SanityFormat) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        url: () => (imageBuilder.format as any)(f).url(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        width: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        height: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fit: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        crop: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        auto: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        quality: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        bg: () => ({ url: () => (imageBuilder.format as any)(f).url() }),
+      }),
+      quality: (q: number) => ({
+        url: () => imageBuilder.quality(q).url(),
+        width: () => ({ url: () => imageBuilder.quality(q).url() }),
+        height: () => ({ url: () => imageBuilder.quality(q).url() }),
+        fit: () => ({ url: () => imageBuilder.quality(q).url() }),
+        crop: () => ({ url: () => imageBuilder.quality(q).url() }),
+        auto: () => ({ url: () => imageBuilder.quality(q).url() }),
+        format: () => ({ url: () => imageBuilder.quality(q).url() }),
+        bg: () => ({ url: () => imageBuilder.quality(q).url() }),
+      }),
+      bg: (b: string) => ({
+        url: () => imageBuilder.bg(b).url(),
+        width: () => ({ url: () => imageBuilder.bg(b).url() }),
+        height: () => ({ url: () => imageBuilder.bg(b).url() }),
+        fit: () => ({ url: () => imageBuilder.bg(b).url() }),
+        crop: () => ({ url: () => imageBuilder.bg(b).url() }),
+        auto: () => ({ url: () => imageBuilder.bg(b).url() }),
+        format: () => ({ url: () => imageBuilder.bg(b).url() }),
+        quality: () => ({ url: () => imageBuilder.bg(b).url() }),
+      }),
+    }
+  }
+  
+  // Fallback
+  return {
+    url: () => '/placeholder.png',
+    width: () => ({ url: () => '/placeholder.png' }),
+    height: () => ({ url: () => '/placeholder.png' }),
+    fit: () => ({ url: () => '/placeholder.png' }),
+    crop: () => ({ url: () => '/placeholder.png' }),
+    auto: () => ({ url: () => '/placeholder.png' }),
+    format: () => ({ url: () => '/placeholder.png' }),
+    quality: () => ({ url: () => '/placeholder.png' }),
+    bg: () => ({ url: () => '/placeholder.png' }),
+  }
 }
 
 // تعديل دالة fetchFromSanity لضمان إرجاع مصفوفة دائمًا عند الطلب
@@ -138,20 +307,20 @@ export async function fetchPlaylists(language: string = 'ar'): Promise<Playlist[
       slug,
       description,
       descriptionEn,
-      "imageUrl": image.asset->url,
+      imageUrl,
       "episodes": episodes[]->{
         _id,
         title,
         titleEn,
         slug,
-        "imageUrl": thumbnail.asset->url
+        thumbnailUrl
       },
       "articles": articles[]->{
         _id,
         title,
         titleEn,
         slug,
-        "imageUrl": featuredImage.asset->url,
+        featuredImageUrl,
         excerpt,
         excerptEn
       },
@@ -175,13 +344,13 @@ export async function fetchPlaylistBySlug(slug: string, language: string = 'ar')
       slug,
       description,
       descriptionEn,
-      "imageUrl": image.asset->url,
+      imageUrl,
       "episodes": episodes[]->{
         _id,
         title,
         titleEn,
         slug,
-        "imageUrl": thumbnail.asset->url,
+        thumbnailUrl,
         content,
         contentEn,
         videoUrl,
@@ -193,7 +362,7 @@ export async function fetchPlaylistBySlug(slug: string, language: string = 'ar')
         title,
         titleEn,
         slug,
-        "imageUrl": featuredImage.asset->url,
+        featuredImageUrl,
         excerpt,
         excerptEn,
         content,
@@ -342,7 +511,7 @@ export interface TermsContent {
   siteTitleEn?: string
   siteDescription?: string
   siteDescriptionEn?: string
-  logo?: SanityImage
+  logoUrl?: string
   footerText?: string
   footerTextEn?: string
   lastUpdated?: string
@@ -378,7 +547,7 @@ export async function getAllTermsContent(language: string = 'ar'): Promise<Terms
       siteTitleEn,
       siteDescription,
       siteDescriptionEn,
-      logo,
+      logoUrl,
       footerText,
       footerTextEn,
       lastUpdated,
@@ -413,7 +582,7 @@ export async function getMainTerms(language: string = 'ar'): Promise<TermsConten
 // جلب المصطلحات القانونية مع دعم اللغة
 export async function getLegalTerms(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'legalTerm' && language == $language] | order(term asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'legalTerm" && language == $language] | order(term asc) {
       _id,
       term,
       termEn,
@@ -432,7 +601,7 @@ export async function getLegalTerms(language: string = 'ar'): Promise<TermsConte
 // جلب الحقوق والمسؤوليات مع دعم اللغة
 export async function getRightsResponsibilities(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'rightsResponsibility' && language == $language] | order(rightsType asc, title asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'rightsResponsibility" && language == $language] | order(rightsType asc, title asc) {
       _id,
       title,
       titleEn,
@@ -453,7 +622,7 @@ export async function getRightsResponsibilities(language: string = 'ar'): Promis
 // جلب السياسات الإضافية مع دعم اللغة
 export async function getAdditionalPolicies(language: string = 'ar'): Promise<TermsContent[]> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'additionalPolicy' && language == $language] | order(title asc) {
+    const query = `*[_type == "termsContent" && sectionType == 'additionalPolicy" && language == $language] | order(title asc) {
       _id,
       title,
       titleEn,
@@ -475,12 +644,12 @@ export async function getAdditionalPolicies(language: string = 'ar'): Promise<Te
 // جلب إعدادات الموقع مع دعم اللغة
 export async function getSiteSettings(language: string = 'ar'): Promise<TermsContent | null> {
   try {
-    const query = `*[_type == "termsContent" && sectionType == 'siteSettings' && language == $language][0]{
+    const query = `*[_type == "termsContent" && sectionType == 'siteSettings" && language == $language][0]{
       siteTitle,
       siteTitleEn,
       siteDescription,
       siteDescriptionEn,
-      logo,
+      logoUrl,
       footerText,
       footerTextEn,
       language
@@ -547,7 +716,7 @@ export interface PrivacyContent {
 // دوال للتعامل مع سياسة الخصوصية مع دعم اللغة
 export async function getPrivacyPolicy(language: string = 'ar'): Promise<PrivacyContent | null> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == 'mainPolicy' && language == $language][0] {
+    const query = `*[_type == "privacyContent" && sectionType == 'mainPolicy" && language == $language][0] {
       title,
       titleEn,
       content,
@@ -564,7 +733,7 @@ export async function getPrivacyPolicy(language: string = 'ar'): Promise<Privacy
 
 export async function getUserRights(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == 'userRight' && language == $language] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == 'userRight" && language == $language] | order(title asc) {
       _id,
       title,
       titleEn,
@@ -582,7 +751,7 @@ export async function getUserRights(language: string = 'ar'): Promise<PrivacyCon
 
 export async function getDataTypes(language: string = 'ar'): Promise<PrivacyContent[]> {
   try {
-    const query = `*[_type == "privacyContent" && sectionType == 'dataType' && language == $language] | order(title asc) {
+    const query = `*[_type == "privacyContent" && sectionType == "dataType" && language == $language] | order(title asc) {
       _id,
       title,
       titleEn,
@@ -664,14 +833,14 @@ export async function fetchUserFavorites(userId: string): Promise<Favorite[]> {
         title,
         titleEn,
         slug,
-        "imageUrl": thumbnail.asset->url
+        thumbnailUrl
       },
       article->{
         _id,
         title,
         titleEn,
         slug,
-        "imageUrl": featuredImage.asset->url
+        featuredImageUrl
       }
     }`;
     return await fetchArrayFromSanity<Favorite>(query, { userId });
@@ -755,26 +924,6 @@ export async function removeFromFavorites(userId: string, contentId: string, con
 }
 
 // واجهات للأنواع الأساسية مع دعم اللغة
-export interface SanityImage {
-  _type: 'image'
-  asset: {
-    _ref: string
-    _type: 'reference'
-  }
-  hotspot?: {
-    x: number
-    y: number
-    height: number
-    width: number
-  }
-  crop?: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
-}
-
 export interface SanitySlug {
   _type: 'slug'
   current: string
@@ -786,7 +935,7 @@ export interface Season {
   title: string
   titleEn?: string
   slug: SanitySlug
-  thumbnail?: SanityImage
+  thumbnailUrl?: string
 }
 
 // نوع لبيانات Portable Text من Sanity
@@ -816,7 +965,7 @@ export interface Episode {
   content?: PortableTextBlock[]
   contentEn?: PortableTextBlock[]
   videoUrl?: string
-  thumbnail?: SanityImage
+  thumbnailUrl?: string
   season?: Season
   publishedAt?: string
   language: 'ar' | 'en'
@@ -833,7 +982,7 @@ export interface Article {
   excerptEn?: string
   content?: PortableTextBlock[]
   contentEn?: PortableTextBlock[]
-  featuredImage?: SanityImage
+  featuredImageUrl?: string
   season?: Season
   episode?: Episode
   publishedAt?: string
@@ -874,7 +1023,7 @@ export interface Playlist {
   slug: SanitySlug
   description?: string
   descriptionEn?: string
-  image?: SanityImage
+  imageUrl?: string
   episodes?: Episode[]
   articles?: Article[]
   language: 'ar' | 'en'
@@ -889,7 +1038,7 @@ export interface TeamMember {
   nameEn?: string
   bio?: string
   bioEn?: string
-  image?: SanityImage
+  imageUrl?: string
   slug: SanitySlug
   role?: string
   roleEn?: string
@@ -921,14 +1070,7 @@ export interface HeroSlider {
   description: string;
   descriptionEn?: string;
   mediaType: 'image' | 'video';
-  image?: SanityImage;
-  video?: {
-    _type: 'file';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  imageUrl?: string;
   videoUrl?: string;
   link?: {
     text?: string;
@@ -950,8 +1092,7 @@ export async function fetchHeroSliders(language: string = 'ar'): Promise<HeroSli
       description,
       descriptionEn,
       mediaType,
-      image,
-      video,
+      imageUrl,
       videoUrl,
       link,
       orderRank,
@@ -967,30 +1108,16 @@ export async function fetchHeroSliders(language: string = 'ar'): Promise<HeroSli
 
 // دالة للحصول على رابط الفيديو
 export function getVideoUrl(slider: HeroSlider): string | null {
-  if (slider.mediaType === 'video') {
-    if (slider.videoUrl) {
-      return slider.videoUrl;
-    } else if (slider.video) {
-      try {
-        return builder.image(slider.video).url();
-      } catch (error) {
-        console.error('Error building video URL:', error);
-        return null;
-      }
-    }
+  if (slider.mediaType === 'video' && slider.videoUrl) {
+    return slider.videoUrl;
   }
   return null;
 }
 
 // دالة للحصول على رابط الصورة
 export function getImageUrl(slider: HeroSlider): string | null {
-  if (slider.mediaType === 'image' && slider.image) {
-    try {
-      return builder.image(slider.image).url();
-    } catch (error) {
-      console.error('Error building image URL:', error);
-      return null;
-    }
+  if (slider.mediaType === 'image' && slider.imageUrl) {
+    return slider.imageUrl;
   }
   return null;
 }
@@ -1009,11 +1136,11 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       descriptionEn,
       publishedAt,
       _createdAt,
-      "imageUrl": thumbnail.asset->url,
+      thumbnailUrl,
       "slug": slug.current,
       "type": "episode"
     }`;
-    const episodes = await fetchArrayFromSanity<Episode & { type: string; slug: string; imageUrl?: string }>(episodesQuery, { lang });
+    const episodes = await fetchArrayFromSanity<Episode & { type: string; slug: string; thumbnailUrl?: string }>(episodesQuery, { lang });
 
     // جلب المقالات مع فلترة حسب اللغة
     const articlesQuery = `*[_type == "article" && language == $lang] | order(publishedAt desc) {
@@ -1024,11 +1151,11 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       excerptEn,
       publishedAt,
       _createdAt,
-      "imageUrl": featuredImage.asset->url,
+      featuredImageUrl,
       "slug": slug.current,
       "type": "article"
     }`;
-    const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; imageUrl?: string }>(articlesQuery, { lang });
+    const articles = await fetchArrayFromSanity<Article & { type: string; slug: string; featuredImageUrl?: string }>(articlesQuery, { lang });
 
     // جلب قوائم التشغيل مع فلترة حسب اللغة - تم إصلاح الخطأ هنا
     const playlistsQuery = `*[_type == "playlist" && language == $lang] | order(_createdAt desc) {
@@ -1038,7 +1165,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       description,
       descriptionEn,
       _createdAt,
-      "imageUrl": image.asset->url,
+      imageUrl,
       "slug": slug.current,
       "type": "playlist"
     }`;
@@ -1084,7 +1211,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       bio,
       bioEn,
       _createdAt,
-      "imageUrl": image.asset->url,
+      imageUrl,
       "slug": slug.current,
       "type": "team"
     }`;
@@ -1114,7 +1241,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       title: getText(ep.title, ep.titleEn),
       description: getText(ep.description, ep.descriptionEn),
       date: getValidDate(ep.publishedAt, ep._createdAt),
-      imageUrl: ep.imageUrl,
+      imageUrl: ep.thumbnailUrl,
       linkUrl: `/episodes/${ep.slug}`
     }));
 
@@ -1124,7 +1251,7 @@ export async function getAllNotifications(language: string = 'ar'): Promise<Noti
       title: getText(article.title, article.titleEn),
       description: getText(article.excerpt, article.excerptEn),
       date: getValidDate(article.publishedAt, article._createdAt),
-      imageUrl: article.imageUrl,
+      imageUrl: article.featuredImageUrl,
       linkUrl: `/articles/${article.slug}`
     }));
 
@@ -1207,7 +1334,7 @@ export async function fetchEpisodes(language: string = 'ar'): Promise<Episode[]>
       content,
       contentEn,
       videoUrl,
-      thumbnail,
+      thumbnailUrl,
       season->,
       publishedAt,
       language
@@ -1230,7 +1357,7 @@ export async function fetchArticles(language: string = 'ar'): Promise<Article[]>
       excerptEn,
       content,
       contentEn,
-      featuredImage,
+      featuredImageUrl,
       season->,
       episode->,
       publishedAt,
@@ -1250,7 +1377,7 @@ export async function fetchSeasons(language: string = 'ar'): Promise<Season[]> {
       title,
       titleEn,
       slug,
-      thumbnail,
+      thumbnailUrl,
       description,
       descriptionEn,
       language,
@@ -1274,7 +1401,7 @@ export async function fetchArticlesBySeason(seasonId: string, language: string =
       excerptEn,
       content,
       contentEn,
-      featuredImage,
+      featuredImageUrl,
       season->,
       episode->,
       publishedAt,
@@ -1295,7 +1422,7 @@ export async function fetchTeamMembers(language: string = 'ar'): Promise<TeamMem
       nameEn,
       bio,
       bioEn,
-      image,
+      imageUrl,
       slug,
       role,
       roleEn,

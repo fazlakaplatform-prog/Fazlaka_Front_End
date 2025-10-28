@@ -180,7 +180,8 @@ export default function TermsConditionsPage() {
         const legal = await getLegalTerms(language)
         const rights = await getRightsResponsibilities(language)
         const policies = await getAdditionalPolicies(language)
-        const settings = await getSiteSettings(language)
+        // FIX: Cast the result to SiteSettingsData to ensure correct typing
+        const settings = await getSiteSettings(language) as SiteSettingsData | null
         
         const transformedTerms = terms ? {
           ...terms,
@@ -223,10 +224,11 @@ export default function TermsConditionsPage() {
             linkUrl: policy.linkUrl || '#'
           }))
         
+        // FIX: Check if settings exists and has the logo property before using it
         const transformedSettings = settings ? {
           siteTitle: language === 'ar' ? (settings.siteTitle || '') : (settings.siteTitleEn || settings.siteTitle || ''),
           siteDescription: language === 'ar' ? (settings.siteDescription || '') : (settings.siteDescriptionEn || settings.siteDescription || ''),
-          logo: settings.logo,
+          logo: settings.logo || undefined,
           footerText: language === 'ar' ? (settings.footerText || '') : (settings.footerTextEn || settings.footerText || '')
         } : null
         

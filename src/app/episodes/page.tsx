@@ -1,4 +1,3 @@
-// app/episodes/page.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -27,13 +26,7 @@ interface Episode {
   slug?: {
     current: string;
   };
-  thumbnail?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  thumbnailUrl?: string; // Changed from thumbnail to thumbnailUrl
   season?: {
     _id: string;
     title: string;
@@ -55,23 +48,8 @@ interface Season {
   slug?: {
     current: string;
   };
-  thumbnail?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  thumbnailUrl?: string; // Changed from thumbnail to thumbnailUrl
   language?: 'ar' | 'en';
-}
-
-// تعريف واجهة لصورة Sanity
-interface SanityImage {
-  _type: 'image';
-  asset: {
-    _ref: string;
-    _type: 'reference';
-  };
 }
 
 // كائن الترجمات
@@ -136,9 +114,9 @@ const translations = {
   }
 };
 
-function buildMediaUrl(image?: SanityImage) {
-  if (!image) return "/placeholder.png";
-  return urlFor(image) || "/placeholder.png";
+function buildMediaUrl(imageUrl?: string) {
+  if (!imageUrl) return "/placeholder.png";
+  return urlFor(imageUrl) || "/placeholder.png";
 }
 
 function escapeRegExp(str = "") {
@@ -587,10 +565,7 @@ export default function EpisodesPageClient() {
                       const slug = episode.slug?.current || episode._id;
                       const title = getLocalizedText(episode.title, episode.titleEn, language);
                       const description = getLocalizedText(episode.description, episode.descriptionEn, language);
-                      let thumbnailUrl = "/placeholder.png";
-                      if (episode.thumbnail) {
-                        thumbnailUrl = buildMediaUrl(episode.thumbnail);
-                      }
+                      const thumbnailUrl = episode.thumbnailUrl || "/placeholder.png";
                       
                       return (
                         <motion.article
@@ -653,10 +628,7 @@ export default function EpisodesPageClient() {
                       const slug = episode.slug?.current || episode._id;
                       const title = getLocalizedText(episode.title, episode.titleEn, language);
                       const description = getLocalizedText(episode.description, episode.descriptionEn, language);
-                      let thumbnailUrl = "/placeholder.png";
-                      if (episode.thumbnail) {
-                        thumbnailUrl = buildMediaUrl(episode.thumbnail);
-                      }
+                      const thumbnailUrl = episode.thumbnailUrl || "/placeholder.png";
                       
                       return (
                         <motion.div
@@ -771,10 +743,7 @@ export default function EpisodesPageClient() {
                             const slug = episode.slug?.current || episode._id;
                             const title = getLocalizedText(episode.title, episode.titleEn, language);
                             const description = getLocalizedText(episode.description, episode.descriptionEn, language);
-                            let thumbnailUrl = "/placeholder.png";
-                            if (episode.thumbnail) {
-                              thumbnailUrl = buildMediaUrl(episode.thumbnail);
-                            }
+                            const thumbnailUrl = episode.thumbnailUrl || "/placeholder.png";
                             
                             return viewMode === "grid" ? (
                               <motion.article

@@ -1,4 +1,3 @@
-// app/articles/page.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -28,13 +27,7 @@ interface Article {
   slug?: {
     current: string;
   };
-  featuredImage?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  featuredImageUrl?: string; // Changed from featuredImage to featuredImageUrl
   episode?: {
     _id: string;
     title: string;
@@ -64,23 +57,8 @@ interface Season {
   slug?: {
     current: string;
   };
-  thumbnail?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  thumbnailUrl?: string; // Changed from thumbnail to thumbnailUrl
   language?: 'ar' | 'en';
-}
-
-// تعريف واجهة لصورة Sanity
-interface SanityImage {
-  _type: 'image';
-  asset: {
-    _ref: string;
-    _type: 'reference';
-  };
 }
 
 // كائن الترجمات
@@ -147,9 +125,9 @@ const translations = {
   }
 };
 
-function buildMediaUrl(image?: SanityImage) {
-  if (!image) return "/placeholder.png";
-  return urlFor(image) || "/placeholder.png";
+function buildMediaUrl(imageUrl?: string) {
+  if (!imageUrl) return "/placeholder.png";
+  return urlFor(imageUrl) || "/placeholder.png";
 }
 
 function escapeRegExp(str = "") {
@@ -633,10 +611,7 @@ export default function ArticlesPageClient() {
                       const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                       const episode = article.episode;
                       const articleSeason = article.season;
-                      let thumbnailUrl = "/placeholder.png";
-                      if (article.featuredImage) {
-                        thumbnailUrl = buildMediaUrl(article.featuredImage);
-                      }
+                      const thumbnailUrl = article.featuredImageUrl || "/placeholder.png";
                       
                       return (
                         <motion.article
@@ -710,10 +685,7 @@ export default function ArticlesPageClient() {
                       const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                       const episode = article.episode;
                       const articleSeason = article.season;
-                      let thumbnailUrl = "/placeholder.png";
-                      if (article.featuredImage) {
-                        thumbnailUrl = buildMediaUrl(article.featuredImage);
-                      }
+                      const thumbnailUrl = article.featuredImageUrl || "/placeholder.png";
                       
                       return (
                         <motion.div
@@ -834,10 +806,7 @@ export default function ArticlesPageClient() {
                             const title = getLocalizedText(article.title, article.titleEn, language);
                             const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                             const episode = article.episode;
-                            let thumbnailUrl = "/placeholder.png";
-                            if (article.featuredImage) {
-                              thumbnailUrl = buildMediaUrl(article.featuredImage);
-                            }
+                            const thumbnailUrl = article.featuredImageUrl || "/placeholder.png";
                             
                             return viewMode === "grid" ? (
                               <motion.article

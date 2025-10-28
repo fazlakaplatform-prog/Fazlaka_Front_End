@@ -23,10 +23,6 @@ import { client, urlFor } from "@/lib/sanity";
 // تعريف نوع موسع للتعامل مع الصور المختلفة
 type PlaylistWithImage = Playlist & {
   imageUrl?: string;
-  image?: { url?: string };
-  coverImage?: { url?: string };
-  thumbnail?: { url?: string };
-  cover?: { asset?: { url?: string } };
   titleEn?: string;
   descriptionEn?: string;
   language?: 'ar' | 'en';
@@ -40,13 +36,7 @@ interface SanityEpisode {
   slug: {
     current: string;
   };
-  thumbnail?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  thumbnailUrl?: string;
   duration?: number;
   publishedAt?: string;
   categories?: string[];
@@ -60,13 +50,7 @@ interface SanityArticle {
   slug: {
     current: string;
   };
-  featuredImage?: {
-    _type: 'image';
-    asset: {
-      _ref: string;
-      _type: 'reference';
-    };
-  };
+  featuredImageUrl?: string;
   publishedAt?: string;
   readTime?: number;
   categories?: string[];
@@ -78,7 +62,7 @@ type FavoriteItem = SanityEpisode | SanityArticle;
 
 // Helper function to determine if an item is an episode
 function isEpisode(item: FavoriteItem): item is SanityEpisode {
-  return (item as SanityEpisode).thumbnail !== undefined;
+  return (item as SanityEpisode).thumbnailUrl !== undefined;
 }
 
 // Helper function to get the URL for a favorite item
@@ -93,9 +77,9 @@ function getItemUrl(item: FavoriteItem): string {
 // Helper function to get the image URL for a favorite item
 function getItemImageUrl(item: FavoriteItem): string {
   if (isEpisode(item)) {
-    return item.thumbnail ? urlFor(item.thumbnail) : "/placeholder.png";
+    return item.thumbnailUrl || "/placeholder.png";
   } else {
-    return item.featuredImage ? urlFor(item.featuredImage) : "/placeholder.png";
+    return item.featuredImageUrl || "/placeholder.png";
   }
 }
 
@@ -314,7 +298,7 @@ const PlaylistsPage = () => {
             publishedAt,
             categories,
             language,
-            thumbnail
+            thumbnailUrl
           }
         }`;
         
@@ -329,7 +313,7 @@ const PlaylistsPage = () => {
             publishedAt,
             categories,
             language,
-            featuredImage
+            featuredImageUrl
           }
         }`;
         
@@ -472,10 +456,6 @@ const PlaylistsPage = () => {
     const playlistWithImage = playlist as PlaylistWithImage;
     
     if (playlistWithImage.imageUrl) return playlistWithImage.imageUrl;
-    if (playlistWithImage.image?.url) return playlistWithImage.image.url;
-    if (playlistWithImage.coverImage?.url) return playlistWithImage.coverImage.url;
-    if (playlistWithImage.thumbnail?.url) return playlistWithImage.thumbnail.url;
-    if (playlistWithImage.cover?.asset?.url) return playlistWithImage.cover.asset.url;
     
     return null;
   };

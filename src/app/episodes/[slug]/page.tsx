@@ -16,27 +16,19 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
-import { client, urlForImage, fetchFromSanity, fetchArrayFromSanity } from "@/lib/sanity";
+import { client, fetchFromSanity, fetchArrayFromSanity } from "@/lib/sanity";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getLocalizedText } from "@/lib/sanity";
 
 import { FaPlay, FaClock, FaComment, FaStar, FaFileAlt, FaImage, FaGoogleDrive, FaReply, FaTrash } from "react-icons/fa";
 
 // تعريف الأنواع مباشرة في الملف مع دعم اللغة
-interface SanityImage {
-  _type: "image";
-  asset: {
-    _ref: string;
-    _type: "reference";
-  };
-}
-
 interface Season {
   _id: string;
   title?: string;
   titleEn?: string;
   slug?: { current: string };
-  thumbnail?: SanityImage | string;
+  thumbnailUrl?: string;
   language?: 'ar' | 'en';
 }
 
@@ -50,7 +42,7 @@ interface Episode {
   content?: string | SanityBlock[];
   contentEn?: string | SanityBlock[];
   videoUrl?: string;
-  thumbnail?: SanityImage | string;
+  thumbnailUrl?: string;
   season?: Season;
   articles?: Article[];
   publishedAt?: string;
@@ -64,7 +56,7 @@ interface Article {
   slug: { current: string };
   excerpt?: string;
   excerptEn?: string;
-  featuredImage?: SanityImage | string;
+  featuredImageUrl?: string;
   language?: 'ar' | 'en';
 }
 
@@ -1235,49 +1227,17 @@ export default function EpisodeDetailPageClient() {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 400], [0, 100]);
   
-  // دالة محسّنة للتعامل مع صور Sanity بشكل صحيح
-  const getThumbnailUrl = useCallback((thumbnail?: SanityImage | string, width?: number, height?: number): string => {
-    if (!thumbnail) return "/placeholder.png";
+  // دالة محسّنة للتعامل مع صور URL مباشرة
+  const getThumbnailUrl = useCallback((thumbnailUrl?: string): string => {
+    if (!thumbnailUrl) return "/placeholder.png";
     
     // إذا كان الرابط نصياً، أرجعه كما هو
-    if (typeof thumbnail === 'string') {
-      return thumbnail;
+    if (typeof thumbnailUrl === 'string') {
+      return thumbnailUrl;
     }
     
-    // إذا كان كائن صورة من Sanity
-    try {
-      const imageBuilder = urlForImage(thumbnail);
-      
-      // تحقق مما إذا كان imageBuilder يحتوي على الطرق المتوقعة
-      if (width && height && 
-          typeof imageBuilder === 'object' && 
-          imageBuilder !== null && 
-          'width' in imageBuilder && 
-          'height' in imageBuilder && 
-          'url' in imageBuilder) {
-        // استخدام type assertion للإشارة إلى أن imageBuilder يحتوي على هذه الطرق
-        const builder = imageBuilder as {
-          width: (w: number) => { height: (h: number) => { url: () => string } };
-          height: (h: number) => { url: () => string };
-          url: () => string;
-        };
-        return builder.width(width).height(height).url();
-      }
-      
-      // إذا لم يكن يحتوي على الطرق المتوقعة، استخدم url() مباشرة
-      if (typeof imageBuilder === 'object' && 
-          imageBuilder !== null && 
-          'url' in imageBuilder && 
-          typeof imageBuilder.url === 'function') {
-        return imageBuilder.url();
-      }
-      
-      // إذا لم يكن كائنًا أو لم يكن لديه طريقة url، ارجع صورة افتراضية
-      return "/placeholder.png";
-    } catch (error) {
-      console.error("Error generating Sanity image URL:", error);
-      return "/placeholder.png";
-    }
+    // إذا لم يكن نصياً، ارجع صورة افتراضية
+    return "/placeholder.png";
   }, []);
   
   // دالة لتحديد ما إذا كان النص يحتوي على رابط فيديو
@@ -1429,16 +1389,7 @@ export default function EpisodeDetailPageClient() {
   }, [getDirectGoogleDriveLink, t.document, t.openInDrive]);
 
   // دالة لعرض الصورة بناءً على الرابط
-  const renderImage = useCallback((url: string | SanityImage) => {
-    let imageUrl: string;
-    
-    // إذا كان الرابط هو كائن صورة من Sanity
-    if (typeof url === 'object' && url !== null) {
-      imageUrl = getThumbnailUrl(url, 800, 450);
-    } else {
-      imageUrl = url as string;
-    }
-    
+  const renderImage = useCallback((url: string) => {
     return (
       <div className="my-6">
         <div className="flex items-center justify-between mb-3">
@@ -1449,7 +1400,7 @@ export default function EpisodeDetailPageClient() {
             <h3 className="text-lg font-bold">{t.image}</h3>
           </div>
           <a 
-            href={imageUrl} 
+            href={url} 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:opacity-95 transition-opacity shadow-lg"
@@ -1460,7 +1411,7 @@ export default function EpisodeDetailPageClient() {
         </div>
         <div className="relative overflow-hidden rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700">
           <Image
-            src={imageUrl}
+            src={url}
             alt="صورة من المحتوى"
             width={800}
             height={450}
@@ -1470,7 +1421,7 @@ export default function EpisodeDetailPageClient() {
         </div>
       </div>
     );
-  }, [getThumbnailUrl, t.image, t.openImage]);
+  }, [t.image, t.openImage]);
 
   // دالة محسّنة لمعالجة المحتوى مع الحفاظ على جميع التنسيقات
   const processContent = useCallback((content: string): JSX.Element[] => {
@@ -1727,13 +1678,13 @@ export default function EpisodeDetailPageClient() {
           content,
           contentEn,
           videoUrl,
-          thumbnail,
+          thumbnailUrl,
           season->{
             _id,
             title,
             titleEn,
             slug,
-            thumbnail
+            thumbnailUrl
           },
           articles[]-> {
             _id,
@@ -1742,7 +1693,7 @@ export default function EpisodeDetailPageClient() {
             slug,
             excerpt,
             excerptEn,
-            featuredImage
+            featuredImageUrl
           }
         }`;
         const ep = await fetchFromSanity<Episode>(episodeQuery, { slug, language });
@@ -1755,7 +1706,7 @@ export default function EpisodeDetailPageClient() {
           title,
           titleEn,
           slug,
-          thumbnail
+          thumbnailUrl
         } | order(_createdAt desc)`;
         const suggestedEpisodes = await fetchArrayFromSanity<Episode>(suggestedQuery, { id: ep._id, language });
         
@@ -1847,8 +1798,8 @@ export default function EpisodeDetailPageClient() {
   const seasonTitle = getLocalizedText(season?.title, season?.titleEn, language) || t.noSeason;
   const seasonSlug = season?.slug?.current || season?._id;
   
-  const thumbnailUrl = getThumbnailUrl(episode.thumbnail, 1200, 630);
-  const seasonThumbnailUrl = getThumbnailUrl(season?.thumbnail, 400, 300);
+  const thumbnailUrl = getThumbnailUrl(episode.thumbnailUrl);
+  const seasonThumbnailUrl = getThumbnailUrl(season?.thumbnailUrl);
   
   // معالجة المحتوى
   const processedDescription = processContent(description);
@@ -2171,7 +2122,7 @@ export default function EpisodeDetailPageClient() {
                 >
                   {suggested.map((item) => {
                     const itemTitle = getLocalizedText(item.title, item.titleEn, language) || t.noTitle;
-                    const itemThumbnailUrl = getThumbnailUrl(item.thumbnail, 400, 300);
+                    const itemThumbnailUrl = getThumbnailUrl(item.thumbnailUrl);
                     
                     return (
                       <SwiperSlide key={item._id} className="overflow-visible px-1 md:px-2">
@@ -2247,7 +2198,7 @@ export default function EpisodeDetailPageClient() {
                 {articles.map((article) => {
                   const articleTitle = getLocalizedText(article.title, article.titleEn, language) || t.noTitle;
                   const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language) || t.readMore;
-                  const articleThumbnailUrl = getThumbnailUrl(article.featuredImage, 400, 300);
+                  const articleThumbnailUrl = getThumbnailUrl(article.featuredImageUrl);
                   const articleUrl = `/articles/${encodeURIComponent(String(article.slug.current))}`;
                   
                   return (

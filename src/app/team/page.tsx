@@ -1,3 +1,4 @@
+// team/page.tsx
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -39,7 +40,7 @@ interface TeamMemberCardProps {
 }
 
 const TeamMemberCard = ({ member, index, isRTL }: TeamMemberCardProps) => {
-  const imageUrl = member.image ? urlFor(member.image) : "/placeholder.png";
+  const imageUrl = member.imageUrl || "/placeholder.png";
   
   const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
   const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');

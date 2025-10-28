@@ -13,7 +13,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { useLanguage } from '@/components/LanguageProvider';
 import { getLocalizedText } from '@/lib/sanity';
 import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo } from 'react-icons/fa';
-import { client, urlForImage } from '@/lib/sanity';
+import { client } from '@/lib/sanity';
 import FavoriteButton from '@/components/FavoriteButton';
 import CommentsClient from '@/components/comments/CommentsClient';
 
@@ -40,14 +40,6 @@ interface PortableTextBlock {
   }[];
 }
 
-interface SanityImage {
-  _type: 'image';
-  asset: {
-    _ref: string;
-    _type: 'reference';
-  };
-}
-
 // تعريف واجهات البيانات المستخدمة في التطبيق
 interface Article {
   _id: string;
@@ -62,13 +54,7 @@ interface Article {
   slug: {
     current: string;
   };
-  featuredImage?: {
-    asset: {
-      _ref: string;
-      _id?: string;
-      url?: string;
-    };
-  };
+  featuredImageUrl?: string;
   episode?: {
     _id: string;
     title: string;
@@ -76,13 +62,7 @@ interface Article {
     slug: {
       current: string;
     };
-    thumbnail?: {
-      asset: {
-        _ref: string;
-        _id?: string;
-        url?: string;
-      };
-    };
+    thumbnailUrl?: string;
   };
   season?: {
     _id: string;
@@ -91,13 +71,7 @@ interface Article {
     slug: {
       current: string;
     };
-    thumbnail?: {
-      asset: {
-        _ref: string;
-        _id?: string;
-        url?: string;
-      };
-    };
+    thumbnailUrl?: string;
   };
   language?: 'ar' | 'en';
 }
@@ -109,13 +83,7 @@ interface EpisodeItem {
   slug: {
     current: string;
   };
-  thumbnail?: {
-    asset: {
-      _ref: string;
-      _id?: string;
-      url?: string;
-    };
-  };
+  thumbnailUrl?: string;
   language?: 'ar' | 'en';
 }
 
@@ -126,13 +94,7 @@ interface SeasonItem {
   slug: {
     current: string;
   };
-  thumbnail?: {
-    asset: {
-      _ref: string;
-      _id?: string;
-      url?: string;
-    };
-  };
+  thumbnailUrl?: string;
   language?: 'ar' | 'en';
 }
 
@@ -586,38 +548,20 @@ export default function ArticleDetailPageClient() {
           contentEn,
           publishedAt,
           slug,
-          featuredImage {
-            asset-> {
-              _id,
-              _ref,
-              url
-            }
-          },
+          featuredImageUrl,
           episode-> {
             _id,
             title,
             titleEn,
             slug,
-            thumbnail {
-              asset-> {
-                _id,
-                _ref,
-                url
-              }
-            }
+            thumbnailUrl
           },
           season-> {
             _id,
             title,
             titleEn,
             slug,
-            thumbnail {
-              asset-> {
-                _id,
-                _ref,
-                url
-              }
-            }
+            thumbnailUrl
           },
           language
         }`;
@@ -725,89 +669,17 @@ export default function ArticleDetailPageClient() {
   const publishedAt = article.publishedAt;
   
   // دالة آمنة للحصول على رابط الصورة
-  const getImageUrl = (image: { asset?: { _ref?: string; _id?: string; url?: string }; _ref?: string; url?: string } | undefined): string => {
-    if (!image) {
-      console.log("No image provided, using placeholder");
+  const getImageUrl = (imageUrl?: string): string => {
+    if (!imageUrl) {
+      console.log("No image URL provided, using placeholder");
       return '/placeholder.png';
     }
     
-    // إذا كان هناك رابط مباشر، استخدمه
-    if (image.url) {
-      console.log("Using direct URL:", image.url);
-      return image.url;
-    }
-    
-    // إذا كان هناك أصل (asset)، استخدم urlForImage
-    if (image.asset) {
-      // إذا كان الأصل يحتوي على رابط مباشر، استخدمه
-      if (image.asset.url) {
-        console.log("Using asset URL:", image.asset.url);
-        return image.asset.url;
-      }
-      
-      // إذا كان الأصل يحتوي على _ref، استخدم urlForImage
-      if (image.asset._ref) {
-        try {
-          // إنشاء كائن SanityImage صالح
-          const sanityImage: SanityImage = {
-            _type: 'image',
-            asset: {
-              _ref: image.asset._ref,
-              _type: 'reference'
-            }
-          };
-          const url = urlForImage(sanityImage).url();
-          console.log("Generated URL from asset _ref:", url);
-          return url;
-        } catch (e) {
-          console.error("Error generating URL from asset _ref:", e);
-        }
-      }
-      
-      // إذا كان الأصل يحتوي على _id، استخدم urlForImage
-      if (image.asset._id) {
-        try {
-          // إنشاء كائن SanityImage صالح
-          const sanityImage: SanityImage = {
-            _type: 'image',
-            asset: {
-              _ref: image.asset._id,
-              _type: 'reference'
-            }
-          };
-          const url = urlForImage(sanityImage).url();
-          console.log("Generated URL from asset _id:", url);
-          return url;
-        } catch (e) {
-          console.error("Error generating URL from asset _id:", e);
-        }
-      }
-    }
-    
-    // إذا كان هناك _ref مباشر، استخدم urlForImage
-    if (image._ref) {
-      try {
-        // إنشاء كائن SanityImage صالح
-        const sanityImage: SanityImage = {
-          _type: 'image',
-          asset: {
-            _ref: image._ref,
-            _type: 'reference'
-          }
-        };
-        const url = urlForImage(sanityImage).url();
-        console.log("Generated URL from direct _ref:", url);
-        return url;
-      } catch (e) {
-        console.error("Error generating URL from direct _ref:", e);
-      }
-    }
-    
-    console.log("No valid image source found, using placeholder");
-    return '/placeholder.png';
+    console.log("Using image URL:", imageUrl);
+    return imageUrl;
   };
   
-  const featuredImageUrl = getImageUrl(article.featuredImage);
+  const featuredImageUrl = getImageUrl(article.featuredImageUrl);
   console.log("Final featuredImageUrl:", featuredImageUrl);
   
   // دالة للتحقق مما إذا كان النص يحتوي على رابط فيديو
@@ -1419,7 +1291,7 @@ export default function ArticleDetailPageClient() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {seasons.map((season) => {
                   const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
-                  const seasonImageUrl = getImageUrl(season.thumbnail);
+                  const seasonImageUrl = getImageUrl(season.thumbnailUrl);
                   console.log("Season image URL:", seasonImageUrl);
                   
                   return (
@@ -1495,7 +1367,7 @@ export default function ArticleDetailPageClient() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {episodes.map((episode) => {
                   const episodeTitle = getLocalizedText(episode.title, episode.titleEn, language);
-                  const episodeImageUrl = getImageUrl(episode.thumbnail);
+                  const episodeImageUrl = getImageUrl(episode.thumbnailUrl);
                   console.log("Episode image URL:", episodeImageUrl);
                   
                   return (
