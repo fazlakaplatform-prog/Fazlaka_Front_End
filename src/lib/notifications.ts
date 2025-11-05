@@ -138,7 +138,7 @@ export async function createNotificationForAllUsers(data: Omit<NotificationData,
     // إذا لم يتم العثور على مستخدمين، استخدم القائمة الافتراضية
     if (users.length === 0) {
       console.log('⚠️ [createNotificationForAllUsers] No users found in database. Using fallback list.');
-      // !!! هام: تأكد من إضافة بريدك الإلكتروني هنا !!!
+      // !!! هام: تأكد من إضافة بريدك هنا !!!
       users = [
         'fazlaka.platform@gmail.com', // <--- ضع بريدك هنا
         'aly.safwat.mohamed@gmail.com',
