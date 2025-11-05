@@ -39,27 +39,27 @@ function verifyWebhook(request: NextRequest, body: WebhookBody): boolean {
   }
   
   try {
-    // استخراج التوقيع من الرأس
-    const sig = Buffer.from(signature, 'utf8');
-    const timestamp = sig.toString().split('t=')[1]?.split(',')[0];
-    
-    if (!timestamp) {
+    // استخراج الطابع الزمني من التوقيع
+    const timestampMatch = signature.match(/t=(\d+)/);
+    if (!timestampMatch) {
       console.log('❌ No timestamp found in signature');
       return false;
     }
     
-    // التحقق من أن الطلب ليس قديماً جداً (ضد هجمات إعادة التشغيل)
+    const timestamp = timestampMatch[1];
     const currentTime = Math.floor(Date.now() / 1000);
     const requestTime = parseInt(timestamp);
     const timeDifference = Math.abs(currentTime - requestTime);
     
-    if (timeDifference > 300) { // 5 دقائق
+    // التحقق من أن الطلب ليس قديماً جداً (ضد هجمات إعادة التشغيل)
+    // زيادة النافذة الزمنية إلى 10 دقائق (600 ثانية)
+    if (timeDifference > 600) {
       console.log(`❌ Request timestamp is too old: ${timeDifference} seconds`);
       return false;
     }
     
     // إنشاء التوقيع المتوقع
-    const payload = `${timestamp}.${JSON.stringify(body)}`;
+    const payload = JSON.stringify(body);
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(payload, 'utf8')
@@ -67,12 +67,12 @@ function verifyWebhook(request: NextRequest, body: WebhookBody): boolean {
     
     // مقارنة التوقيعات
     const isValid = crypto.timingSafeEqual(
-      Buffer.from(`v1=${expectedSignature}`, 'utf8'),
+      Buffer.from(`sha256=${expectedSignature}`, 'utf8'),
       Buffer.from(signature, 'utf8')
     );
     
     if (!isValid) {
-      console.log(`❌ Signature mismatch. Expected: v1=${expectedSignature}, Received: ${signature}`);
+      console.log(`❌ Signature mismatch. Expected: sha256=${expectedSignature}, Received: ${signature}`);
       return false;
     }
     
