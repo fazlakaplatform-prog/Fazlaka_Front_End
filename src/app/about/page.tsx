@@ -1,4 +1,3 @@
-// app/about/page.tsx
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -17,24 +16,8 @@ import {
   FaFlask, FaAtom, FaLandmark, 
   FaBalanceScale, FaFileAlt, FaShareAlt
 } from 'react-icons/fa';
-import { urlFor, fetchFromSanity, fetchTeamMembers, getLocalizedText } from '@/lib/sanity';
-
-// Interfaces
-interface Member {
-  _id?: string;
-  name: string;
-  nameEn?: string;
-  role?: string;
-  roleEn?: string;
-  bio?: string;
-  bioEn?: string;
-  slug: {
-    current: string;
-  };
-  imageUrl?: string; // Changed from image to imageUrl
-  skills?: string[];
-  language: 'ar' | 'en';
-}
+import { fetchFromSanity, getLocalizedText } from '@/lib/sanity';
+import { fetchTeamMembers, type TeamMember } from '@/lib/sanity/team';
 
 // Social links - تم تحديثها مع أيقونة X الجديدة
 const socialLinks = [
@@ -46,12 +29,19 @@ const socialLinks = [
 ];
 
 // APIs
-async function getMembers(language: string = 'ar'): Promise<Member[]> {
+async function getMembers(language: string = 'ar'): Promise<TeamMember[]> {
   try {
     console.log("Fetching team members with language:", language);
     const members = await fetchTeamMembers(language);
     console.log("Fetched team members:", members);
-    return members.filter(member => member._id !== undefined) || [];
+    
+    // إضافة خاصية language إلى كل عضو في الفريق
+    const membersWithLanguage = members.map(member => ({
+      ...member,
+      language: language as 'ar' | 'en'
+    }));
+    
+    return membersWithLanguage.filter(member => member._id !== undefined) || [];
   } catch (error) {
     console.error("Error fetching team members:", error);
     return [];
@@ -811,16 +801,23 @@ const SocialMediaSection = () => {
 
 // مكون بطاقة عضو الفريق المحدث
 interface MemberCardProps {
-  member: Member;
+  member: TeamMember;
   index: number;
   isRTL: boolean;
 }
 
 const MemberCard = ({ member, index, isRTL }: MemberCardProps) => {
-  const imageUrl = member.imageUrl || "/placeholder.png"; // Changed from image to imageUrl
+  // تعديل منطق عرض الصورة ليتوافق مع اللغة المحددة
+  const imageUrl = isRTL && member.imageUrl ? member.imageUrl : 
+                  !isRTL && member.imageUrlEn ? member.imageUrlEn : 
+                  member.imageUrl || member.imageUrlEn || "/placeholder.png";
   
   const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
   const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');
+  
+  // تحقق من وجود خاصية skills في كائن العضو
+  const hasSkills = 'skills' in member && Array.isArray(member.skills);
+  const skills = hasSkills ? member.skills : [];
   
   return (
     <div 
@@ -875,24 +872,6 @@ const MemberCard = ({ member, index, isRTL }: MemberCardProps) => {
           )}
         </div>
         
-        {/* المهارات */}
-        {member.skills && member.skills.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
-            {member.skills.slice(0, 3).map((skill, idx) => (
-              <span 
-                key={idx} 
-                className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 text-blue-800 dark:text-blue-200 rounded-full transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-blue-200 group-hover:to-indigo-200 dark:group-hover:from-blue-800 dark:group-hover:to-indigo-800 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10"
-              >
-                {skill}
-              </span>
-            ))}
-            {member.skills.length > 3 && (
-              <span className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 rounded-full shadow-md shadow-gray-500/20 dark:shadow-gray-500/10">
-                +{member.skills.length - 3}
-              </span>
-            )}
-          </div>
-        )}
         
         {/* زر الملف الشخصي */}
         <div className="flex justify-center">
@@ -918,7 +897,7 @@ const MemberCard = ({ member, index, isRTL }: MemberCardProps) => {
 
 // مكون المحتوى الرئيسي
 function AboutContent() {
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [subscribers, setSubscribers] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRTL, setIsRTL] = useState(true);
@@ -1393,6 +1372,13 @@ function AboutContent() {
         }
         .animate-spin-slow {
           animation: spin-slow 8s linear infinite;
+        }
+        @keyframes border-rotate {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .animate-border-rotate {
+          animation: border-rotate 8s linear infinite;
         }
       `}</style>
     </div>

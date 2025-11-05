@@ -16,6 +16,7 @@ type FaqItem = {
   question: string; 
   answer: string;
   category?: string;
+  categoryEn?: string;
 };
 
 interface SanityFaqItem {
@@ -24,8 +25,8 @@ interface SanityFaqItem {
   questionEn?: string;
   answer: string;
   answerEn?: string;
-  category?: string;
-  categoryEn?: string;
+  category: string;
+  categoryEn: string;
 }
 
 // إضافة الترجمات
@@ -243,8 +244,8 @@ function FaqContent() {
       try {
         setFaqLoading(true);
         
-        // تمرير اللغة الحالية إلى الاستعلام وجلب الحقول المناسبة
-        const query = `*[_type == "faq" && language == $language] | order(_createdAt desc) {
+        // تعديل الاستعلام لجلب جميع الأسئلة الشائعة بدون فلترة حسب اللغة
+        const query = `*[_type == "faq"] | order(_createdAt desc) {
           _id,
           question,
           questionEn,
@@ -254,13 +255,14 @@ function FaqContent() {
           categoryEn
         }`;
         
-        const data = await fetchFromSanity(query, { language }) as SanityFaqItem[];
+        const data = await fetchFromSanity(query) as SanityFaqItem[];
         
         const formattedFaqs = data.map((item: SanityFaqItem) => ({
           id: item._id,
           question: getLocalizedText(language, item.question, item.questionEn),
           answer: getLocalizedText(language, item.answer, item.answerEn),
-          category: getLocalizedText(language, item.category, item.categoryEn)
+          category: item.category,
+          categoryEn: item.categoryEn
         }));
         
         setFaqs(formattedFaqs);
@@ -315,16 +317,19 @@ function FaqContent() {
       result = result.filter(
         faq => 
           faq.question.toLowerCase().includes(term) || 
-          faq.answer.toLowerCase().includes(term)
+          faq.answer.toLowerCase().includes(term) ||
+          (language === 'ar' ? faq.category : faq.categoryEn)?.toLowerCase().includes(term)
       );
     }
     
     if (activeCategory) {
-      result = result.filter(faq => faq.category === activeCategory);
+      result = result.filter(faq => 
+        language === 'ar' ? faq.category === activeCategory : faq.categoryEn === activeCategory
+      );
     }
     
     setFilteredFaqs(result);
-  }, [searchTerm, faqs, activeCategory]);
+  }, [searchTerm, faqs, activeCategory, language]);
   
   const toggleFaq = (id: string) => {
     const el = contentRefs.current[id];
@@ -341,7 +346,7 @@ function FaqContent() {
     
     const fetchFaqs = async () => {
       try {
-        const query = `*[_type == "faq" && language == $language] | order(_createdAt desc) {
+        const query = `*[_type == "faq"] | order(_createdAt desc) {
           _id,
           question,
           questionEn,
@@ -351,13 +356,14 @@ function FaqContent() {
           categoryEn
         }`;
         
-        const data = await fetchFromSanity(query, { language }) as SanityFaqItem[];
+        const data = await fetchFromSanity(query) as SanityFaqItem[];
         
         const formattedFaqs = data.map((item: SanityFaqItem) => ({
           id: item._id,
           question: getLocalizedText(language, item.question, item.questionEn),
           answer: getLocalizedText(language, item.answer, item.answerEn),
-          category: getLocalizedText(language, item.category, item.categoryEn)
+          category: item.category,
+          categoryEn: item.categoryEn
         }));
         
         setFaqs(formattedFaqs);
@@ -377,10 +383,15 @@ function FaqContent() {
     contentRefs.current[id] = el;
   };
   
-  const categories = Array.from(new Set(faqs.map(faq => faq.category).filter(Boolean))) as string[];
+  // تعديل استخراج الفئات ليشمل اللغتين
+  const categories = Array.from(new Set(
+    faqs.map(faq => language === 'ar' ? faq.category : faq.categoryEn).filter(Boolean)
+  )) as string[];
   
   const categoryCounts = categories.reduce((acc, category) => {
-    acc[category] = faqs.filter(faq => faq.category === category).length;
+    acc[category] = faqs.filter(faq => 
+      language === 'ar' ? faq.category === category : faq.categoryEn === category
+    ).length;
     return acc;
   }, {} as Record<string, number>);
   
@@ -744,6 +755,7 @@ function FaqContent() {
                 const isOpen = openFaq === f.id;
                 const colors = getCardColors(index);
                 const colorIndex = index % 8;
+                const localizedCategory = getLocalizedText(language, f.category, f.categoryEn);
                 
                 return (
                   <motion.div key={f.id} id={`faq-${f.id}`} initial={reduceMotion ? {} : { opacity: 0, y: 10 }} animate={reduceMotion ? {} : { opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`overflow-hidden rounded-2xl bg-white dark:bg-gray-800 transition-all duration-300 ${isOpen ? `ring-2 ring-opacity-50 ${colors.ring} dark:shadow-lg ${colors.shadow} ${colors.shimmer}` : `${colors.shadow} ${colors.hoverShadow}`}`} style={{ borderLeft: `4px solid var(--card-${colorIndex}-border)`, borderTop: `1px solid var(--card-${colorIndex}-border)`, borderRight: `1px solid var(--card-${colorIndex}-border)`, borderBottom: `1px solid var(--card-${colorIndex}-border)`, boxShadow: isOpen ? `0 10px 25px -5px var(--card-${colorIndex}-shadow-color), 0 10px 10px -5px var(--card-${colorIndex}-shadow-color), 0 0 15px var(--card-${colorIndex}-shimmer-color)` : `0 10px 25px -5px var(--card-${colorIndex}-shadow-color), 0 10px 10px -5px var(--card-${colorIndex}-shadow-color)` }}>
@@ -760,9 +772,9 @@ function FaqContent() {
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isOpen ? "M19 15l-7-7-7 7" : "M19 9l-7 7-7 7"} /></svg>
                         </motion.span>
                       </button>
-                      {f.category && (
+                      {localizedCategory && (
                         <div className={`mt-3 ${isRTL ? 'mr-16' : 'ml-16'} relative z-10`}>
-                          <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs rounded-full">{f.category}</span>
+                          <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs rounded-full">{localizedCategory}</span>
                         </div>
                       )}
                     </div>

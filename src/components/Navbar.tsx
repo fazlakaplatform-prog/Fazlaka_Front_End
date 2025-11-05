@@ -1,85 +1,29 @@
 "use client";
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchFromSanity, urlFor, getAllNotifications, NotificationItem } from '@/lib/sanity';
+import { fetchFromSanity } from '@/lib/sanity';
 
 // تعريفات واجهات البيانات
-interface SearchResult {
+interface NotificationItem {
   _id: string;
-  _type: "episode" | "article" | "faq" | "playlist" | "season" | "teamMember" | "terms" | "privacy";
   title?: string;
   titleEn?: string;
-  slug?: { current: string };
-  excerpt?: string;
-  excerptEn?: string;
-  description?: string;
-  descriptionEn?: string;
-  answer?: string;
-  answerEn?: string;
-  role?: string;
-  roleEn?: string;
-  thumbnail?: SanityImage;
-  featuredImage?: SanityImage;
-  image?: SanityImage;
-  season?: { _id: string; title: string; titleEn?: string; slug: { current: string } };
-  episodeCount?: number;
-  category?: string;
-  categoryEn?: string;
-  content?: PortableTextBlock[];
-  contentEn?: PortableTextBlock[];
-  sectionType?: string;
+  message?: string;
+  messageEn?: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  relatedId?: string;
+  relatedType?: 'episode' | 'article' | 'playlist' | 'season';
   imageUrl?: string;
-  thumbnailUrl?: string;
-  featuredImageUrl?: string;
-  question?: string;
-  questionEn?: string;
-  name?: string;
-  nameEn?: string;
-  bio?: string;
-  bioEn?: string;
-  episode?: { _id: string; title: string; titleEn?: string; slug: { current: string } };
-  language?: string;
-}
-
-interface PortableTextBlock {
-  _type: 'block';
-  children: PortableTextSpan[];
-}
-
-interface PortableTextSpan {
-  text: string;
-}
-
-interface SanityImage {
-  _type: 'image';
-  asset: { _ref: string; _type: 'reference' };
-}
-
-interface FaqResult extends SearchResult {
-  _type: "faq";
-  question?: string;
-  questionEn?: string;
-  answer?: string;
-  answerEn?: string;
-  category?: string;
-  categoryEn?: string;
-}
-
-interface TeamMemberResult extends SearchResult {
-  _type: "teamMember";
-  name?: string;
-  nameEn?: string;
-  role?: string;
-  roleEn?: string;
-  slug?: { current: string };
-  image?: SanityImage;
-  imageUrl?: string;
-  bio?: string;
-  bioEn?: string;
+  imageUrlEn?: string;
+  createdAt: string;
+  isRead: boolean;
+  actionUrl?: string;
+  actionText?: string;
+  actionTextEn?: string;
 }
 
 // كائن الترجمات
@@ -98,11 +42,6 @@ const translations = {
     contact: "التواصل",
     contactUs: "تواصل معنا",
     faq: "الأسئلة الشائعة",
-    search: "بحث...",
-    searchResults: "نتائج البحث",
-    noResults: "لا توجد نتائج مطابقة",
-    searching: "جاري البحث...",
-    viewAllResults: "عرض جميع نتائج البحث",
     signIn: "تسجيل دخول",
     signUp: "إنشاء حساب",
     manageAccount: "إدارة الحساب",
@@ -114,14 +53,6 @@ const translations = {
     loading: "جاري التحميل...",
     terms: "شروط وأحكام",
     privacy: "سياسة الخصوصية",
-    episode: "حلقة",
-    article: "مقال",
-    playlist: "قائمة تشغيل",
-    faqItem: "سؤال شائع",
-    season: "موسم",
-    teamMember: "عضو الفريق",
-    termsItem: "شروط وأحكام",
-    privacyItem: "سياسة الخصوصية",
     darkMode: "تبديل الوضع الليلي",
     language: "تبديل اللغة",
     copyright: "© {year} فذلكة",
@@ -131,7 +62,18 @@ const translations = {
     small: "صغير",
     medium: "متوسط",
     large: "كبير",
-    changePassword: "تغيير كلمة المرور"
+    changePassword: "تغيير كلمة المرور",
+    brandName: "فذلكه",
+    markAsRead: "تحديد كمقروء",
+    delete: "حذف",
+    timeAgo: "منذ",
+    justNow: "الآن",
+    minutes: "دقائق",
+    hours: "ساعات",
+    days: "أيام",
+    weeks: "أسابيع",
+    months: "أشهر",
+    years: "سنوات"
   },
   en: {
     home: "Home",
@@ -147,11 +89,6 @@ const translations = {
     contact: "Contact",
     contactUs: "Contact Us",
     faq: "FAQ",
-    search: "Search...",
-    searchResults: "Search Results",
-    noResults: "No matching results",
-    searching: "Searching...",
-    viewAllResults: "View All Results",
     signIn: "Sign In",
     signUp: "Sign Up",
     manageAccount: "Manage Account",
@@ -163,14 +100,6 @@ const translations = {
     loading: "Loading...",
     terms: "Terms & Conditions",
     privacy: "Privacy Policy",
-    episode: "Episode",
-    article: "Article",
-    playlist: "Playlist",
-    faqItem: "FAQ",
-    season: "Season",
-    teamMember: "Team Member",
-    termsItem: "Terms & Conditions",
-    privacyItem: "Privacy Policy",
     darkMode: "Toggle Dark Mode",
     language: "Toggle Language",
     copyright: "© {year} Fazlaka",
@@ -180,51 +109,57 @@ const translations = {
     small: "Small",
     medium: "Medium",
     large: "Large",
-    changePassword: "Change Password"
+    changePassword: "Change Password",
+    brandName: "fazlaka",
+    markAsRead: "Mark as Read",
+    delete: "Delete",
+    timeAgo: "ago",
+    justNow: "Just now",
+    minutes: "minutes",
+    hours: "hours",
+    days: "days",
+    weeks: "weeks",
+    months: "months",
+    years: "years"
   }
 };
 
-// دوال مساعدة - محدثة للتعامل مع نظام URL الجديد
-function buildSearchMediaUrl(image?: SanityImage | string): string {
-  if (!image) return "/placeholder.png";
+// دالة للحصول على النص المناسب حسب اللغة
+function getLocalizedText(arText?: string, enText?: string, isRTL: boolean = true): string {
+  if (isRTL) {
+    return arText || enText || '';
+  } else {
+    return enText || arText || '';
+  }
+}
+
+// دالة لحساب الوقت المنقضي
+function getTimeAgo(dateString: string, isRTL: boolean): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   
-  // استخدام دالة urlFor من lib/sanity.ts للتعامل مع كل من URL المباشر وكائنات صور Sanity
-  try {
-    const url = urlFor(image);
-    // تحويل ImageUrlBuilder إلى string
-    return typeof url === 'string' ? url : url.toString() || "/placeholder.png";
-  } catch (error) {
-    console.error("Error building image URL:", error);
-    return "/placeholder.png";
-  }
-}
-
-function escapeRegExp(str = ""): string {
-  if (!str) return "";
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function renderHighlighted(text: string, q: string): React.ReactNode {
-  if (!q) return <>{text}</>;
-  try {
-    const re = new RegExp(`(${escapeRegExp(q)})`, "ig");
-    const parts = text.split(re);
-    return (
-      <>
-        {parts.map((part, i) =>
-          re.test(part) ? (
-            <mark key={i} className="bg-yellow-100 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 rounded px-0.5">
-              {part}
-            </mark>
-          ) : (
-            <span key={i}>{part}</span>
-          )
-        )}
-      </>
-    );
-  } catch {
-    return <>{text}</>;
-  }
+  const t = translations[isRTL ? 'ar' : 'en'];
+  
+  if (seconds < 60) return t.justNow;
+  
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} ${t.minutes} ${t.timeAgo}`;
+  
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${t.hours} ${t.timeAgo}`;
+  
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} ${t.days} ${t.timeAgo}`;
+  
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks} ${t.weeks} ${t.timeAgo}`;
+  
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${t.months} ${t.timeAgo}`;
+  
+  const years = Math.floor(days / 365);
+  return `${years} ${t.years} ${t.timeAgo}`;
 }
 
 // مكون تبديل حجم الخط
@@ -263,888 +198,6 @@ const FontSizeSwitch = ({ fontSize, setFontSize, isRTL }: {
           </button>
         ))}
       </div>
-    </div>
-  );
-};
-
-// مكون شريط البحث المحسّن
-const SearchBar = ({ initialExpanded = false, isRTL }: { initialExpanded?: boolean; isRTL: boolean }) => {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(initialExpanded);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
-  const [titles, setTitles] = useState<string[]>([]);
-  
-  const router = useRouter();
-  const searchRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  
-  // نصوص التطبيق حسب اللغة
-  const searchTexts = {
-    ar: {
-      searchPlaceholder: "ابحث عن حلقات، مقالات، قوائم تشغيل...",
-      searchInPlatform: "ابحث هنا في كل ارجاء المنصه",
-      resultsCount: "نتيجة لـ",
-      noResults: "لم نتمكن من العثور على نتائج",
-      tryDifferentKeywords: "جرب كلمات مفتاحية أخرى",
-      clearSearch: "مسح البحث",
-      searching: "جاري البحث...",
-      viewAllResults: "عرض جميع النتائج",
-      loading: "جاري التحميل...",
-      episode: "حلقة",
-      article: "مقال",
-      playlist: "قائمة تشغيل",
-      faq: "سؤال شائع",
-      season: "موسم",
-      teamMember: "عضو فريق",
-      terms: "شروط وأحكام",
-      privacy: "سياسة الخصوصية"
-    },
-    en: {
-      searchPlaceholder: "Search for episodes, articles, playlists...",
-      searchInPlatform: "Search across the entire platform",
-      resultsCount: "results for",
-      noResults: "We couldn't find any results",
-      tryDifferentKeywords: "Try different keywords",
-      clearSearch: "Clear Search",
-      searching: "Searching...",
-      viewAllResults: "View All Results",
-      loading: "Loading...",
-      episode: "Episode",
-      article: "Article",
-      playlist: "Playlist",
-      faq: "FAQ",
-      season: "Season",
-      teamMember: "Team Member",
-      terms: "Terms & Conditions",
-      privacy: "Privacy Policy"
-    }
-  };
-  
-  const searchT = searchTexts[isRTL ? 'ar' : 'en'];
-  
-  // إغلاق النتائج عند النقر خارجها
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowResults(false);
-        setShowSuggestions(false);
-        if (!initialExpanded && !query.trim()) {
-          setIsExpanded(false);
-        }
-      }
-    };
-    
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [query, initialExpanded]);
-  
-  // جلب العناوين للاقتراحات مع فلترة حسب اللغة
-  useEffect(() => {
-    async function loadTitles() {
-      try {
-        // جلب جميع البيانات من Sanity مع دعم اللغة
-        const episodesQuery = `*[_type == "episode"]{
-          _id,
-          title,
-          titleEn,
-          language
-        }`;
-        
-        const articlesQuery = `*[_type == "article"]{
-          _id,
-          title,
-          titleEn,
-          language
-        }`;
-        
-        const playlistsQuery = `*[_type == "playlist"]{
-          _id,
-          title,
-          titleEn,
-          language
-        }`;
-        
-        const faqsQuery = `*[_type == "faq"]{
-          _id,
-          question,
-          questionEn,
-          language
-        }`;
-        
-        const seasonsQuery = `*[_type == "season"]{
-          _id,
-          title,
-          titleEn,
-          language
-        }`;
-        
-        const teamMembersQuery = `*[_type == "teamMember"]{
-          _id,
-          name,
-          nameEn,
-          language
-        }`;
-        
-        const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"]{
-          _id,
-          title,
-          titleEn,
-          language
-        }`;
-        
-        const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"]{
-          _id,
-          title,
-          titleEn,
-          language
-        }`;
-        
-        const [
-          episodesData, 
-          articlesData, 
-          playlistsData, 
-          faqsData, 
-          seasonsData, 
-          teamMembersData,
-          termsData,
-          privacyData
-        ] = await Promise.all([
-          fetchFromSanity(episodesQuery) as Promise<SearchResult[]>,
-          fetchFromSanity(articlesQuery) as Promise<SearchResult[]>,
-          fetchFromSanity(playlistsQuery) as Promise<SearchResult[]>,
-          fetchFromSanity(faqsQuery) as Promise<FaqResult[]>,
-          fetchFromSanity(seasonsQuery) as Promise<SearchResult[]>,
-          fetchFromSanity(teamMembersQuery) as Promise<TeamMemberResult[]>,
-          fetchFromSanity(termsQuery) as Promise<SearchResult[]>,
-          fetchFromSanity(privacyQuery) as Promise<SearchResult[]>
-        ]);
-        
-        // فلترة البيانات حسب اللغة الحالية فقط
-        const currentLanguage = isRTL ? 'ar' : 'en';
-        
-        // إنشاء قائمة بالعناوين للاقتراحات مع فلترة حسب اللغة
-        const allTitles = [
-          // فلترة الحلقات حسب اللغة
-          ...episodesData
-            .filter((item: SearchResult) => item.language === currentLanguage)
-            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || '')),
-          
-          // فلترة المقالات حسب اللغة
-          ...articlesData
-            .filter((item: SearchResult) => item.language === currentLanguage)
-            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || '')),
-          
-          // فلترة قوائم التشغيل حسب اللغة
-          ...playlistsData
-            .filter((item: SearchResult) => item.language === currentLanguage)
-            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || '')),
-          
-          // فلترة الأسئلة الشائعة حسب اللغة
-          ...faqsData
-            .filter((item: FaqResult) => item.language === currentLanguage)
-            .map((item: FaqResult) => isRTL ? item.question || '' : (item.questionEn || item.question || '')),
-          
-          // فلترة المواسم حسب اللغة
-          ...seasonsData
-            .filter((item: SearchResult) => item.language === currentLanguage)
-            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || '')),
-          
-          // فلترة أعضاء الفريق حسب اللغة
-          ...teamMembersData
-            .filter((item: TeamMemberResult) => item.language === currentLanguage)
-            .map((item: TeamMemberResult) => isRTL ? item.name || '' : (item.nameEn || item.name || '')),
-          
-          // فلترة الشروط والأحكام حسب اللغة
-          ...termsData
-            .filter((item: SearchResult) => item.language === currentLanguage)
-            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || '')),
-          
-          // فلترة سياسة الخصوصية حسب اللغة
-          ...privacyData
-            .filter((item: SearchResult) => item.language === currentLanguage)
-            .map((item: SearchResult) => isRTL ? item.title || '' : (item.titleEn || item.title || ''))
-        ];
-        
-        // فلترة المصفوفة لإزالة أي قيم فارغة أو undefined
-        const filteredTitles = allTitles.filter(title => title && title.trim() !== '');
-        setTitles(filteredTitles);
-      } catch (error) {
-        console.error("Error loading titles:", error);
-      }
-    }
-    
-    loadTitles();
-  }, [isRTL]); // إعادة التحميل عند تغيير اللغة
-  
-  // فلترة الاقتراحات
-  useEffect(() => {
-    if (!query.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    
-    const term = query.toLowerCase();
-    const filteredSuggestions = titles
-      .filter(title => title.toLowerCase().includes(term))
-      .slice(0, 8); // عرض 8 اقتراحات كحد أقصى
-    
-    setSuggestions(filteredSuggestions);
-  }, [query, titles]);
-  
-  // البحث عند تغيير النص
-  const performSearch = useCallback(async (searchQuery: string) => {
-    setIsLoading(true);
-    try {
-      // استعلامات Sanity لجلب البيانات مع دعم اللغة
-      const episodesQuery = `*[_type == "episode"]{
-        _id, _type, title, titleEn, slug, description, descriptionEn, thumbnailUrl,
-        season->{_id, title, titleEn, slug},
-        language
-      }`;
-      
-      const articlesQuery = `*[_type == "article"]{
-        _id, _type, title, titleEn, slug, excerpt, excerptEn, featuredImageUrl,
-        episode->{_id, title, titleEn, slug},
-        language
-      }`;
-      
-      const playlistsQuery = `*[_type == "playlist"]{
-        _id, _type, title, titleEn, slug, description, descriptionEn,
-        imageUrl,
-        language
-      }`;
-      
-      const faqsQuery = `*[_type == "faq"]{
-        _id, _type, question, questionEn, answer, answerEn, category, categoryEn,
-        language
-      }`;
-      
-      const seasonsQuery = `*[_type == "season"]{
-        _id, _type, title, titleEn, slug, thumbnailUrl,
-        language
-      }`;
-      
-      const teamMembersQuery = `*[_type == "teamMember"]{
-        _id, _type, name, nameEn, role, roleEn, slug, imageUrl, bio, bioEn,
-        language
-      }`;
-      
-      const termsQuery = `*[_type == "termsContent" && sectionType == "mainTerms"][0]{
-        _id, _type, title, titleEn, content, contentEn, lastUpdated,
-        language
-      }`;
-      
-      const privacyQuery = `*[_type == "privacyContent" && sectionType == "mainPolicy"][0]{
-        _id, _type, title, titleEn, content, contentEn, lastUpdated,
-        language
-      }`;
-      
-      // جلب البيانات بشكل متوازٍ
-      const [
-        episodesData, 
-        articlesData, 
-        playlistsData, 
-        faqsData, 
-        seasonsData, 
-        teamMembersData, 
-        termsData, 
-        privacyData
-      ] = await Promise.all([
-        fetchFromSanity(episodesQuery) as Promise<SearchResult[]>,
-        fetchFromSanity(articlesQuery) as Promise<SearchResult[]>,
-        fetchFromSanity(playlistsQuery) as Promise<SearchResult[]>,
-        fetchFromSanity(faqsQuery) as Promise<FaqResult[]>,
-        fetchFromSanity(seasonsQuery) as Promise<SearchResult[]>,
-        fetchFromSanity(teamMembersQuery) as Promise<TeamMemberResult[]>,
-        fetchFromSanity(termsQuery) as Promise<SearchResult | null>,
-        fetchFromSanity(privacyQuery) as Promise<SearchResult | null>
-      ]);
-      
-      // تحويل البيانات إلى الأنواع المناسبة
-      const episodes = episodesData as SearchResult[];
-      const articles = articlesData as SearchResult[];
-      const playlists = playlistsData as SearchResult[];
-      const seasons = seasonsData as SearchResult[];
-      const terms = termsData as SearchResult | null;
-      const privacy = privacyData as SearchResult | null;
-      
-      // فلترة البيانات حسب اللغة الحالية فقط
-      const currentLanguage = isRTL ? 'ar' : 'en';
-      
-      const filteredEpisodes = episodes.filter(item => item.language === currentLanguage);
-      const filteredArticles = articles.filter(item => item.language === currentLanguage);
-      const filteredPlaylists = playlists.filter(item => item.language === currentLanguage);
-      const filteredFaqs = (faqsData as FaqResult[]).filter(item => item.language === currentLanguage);
-      const filteredSeasons = seasons.filter(item => item.language === currentLanguage);
-      const filteredTeamMembers = (teamMembersData as TeamMemberResult[]).filter(item => item.language === currentLanguage);
-      
-      // حساب عدد الحلقات لكل موسم
-      const episodesCountQuery = `*[_type == "episode"]{ season->{_id} }`;
-      const episodesCountData = await fetchFromSanity(episodesCountQuery) as { season?: { _id: string } }[];
-      
-      const episodeCounts: Record<string, number> = {};
-      episodesCountData.forEach((ep) => {
-        if (ep.season?._id) {
-          episodeCounts[ep.season._id] = (episodeCounts[ep.season._id] || 0) + 1;
-        }
-      });
-      
-      // إضافة عدد الحلقات لكل موسم
-      const seasonsWithCount = filteredSeasons.map(season => ({
-        ...season,
-        episodeCount: episodeCounts[season._id] || 0
-      }));
-      
-      // تحويل الأسئلة الشائعة إلى نفس تنسيق النتائج الأخرى
-      const faqs = filteredFaqs.map(faq => ({
-        ...faq,
-        title: faq.question,
-        titleEn: faq.questionEn,
-        excerpt: faq.answer,
-        excerptEn: faq.answerEn
-      }));
-      
-      // تحويل أعضاء الفريق إلى نفس تنسيق النتائج الأخرى
-      const teamMembers = filteredTeamMembers.map(member => ({
-        ...member,
-        title: member.name,
-        titleEn: member.nameEn,
-        excerpt: member.bio,
-        excerptEn: member.bioEn
-      }));
-      
-      // إضافة الشروط والأحكام وسياسة الخصوصية إذا كانت موجودة وتطابق اللغة
-      const termsAndPrivacy: SearchResult[] = [];
-      if (terms && terms.language === currentLanguage) {
-        termsAndPrivacy.push({
-          ...terms,
-          _type: "terms",
-          slug: { current: "terms-conditions" }
-        });
-      }
-      
-      if (privacy && privacy.language === currentLanguage) {
-        termsAndPrivacy.push({
-          ...privacy,
-          _type: "privacy",
-          slug: { current: "privacy-policy" }
-        });
-      }
-      
-      // دمج جميع النتائج المفلترة حسب اللغة
-      const allResults = [
-        ...filteredEpisodes,
-        ...filteredArticles,
-        ...filteredPlaylists,
-        ...faqs,
-        ...seasonsWithCount,
-        ...teamMembers,
-        ...termsAndPrivacy
-      ];
-      
-      // فلترة النتائج حسب البحث
-      const q = searchQuery.trim().toLowerCase();
-      const searchResults = allResults.filter((result) => {
-        // البحث في العناوين بناءً على اللغة الحالية
-        const title = isRTL 
-          ? (result.title || "").toString().toLowerCase()
-          : ((result.titleEn || result.title) || "").toString().toLowerCase();
-        
-        // البحث في المحتوى بناءً على اللغة الحالية
-        let excerpt = isRTL
-          ? (result.excerpt || result.description || result.answer || result.role || "").toString().toLowerCase()
-          : ((result.excerptEn || result.descriptionEn || result.answerEn || result.roleEn || 
-              result.excerpt || result.description || result.answer || result.role) || "").toString().toLowerCase();
-        
-        // إذا كان النتيجة من نوع الشروط والأحكام أو سياسة الخصوصية، ابحث في المحتوى أيضاً
-        if ((result._type === "terms" || result._type === "privacy")) {
-          try {
-            const content = isRTL ? result.content : result.contentEn;
-            if (content) {
-              const contentText = content
-                .filter((block: PortableTextBlock) => block._type === "block")
-                .map((block: PortableTextBlock) => 
-                  block.children
-                    .map((child: PortableTextSpan) => child.text)
-                    .join("")
-                )
-                .join(" ")
-                .toLowerCase();
-              
-              excerpt = contentText;
-            }
-          } catch (error) {
-            console.error("Error extracting content text:", error);
-          }
-        }
-        
-        return title.includes(q) || excerpt.includes(q);
-      });
-      
-      setResults(searchResults);
-      setShowResults(true);
-    } catch (error) {
-      console.error("Search error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isRTL]);
-  
-  useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      setShowResults(false);
-      return;
-    }
-    
-    const delayDebounce = setTimeout(() => {
-      performSearch(query);
-    }, 300);
-    
-    return () => clearTimeout(delayDebounce);
-  }, [query, performSearch]);
-  
-  // التعامل مع اختيار الاقتراح
-  const handleSuggestionSelect = (suggestion: string) => {
-    setQuery(suggestion);
-    setShowSuggestions(false);
-    setSelectedSuggestion(-1);
-  };
-  
-  // التعامل مع مفاتيح لوحة المفاتيح للاقتراحات
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions || suggestions.length === 0) return;
-    
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedSuggestion(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedSuggestion(prev => (prev > 0 ? prev - 1 : -1));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedSuggestion >= 0 && selectedSuggestion < suggestions.length) {
-          handleSuggestionSelect(suggestions[selectedSuggestion]);
-        }
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setSelectedSuggestion(-1);
-        break;
-    }
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-      setQuery("");
-      setShowResults(false);
-      setShowSuggestions(false);
-      if (!initialExpanded) {
-        setIsExpanded(false);
-      }
-    }
-  };
-  
-  const handleFocus = () => {
-    if (!initialExpanded) {
-      setIsExpanded(true);
-    }
-    if (query.trim().length >= 2) {
-      setShowResults(true);
-    }
-    setShowSuggestions(true);
-  };
-  
-  const handleClear = () => {
-    setQuery("");
-    setResults([]);
-    setShowResults(false);
-    setShowSuggestions(false);
-    if (!initialExpanded) {
-      setIsExpanded(false);
-    }
-    setTimeout(() => {
-      const inputElement = searchRef.current?.querySelector('input');
-      if (inputElement) {
-        inputElement.focus();
-      }
-    }, 0);
-  };
-  
-  const handleResultClick = (result: SearchResult) => {
-    setShowResults(false);
-    setShowSuggestions(false);
-    setQuery("");
-    
-    // تحديد الرابط المناسب حسب نوع النتيجة
-    const getLink = () => {
-      const idOrSlug = result.slug?.current ?? result._id;
-      const encoded = encodeURIComponent(String(idOrSlug));
-      switch (result._type) {
-        case "episode": return `/episodes/${encoded}`;
-        case "article": return `/articles/${encoded}`;
-        case "playlist": return `/playlists/${encoded}`;
-        case "faq": return `/faq?faq=${encoded}`;
-        case "season": return `/seasons/${encoded}`;
-        case "teamMember": return `/team/${encoded}`;
-        case "terms": return `/terms-conditions`;
-        case "privacy": return `/privacy-policy`;
-        default: return "#";
-      }
-    };
-    
-    const href = getLink();
-    router.push(href);
-    
-    if (!initialExpanded) {
-      setIsExpanded(false);
-    }
-  };
-  
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "episode":
-        return (
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </div>
-        );
-      case "article":
-        return (
-          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-            </svg>
-          </div>
-        );
-      case "playlist":
-        return (
-          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-            </svg>
-          </div>
-        );
-      case "faq":
-        return (
-          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        );
-      case "season":
-        return (
-          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        );
-      case "teamMember":
-        return (
-          <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20v-2c0-.656.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 100-6 3 3 0 000 6zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-        );
-      case "terms":
-        return (
-          <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-        );
-      case "privacy":
-        return (
-          <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-        );
-      default:
-        return (
-          <div className="p-2 bg-gray-100 dark:bg-gray-700/30 rounded-xl shadow-sm">
-            <svg className="w-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        );
-    }
-  };
-  
-  // دالة محدثة للحصول على رابط الصورة مع دعم نظام URL الجديد
-  const getImageUrl = (result: SearchResult): string => {
-    // للأنواع التي لا يجب أن يكون لها صور (FAQ, Terms, Privacy) نرجع سلسلة فارغة
-    if (result._type === "faq" || result._type === "terms" || result._type === "privacy") {
-      return "";
-    }
-    
-    try {
-      // استخدام الأولويات التالية للصور:
-      // 1. thumbnailUrl للصور المصغرة
-      // 2. featuredImageUrl للصور المميزة
-      // 3. imageUrl للصور العامة
-      // 4. كائنات صور Sanity
-      
-      if (result.thumbnailUrl) return buildSearchMediaUrl(result.thumbnailUrl);
-      if (result.featuredImageUrl) return buildSearchMediaUrl(result.featuredImageUrl);
-      if (result.imageUrl) return buildSearchMediaUrl(result.imageUrl);
-      if (result.thumbnail) return buildSearchMediaUrl(result.thumbnail);
-      if (result.featuredImage) return buildSearchMediaUrl(result.featuredImage);
-      if (result.image) return buildSearchMediaUrl(result.image);
-      
-      return "/placeholder.png";
-    } catch (error) {
-      console.error("Error getting image URL:", error);
-      return "/placeholder.png";
-    }
-  };
-  
-  const getDisplayText = (result: SearchResult) => {
-    if (isRTL) {
-      if (result.excerpt) return result.excerpt;
-      if (result.description) return result.description;
-      if (result.answer) return result.answer;
-      if (result.role) return result.role;
-    } else {
-      if (result.excerptEn) return result.excerptEn;
-      if (result.descriptionEn) return result.descriptionEn;
-      if (result.answerEn) return result.answerEn;
-      if (result.roleEn) return result.roleEn;
-      // إذا لم توجد ترجمة، استخدم النص العربي كبديل
-      if (result.excerpt) return result.excerpt;
-      if (result.description) return result.description;
-      if (result.answer) return result.answer;
-      if (result.role) return result.role;
-    }
-    
-    if ((result._type === "terms" || result._type === "privacy") && result.content) {
-      try {
-        const content = isRTL ? result.content : result.contentEn;
-        if (content) {
-          return content
-            .filter((block: PortableTextBlock) => block._type === "block")
-            .slice(0, 2)
-            .map((block: PortableTextBlock) => 
-              block.children
-                .map((child: PortableTextSpan) => child.text)
-                .join("")
-            )
-            .join(" ")
-            .substring(0, 200) + "...";
-        }
-      } catch (error) {
-        console.error("Error extracting content text:", error);
-      }
-    }
-    
-    return "";
-  };
-  
-  const getDisplayTitle = (result: SearchResult) => {
-    if (isRTL) {
-      return result.title || '';
-    } else {
-      return result.titleEn || result.title || '';
-    }
-  };
-  
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "episode": return searchT.episode;
-      case "article": return searchT.article;
-      case "playlist": return searchT.playlist;
-      case "faq": return searchT.faq;
-      case "season": return searchT.season;
-      case "teamMember": return searchT.teamMember;
-      case "terms": return searchT.terms;
-      case "privacy": return searchT.privacy;
-      default: return type;
-    }
-  };
-  
-  return (
-    <div className="relative" ref={searchRef}>
-      <form 
-        onSubmit={handleSubmit} 
-        className={`relative flex items-center transition-all duration-300 ease-in-out ${
-          isExpanded ? 'w-64' : 'w-10'
-        }`}
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setShowSuggestions(true);
-            setSelectedSuggestion(-1);
-          }}
-          onFocus={handleFocus}
-          onKeyDown={handleKeyDown}
-          placeholder={searchT.searchPlaceholder}
-          className={`absolute ${isRTL ? 'right-0' : 'left-0'} top-0 h-10 ${isRTL ? 'pr-10 pl-2' : 'pl-10 pr-2'} rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ease-in-out text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-            isExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'
-          }`}
-        />
-        <button
-          type="submit"
-          className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 shadow-md hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 ease-in-out"
-          onClick={handleFocus}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-          </svg>
-        </button>
-        
-        {query && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className={`absolute ${isRTL ? 'left-2' : 'right-2'} top-1/2 transform -translate-y-1/2 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-            </svg>
-          </button>
-        )}
-      </form>
-      
-      {/* قائمة الاقتراحات */}
-      <AnimatePresence>
-        {showSuggestions && suggestions.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
-          >
-            <div className="p-2">
-              {suggestions.map((suggestion, index) => (
-                <div
-                  key={suggestion}
-                  className={`px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-150 flex items-center gap-3 rounded-xl ${
-                    index === selectedSuggestion ? 'bg-blue-50/70 dark:bg-blue-900/30' : ''
-                  }`}
-                  onClick={() => handleSuggestionSelect(suggestion)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* قائمة النتائج */}
-      <AnimatePresence>
-        {showResults && isExpanded && (query.trim().length >= 2 || results.length > 0) && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`absolute z-50 ${isRTL ? 'right-0' : 'left-0'} mt-2 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden max-h-96 overflow-y-auto`}
-          >
-            {isLoading ? (
-              <div className="p-6 text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{searchT.searching}</p>
-              </div>
-            ) : results.length > 0 ? (
-              <div className="py-2">
-                <div className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-700/50">
-                  {results.length} {searchT.resultsCount} &quot;{query}&quot;
-                </div>
-                {results.slice(0, 6).map((result) => (
-                  <motion.div
-                    key={`${result._type}-${result._id}`}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="px-4 py-3 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-200 flex items-center gap-3 group"
-                    onClick={() => handleResultClick(result)}
-                  >
-                    <div className="flex-shrink-0">
-                      {getIcon(result._type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {renderHighlighted(getDisplayTitle(result), query)}
-                      </p>
-                      <p className="text-xs text-blue-500 dark:text-blue-400 font-medium truncate mt-1">
-                        {getTypeLabel(result._type)}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 truncate mt-2 leading-relaxed">
-                        {renderHighlighted(getDisplayText(result), query)}
-                      </p>
-                    </div>
-                    {/* عرض الصورة فقط للأنواع التي تدعم الصور */}
-                    {getImageUrl(result) && (
-                      <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-                        <Image
-                          src={getImageUrl(result)}
-                          alt={getDisplayTitle(result)}
-                          width={48}
-                          height={48}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-                <div className="px-4 py-3 border-t border-gray-200/50 dark:border-gray-700/50 bg-gray-50/30 dark:bg-gray-700/30">
-                  <button
-                    onClick={handleSubmit}
-                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-center group shadow-lg hover:shadow-xl"
-                  >
-                    {searchT.viewAllResults}
-                    <svg className={`w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-200 ${isRTL ? 'mr-2 rotate-180' : 'ml-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ) : query.trim().length >= 2 ? (
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-base font-medium text-gray-500 dark:text-gray-400 mb-2">{searchT.noResults}</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500">{searchT.tryDifferentKeywords}</p>
-              </div>
-            ) : null}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
@@ -1758,25 +811,34 @@ const NotificationButton = ({
   isMobile?: boolean;
 }) => {
   const router = useRouter();
-  const [hasNewNotifications, setHasNewNotifications] = useState(true);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
   const t = translations[isRTL ? 'ar' : 'en'];
   
-  // تعديل: جلب الإشعارات حسب اللغة الحالية
+  // جلب الإشعارات من API الجديد
   useEffect(() => {
     const fetchNotifications = async () => {
+      if (!session?.user?.email) {
+        setLoading(false);
+        return;
+      }
+      
       try {
-        // تمرير اللغة الحالية إلى دالة getAllNotifications
-        const currentLanguage = isRTL ? 'ar' : 'en';
-        const data = await getAllNotifications(currentLanguage);
-        setNotifications(data.slice(0, 3)); // أخذ آخر 3 إشعارات فقط
-        if (data.length > 0) {
-          setHasNewNotifications(true);
-        } else {
-          setHasNewNotifications(false);
+        setLoading(true);
+        const response = await fetch('/api/notifications');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch notifications');
         }
+        
+        const data = await response.json();
+        const notificationsData = data.notifications || [];
+        
+        setNotifications(notificationsData.slice(0, 3)); // أخذ آخر 3 إشعارات فقط
+        setHasNewNotifications(notificationsData.some((n: NotificationItem) => !n.isRead));
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       } finally {
@@ -1785,19 +847,25 @@ const NotificationButton = ({
     };
 
     fetchNotifications();
-  }, [isRTL]); // إعادة التحميل عند تغيير اللغة
+    
+    // تحديث الإشعارات كل 30 ثانية
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [session?.user?.email]);
   
   const handleNotificationClick = (notification: NotificationItem) => {
-    let finalLink = notification.linkUrl;
-    if (notification.type === 'faq' && notification.id) {
-      finalLink = `/faq?faq=${notification.id}`;
-    } else if (notification.type === 'terms') {
-      finalLink = notification.id ? `/terms-conditions#${notification.id}` : '/terms-conditions';
-    } else if (notification.type === 'privacy') {
-      finalLink = notification.id ? `/privacy-policy#${notification.id}` : '/privacy-policy';
+    // تحديد الإشعار كمقروء
+    if (!notification.isRead) {
+      fetch(`/api/notifications/${notification._id}/read`, {
+        method: 'PATCH',
+      }).catch(error => console.error('Error marking notification as read:', error));
     }
     
-    router.push(finalLink);
+    // الانتقال إلى الرابط المحدد
+    if (notification.actionUrl) {
+      router.push(notification.actionUrl);
+    }
+    
     setShowNotifications(false);
   };
 
@@ -1807,24 +875,7 @@ const NotificationButton = ({
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return isRTL ? 'تاريخ غير صالح' : 'Invalid date';
       
-      const now = new Date();
-      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-      
-      if (isRTL) {
-        if (diffInSeconds < 60) return 'منذ لحظات';
-        else if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
-        else if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
-        else if (diffInSeconds < 2592000) return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
-        else if (diffInSeconds < 31536000) return `منذ ${Math.floor(diffInSeconds / 2592000)} شهر`;
-        else return `منذ ${Math.floor(diffInSeconds / 31536000)} سنة`;
-      } else {
-        if (diffInSeconds < 60) return 'Just now';
-        else if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-        else if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-        else if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-        else if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
-        else return `${Math.floor(diffInSeconds / 31536000)} years ago`;
-      }
+      return getTimeAgo(dateString, isRTL);
     } catch (error) {
       console.error('Error formatting date:', error);
       return isRTL ? 'خطأ في التاريخ' : 'Date error';
@@ -1833,13 +884,10 @@ const NotificationButton = ({
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'episode': return '🎬';
-      case 'article': return '📝';
-      case 'playlist': return '📋';
-      case 'faq': return '❓';
-      case 'terms': return '📜';
-      case 'privacy': return '🔒';
-      case 'team': return '👥';
+      case 'info': return '📢';
+      case 'success': return '✅';
+      case 'warning': return '⚠️';
+      case 'error': return '❌';
       default: return '📢';
     }
   };
@@ -1981,11 +1029,13 @@ const NotificationButton = ({
                     <div className="space-y-3 py-4">
                       {notifications.map((notification, index) => (
                         <motion.div
-                          key={`${notification.type}-${notification.id}`}
+                          key={notification._id}
                           initial={{ opacity: 0, y: -20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-all duration-200 cursor-pointer"
+                          className={`p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-all duration-200 cursor-pointer ${
+                            !notification.isRead ? 'border-l-4 border-l-blue-500' : ''
+                          }`}
                           onClick={() => handleNotificationClick(notification)}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -1996,17 +1046,17 @@ const NotificationButton = ({
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-base font-medium text-gray-900 dark:text-white mb-1">
-                                {notification.title}
+                                {getLocalizedText(notification.title, notification.titleEn, isRTL)}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0 1 1 0 012 0zm0 4a1 1 0 100 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                 </svg>
-                                {formatDate(notification.date)}
+                                {formatDate(notification.createdAt)}
                               </p>
-                              {notification.description && (
+                              {notification.message && (
                                 <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
-                                  {notification.description}
+                                  {getLocalizedText(notification.message, notification.messageEn, isRTL)}
                                 </p>
                               )}
                             </div>
@@ -2123,8 +1173,10 @@ const NotificationButton = ({
               <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 {notifications.map((notification) => (
                   <div
-                    key={`${notification.type}-${notification.id}`}
-                    className="p-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-150"
+                    key={notification._id}
+                    className={`p-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-all duration-150 ${
+                      !notification.isRead ? 'border-l-4 border-l-blue-500' : ''
+                    }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-start">
@@ -2133,14 +1185,14 @@ const NotificationButton = ({
                       </div>
                       <div className={`${isRTL ? 'mr-3' : 'ml-3'} flex-1 min-w-0`}>
                         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {notification.title}
+                          {getLocalizedText(notification.title, notification.titleEn, isRTL)}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {formatDate(notification.date)}
+                          {formatDate(notification.createdAt)}
                         </p>
-                        {notification.description && (
+                        {notification.message && (
                           <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
-                            {notification.description}
+                            {getLocalizedText(notification.message, notification.messageEn, isRTL)}
                           </p>
                         )}
                       </div>
@@ -2373,7 +1425,7 @@ export default function Navbar() {
             <div className={`flex items-center space-x-0 ${isRTL ? 'mr-1' : 'ml-1'}`}>
               <Link href="/" className={`px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1h2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                 </svg>
                 {t.home}
               </Link>
@@ -2523,11 +1575,6 @@ export default function Navbar() {
                   )}
                 </AnimatePresence>
               </div>
-              
-              {/* قسم البحث المحدث */}
-              <div className="relative">
-                <SearchBar isRTL={isRTL} />
-              </div>
             </div>
           </div>
           
@@ -2629,7 +1676,7 @@ export default function Navbar() {
                           >
                             <span className="text-sm font-medium">{t.changePassword}</span>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2V7a5 5 0 0110 0zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>
                           </button>
                           <div className="border-t border-gray-200/50 dark:border-gray-700/50 my-1"></div>
@@ -2694,7 +1741,7 @@ export default function Navbar() {
               <Link href="/sign-in">
                 <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
+                    <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
                   </svg>
                 </div>
               </Link>
@@ -2849,11 +1896,6 @@ export default function Navbar() {
                   </div>
                 </div>
                 
-                {/* شريط البحث المحدث */}
-                <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
-                  <SearchBar initialExpanded={true} isRTL={isRTL} />
-                </div>
-                
                 {/* قائمة الروابط */}
                 <div className="flex-1 overflow-y-auto p-4">
                   <div className="space-y-1">
@@ -2882,10 +1924,10 @@ export default function Navbar() {
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
                         >
-                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg`}>
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             {item.icon === "home" && (
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1h2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                               </svg>
                             )}
                             {item.icon === "video" && (
@@ -2998,7 +2040,7 @@ export default function Navbar() {
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
+                              <path d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" />
                             </svg>
                           </div>
                           <div className="flex-1">
@@ -3047,7 +2089,7 @@ export default function Navbar() {
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" />
+                              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c-.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                             </svg>
                           </div>
                           <div className="flex-1">
@@ -3095,7 +2137,7 @@ export default function Navbar() {
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2V7a5 5 0 0110 0zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>
                           </div>
                           <div className="flex-1">
@@ -3118,7 +2160,7 @@ export default function Navbar() {
                         >
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md group-hover:shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" />
+                              <path d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 001.414-1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                             </svg>
                           </div>
                           <div className="flex-1">

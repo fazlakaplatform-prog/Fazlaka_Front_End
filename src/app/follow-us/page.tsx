@@ -16,7 +16,7 @@ import {
   FaHeart, FaLightbulb, FaAward, FaBullseye,
   FaFlask, FaAtom, FaLandmark, FaBalanceScale, FaBook, FaChartLine
 } from 'react-icons/fa';
-import { fetchSocialLinks, SocialLink } from '@/lib/sanity';
+import { fetchArrayFromSanity } from '@/lib/sanity'; // تمت إزالة client غير المستخدمة
 
 // Define a type for platform names
 type PlatformType = 'youtube' | 'instagram' | 'facebook' | 'tiktok' | 'x' | 'twitter' | 
@@ -36,6 +36,60 @@ const ThreadsIcon = ({ className }: { className?: string }) => (
     <path d="M12.186 24h-.007c-3.581-.024-6.346-2.609-6.38-6.019v-.73C2.078 16.242 0 13.75 0 10.792 0 7.642 2.437 5.016 5.531 4.72c.3-2.694 2.825-4.718 5.698-4.718.746 0 1.463.14 2.124.398l.093.037c.727.292 1.361.732 1.858 1.277l.068.075c.511-.25 1.088-.383 1.68-.383 1.043 0 2.024.485 2.663 1.331l.048.064c.387.514.591 1.13.591 1.774v11.534c0 3.438-2.765 6.023-6.346 6.047h-.072zM5.698 6.231c-2.051 0-3.72 1.67-3.72 3.72 0 2.051 1.669 3.72 3.72 3.72h.366v4.31c.024 2.404 1.983 4.363 4.387 4.387h.07c2.404-.024 4.363-1.983 4.387-4.387V4.514c0-.317-.098-.618-.282-.874l-.048-.064c-.321-.426-.832-.68-1.371-.68-.55 0-1.066.259-1.388.695l-.048.064c-.214.284-.332.635-.332 1.001v.366h-1.488v-.366c0-.317-.098-.618-.282-.874l-.048-.064c-.321-.426-.832-.68-1.371-.68-.55 0-1.066.259-1.388.695l-.048.064c-.214.284-.332.635-.332 1.001v.366h-1.488v-.366c0-.317-.098-.618-.282-.874l-.048-.064c-.321-.426-.832-.68-1.371-.68-.55 0-1.066.259-1.388.695l-.048.064c-.214.284-.332.635-.332 1.001v.366H5.698z"/>
   </svg>
 );
+
+// واجهة للروابط الاجتماعية
+export interface SocialLink {
+  _id: string
+  _type: 'socialLinks'
+  platform: string
+  url: string
+}
+
+// واجهة للمستند الذي يحتوي على الروابط الاجتماعية
+export interface SocialLinksDocument {
+  _id: string
+  _type: 'socialLinks'
+  links: {
+    platform: string
+    url: string
+  }[]
+}
+
+// دالة لجلب الروابط الاجتماعية - تم إصلاح الخطأ
+async function fetchSocialLinks(): Promise<SocialLink[]> { // تمت إزالة export
+  try {
+    const query = `*[_type == "socialLinks"]{
+      _id,
+      _type,
+      links[]{
+        platform,
+        url
+      }
+    }`;
+    
+    const result = await fetchArrayFromSanity<SocialLinksDocument>(query);
+    
+    // استخراج الروابط من المستندات
+    const links: SocialLink[] = [];
+    result.forEach(doc => {
+      if (doc.links && Array.isArray(doc.links)) {
+        doc.links.forEach((link, index) => {
+          links.push({
+            _id: `${doc._id}-${index}`,
+            _type: 'socialLinks',
+            platform: link.platform,
+            url: link.url
+          });
+        });
+      }
+    });
+    
+    return links;
+  } catch (error) {
+    console.error('Error fetching social links from Sanity:', error);
+    return [];
+  }
+}
 
 // دالة للحصول على الأيقونة المناسبة لكل منصة
 function getSocialIcon(platform: string) {

@@ -27,7 +27,8 @@ interface Article {
   slug?: {
     current: string;
   };
-  featuredImageUrl?: string; // Changed from featuredImage to featuredImageUrl
+  featuredImageUrl?: string;
+  featuredImageUrlEn?: string;
   episode?: {
     _id: string;
     title: string;
@@ -57,7 +58,8 @@ interface Season {
   slug?: {
     current: string;
   };
-  thumbnailUrl?: string; // Changed from thumbnail to thumbnailUrl
+  thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
   language?: 'ar' | 'en';
 }
 
@@ -125,9 +127,12 @@ const translations = {
   }
 };
 
-function buildMediaUrl(imageUrl?: string) {
-  if (!imageUrl) return "/placeholder.png";
-  return urlFor(imageUrl) || "/placeholder.png";
+function buildMediaUrl(imageUrl?: string, imageUrlEn?: string, language?: string) {
+  // تحديد الرابط بناءً على اللغة
+  const url = language === 'ar' ? imageUrl : imageUrlEn;
+  
+  if (!url) return "/placeholder.png";
+  return urlFor(url) || "/placeholder.png";
 }
 
 function escapeRegExp(str = "") {
@@ -611,7 +616,7 @@ export default function ArticlesPageClient() {
                       const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                       const episode = article.episode;
                       const articleSeason = article.season;
-                      const thumbnailUrl = article.featuredImageUrl || "/placeholder.png";
+                      const thumbnailUrl = buildMediaUrl(article.featuredImageUrl, article.featuredImageUrlEn, language);
                       
                       return (
                         <motion.article
@@ -685,7 +690,7 @@ export default function ArticlesPageClient() {
                       const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                       const episode = article.episode;
                       const articleSeason = article.season;
-                      const thumbnailUrl = article.featuredImageUrl || "/placeholder.png";
+                      const thumbnailUrl = buildMediaUrl(article.featuredImageUrl, article.featuredImageUrlEn, language);
                       
                       return (
                         <motion.div
@@ -806,7 +811,7 @@ export default function ArticlesPageClient() {
                             const title = getLocalizedText(article.title, article.titleEn, language);
                             const excerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                             const episode = article.episode;
-                            const thumbnailUrl = article.featuredImageUrl || "/placeholder.png";
+                            const thumbnailUrl = buildMediaUrl(article.featuredImageUrl, article.featuredImageUrlEn, language);
                             
                             return viewMode === "grid" ? (
                               <motion.article

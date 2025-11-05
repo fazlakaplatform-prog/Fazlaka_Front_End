@@ -1,4 +1,3 @@
-// team/page.tsx
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -40,15 +39,13 @@ interface TeamMemberCardProps {
 }
 
 const TeamMemberCard = ({ member, index, isRTL }: TeamMemberCardProps) => {
-  const imageUrl = member.imageUrl || "/placeholder.png";
+  // Use the appropriate image URL based on language
+  const imageUrl = isRTL && member.imageUrl ? member.imageUrl : 
+                  !isRTL && member.imageUrlEn ? member.imageUrlEn : 
+                  member.imageUrl || member.imageUrlEn || "/placeholder.png";
   
   const name = getLocalizedText(member.name, member.nameEn, isRTL ? 'ar' : 'en');
   const role = getLocalizedText(member.role, member.roleEn, isRTL ? 'ar' : 'en');
-  
-  // تحديد المهارات حسب اللغة
-  const skills = isRTL && member.skills ? member.skills : 
-                !isRTL && member.skillsEn ? member.skillsEn : 
-                member.skills || [];
   
   return (
     <div 
@@ -102,25 +99,6 @@ const TeamMemberCard = ({ member, index, isRTL }: TeamMemberCardProps) => {
             </p>
           )}
         </div>
-        
-        {/* المهارات */}
-        {skills && skills.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
-            {skills.slice(0, 3).map((skill, idx) => (
-              <span 
-                key={idx} 
-                className="text-sm px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 text-blue-800 dark:text-blue-200 rounded-full transition-all duration-1000 group-hover:bg-gradient-to-r group-hover:from-blue-200 group-hover:to-indigo-200 dark:group-hover:from-blue-800 dark:group-hover:to-indigo-800 shadow-md shadow-blue-500/20 dark:shadow-blue-500/10"
-              >
-                {skill}
-              </span>
-            ))}
-            {skills.length > 3 && (
-              <span className="text-sm px-4 py-2 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 rounded-full shadow-md shadow-gray-500/20 dark:shadow-gray-500/10">
-                +{skills.length - 3}
-              </span>
-            )}
-          </div>
-        )}
         
         {/* زر الملف الشخصي */}
         <div className="flex justify-center">

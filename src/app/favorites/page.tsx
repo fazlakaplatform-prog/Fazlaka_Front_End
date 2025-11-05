@@ -1,3 +1,5 @@
+// app/favorites/page.tsx
+
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -31,12 +33,14 @@ interface SanityImage {
 // Updated Episode interface with direct URL for thumbnail
 interface Episode {
   _id: string;
+  _type: 'episode'; // Added explicit type field
   title: string;
   titleEn?: string;
   slug: {
     current: string;
   };
   thumbnailUrl?: string; // Direct URL instead of Sanity image reference
+  thumbnailUrlEn?: string; // English thumbnail URL
   thumbnail?: SanityImage; // Sanity image reference
   duration?: number;
   publishedAt?: string;
@@ -47,12 +51,14 @@ interface Episode {
 // Updated Article interface with direct URL for featured image
 interface Article {
   _id: string;
+  _type: 'article'; // Added explicit type field
   title: string;
   titleEn?: string;
   slug: {
     current: string;
   };
   featuredImageUrl?: string; // Direct URL instead of Sanity image reference
+  featuredImageUrlEn?: string; // English featured image URL
   featuredImage?: SanityImage; // Sanity image reference
   publishedAt?: string;
   readTime?: number;
@@ -63,9 +69,30 @@ interface Article {
 // Union type for favorite items
 type FavoriteItem = Episode | Article;
 
-// Helper function to determine if an item is an episode
+// New interface for the structure of data from Sanity
+interface FavoriteDocument {
+  _id: string;
+  userId: string;
+  episode?: Episode | null;
+  article?: Article | null;
+}
+
+// Helper function to determine if an item is an episode - FIXED VERSION
 function isEpisode(item: FavoriteItem): item is Episode {
-  return (item as Episode).thumbnailUrl !== undefined || (item as Episode).thumbnail !== undefined;
+  // First check if _type exists and is 'episode'
+  if ('_type' in item && item._type === 'episode') {
+    return true;
+  }
+  
+  // If _type doesn't exist, check for episode-specific fields using a type guard
+  // This is a fallback for older data that might not have _type field
+  const episodeItem = item as Episode | Article;
+  return (
+    'duration' in episodeItem && episodeItem.duration !== undefined || 
+    'thumbnailUrl' in episodeItem && episodeItem.thumbnailUrl !== undefined || 
+    'thumbnailUrlEn' in episodeItem && episodeItem.thumbnailUrlEn !== undefined || 
+    'thumbnail' in episodeItem && episodeItem.thumbnail !== undefined
+  );
 }
 
 // Helper function to get the URL for a favorite item
@@ -78,34 +105,49 @@ function getItemUrl(item: FavoriteItem): string {
 }
 
 // Helper function to get the image URL for a favorite item - updated for direct URLs
-function getItemImageUrl(item: FavoriteItem): string {
+function getItemImageUrl(item: FavoriteItem, language: 'ar' | 'en'): string {
   if (isEpisode(item)) {
-    // 'item' is now correctly typed as 'Episode' by the type guard
     const episode = item;
-    // Try direct URL first, then fallback to Sanity image reference
+    // Try language-specific URL first, then fallback to default URL, then Sanity image reference
+    if (language === 'en' && episode.thumbnailUrlEn) {
+      return episode.thumbnailUrlEn;
+    }
+    if (language === 'ar' && episode.thumbnailUrl) {
+      return episode.thumbnailUrl;
+    }
+    // Fallback to any available URL
     if (episode.thumbnailUrl) {
       return episode.thumbnailUrl;
     }
-    // Type assertion is now safer because we defined SanityImage
-    // FIX: Check the type of the result from urlFor before calling .url()
+    if (episode.thumbnailUrlEn) {
+      return episode.thumbnailUrlEn;
+    }
+    // Try Sanity image reference
     if (episode.thumbnail) {
       const builder = urlFor(episode.thumbnail);
-      return typeof builder === 'string' ? builder : builder.url();
+      return typeof builder === 'string' ? builder : (builder as { url(): string }).url();
     }
     return "/placeholder.png";
   } else {
-    // 'item' is of type 'Article' here. We can use a type assertion or another type guard.
-    // For simplicity, we'll use the assertion as in the original logic.
     const article = item as Article;
-    // Try direct URL first, then fallback to Sanity image reference
+    // Try language-specific URL first, then fallback to default URL, then Sanity image reference
+    if (language === 'en' && article.featuredImageUrlEn) {
+      return article.featuredImageUrlEn;
+    }
+    if (language === 'ar' && article.featuredImageUrl) {
+      return article.featuredImageUrl;
+    }
+    // Fallback to any available URL
     if (article.featuredImageUrl) {
       return article.featuredImageUrl;
     }
-    // Type assertion is now safer because we defined SanityImage
-    // FIX: Check the type of the result from urlFor before calling .url()
+    if (article.featuredImageUrlEn) {
+      return article.featuredImageUrlEn;
+    }
+    // Try Sanity image reference
     if (article.featuredImage) {
       const builder = urlFor(article.featuredImage);
-      return typeof builder === 'string' ? builder : builder.url();
+      return typeof builder === 'string' ? builder : (builder as { url(): string }).url();
     }
     return "/placeholder.png";
   }
@@ -405,29 +447,31 @@ export default function FavoritesPage() {
     
     async function fetchFavorites() {
       try {
-        // Fetch episode favorites - FILTERED BY LANGUAGE
-        const episodeQuery = `*[_type == "favorite" && userId == $userId && episode._ref != null]{
+        // Fetch ALL favorites for the user without language filter first
+        const query = `*[_type == "favorite" && userId == $userId]{
+          _id,
+          userId,
           episode->{
             _id,
+            _type,
             title,
             titleEn,
             slug,
-            thumbnailUrl, // Direct URL field
+            thumbnailUrl,
+            thumbnailUrlEn,
             duration,
             publishedAt,
             categories,
             language
-          }
-        }`;
-        
-        // Fetch article favorites - FILTERED BY LANGUAGE
-        const articleQuery = `*[_type == "favorite" && userId == $userId && article._ref != null]{
+          },
           article->{
             _id,
+            _type,
             title,
             titleEn,
             slug,
-            featuredImageUrl, // Direct URL field
+            featuredImageUrl,
+            featuredImageUrlEn,
             publishedAt,
             readTime,
             categories,
@@ -435,20 +479,29 @@ export default function FavoritesPage() {
           }
         }`;
         
-        // Fix: Use non-null assertion since we already checked for session?.user above
-        const episodeFavs = await client.fetch(episodeQuery, { userId: session!.user.id });
-        const articleFavs = await client.fetch(articleQuery, { userId: session!.user.id });
+        const favoriteDocs = await client.fetch(query, { userId: session?.user?.id });
         
-        // Extract episodes and articles
-        const episodes = episodeFavs.map((fav: { episode: Episode }) => fav.episode).filter(Boolean);
-        const articles = articleFavs.map((fav: { article: Article }) => fav.article).filter(Boolean);
+        // Extract episodes and articles from the favorite documents
+        const episodes: Episode[] = [];
+        const articles: Article[] = [];
         
-        // FILTER BY CURRENT LANGUAGE - This is the key fix
-        const filteredEpisodes = episodes.filter((episode: Episode) => episode.language === language);
-        const filteredArticles = articles.filter((article: Article) => article.language === language);
+        favoriteDocs.forEach((fav: FavoriteDocument) => {
+          if (fav.episode) {
+            // Add a type marker to help identify episodes
+            episodes.push({ ...fav.episode, _type: 'episode' as const });
+          }
+          if (fav.article) {
+            // Add a type marker to help identify articles
+            articles.push({ ...fav.article, _type: 'article' as const });
+          }
+        });
         
-        // Combine and sort by title
-        const combinedFavorites = [...filteredEpisodes, ...filteredArticles].sort((a, b) => {
+        console.log('Fetched episodes:', episodes);
+        console.log('Fetched articles:', articles);
+        
+        // Combine all episodes and articles without language filtering
+        // We'll handle language display in the UI layer instead
+        const combinedFavorites = [...episodes, ...articles].sort((a, b) => {
           const titleA = language === 'ar' ? a.title : (a.titleEn || a.title);
           const titleB = language === 'ar' ? b.title : (b.titleEn || b.title);
           return titleA.localeCompare(titleB, language === 'ar' ? 'ar' : 'en');
@@ -464,7 +517,7 @@ export default function FavoritesPage() {
     }
     
     fetchFavorites();
-  }, [session, language]); // Add language as dependency
+  }, [session, language]);
 
   useEffect(() => {
     if (!loading) {
@@ -483,8 +536,7 @@ export default function FavoritesPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // Fix: Use non-null assertion since we already checked for session?.user above
-          userId: session!.user.id,
+          userId: session.user.id,
           contentId: itemId,
           contentType,
         }),
@@ -882,7 +934,7 @@ export default function FavoritesPage() {
               <AnimatePresence initial={false}>
                 {filteredFavorites.map((item) => {
                   const itemUrl = getItemUrl(item);
-                  const thumbnailUrl = getItemImageUrl(item);
+                  const thumbnailUrl = getItemImageUrl(item, language);
                   const isEpisodeItem = isEpisode(item);
                   const itemInfo = getItemInfo(item, language);
                   const itemDate = formatDate(item.publishedAt, language);
@@ -975,7 +1027,7 @@ export default function FavoritesPage() {
                                 <div className="flex items-center gap-2">
                                   <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12 a2 2 0 002 2z" />
                                     </svg>
                                   </div>
                                   <span>{itemDate}</span>
@@ -1036,7 +1088,7 @@ export default function FavoritesPage() {
               <AnimatePresence initial={false}>
                 {filteredFavorites.map((item) => {
                   const itemUrl = getItemUrl(item);
-                  const thumbnailUrl = getItemImageUrl(item);
+                  const thumbnailUrl = getItemImageUrl(item, language);
                   const isEpisodeItem = isEpisode(item);
                   const itemInfo = getItemInfo(item, language);
                   const itemDate = formatDate(item.publishedAt, language);
@@ -1148,7 +1200,7 @@ export default function FavoritesPage() {
                                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                                   <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12 a2 2 0 002 2z" />
                                     </svg>
                                   </div>
                                   <span>{itemDate}</span>

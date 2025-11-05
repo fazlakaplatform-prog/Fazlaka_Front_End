@@ -29,7 +29,7 @@ interface Season {
   titleEn?: string;
   slug?: { current: string };
   thumbnailUrl?: string;
-  language?: 'ar' | 'en';
+  thumbnailUrlEn?: string;
 }
 
 interface Episode {
@@ -42,11 +42,12 @@ interface Episode {
   content?: string | SanityBlock[];
   contentEn?: string | SanityBlock[];
   videoUrl?: string;
+  videoUrlEn?: string;
   thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
   season?: Season;
   articles?: Article[];
   publishedAt?: string;
-  language?: 'ar' | 'en';
 }
 
 interface Article {
@@ -57,7 +58,7 @@ interface Article {
   excerpt?: string;
   excerptEn?: string;
   featuredImageUrl?: string;
-  language?: 'ar' | 'en';
+  featuredImageUrlEn?: string;
 }
 
 interface Comment {
@@ -1228,17 +1229,20 @@ export default function EpisodeDetailPageClient() {
   const y = useTransform(scrollY, [0, 400], [0, 100]);
   
   // دالة محسّنة للتعامل مع صور URL مباشرة
-  const getThumbnailUrl = useCallback((thumbnailUrl?: string): string => {
-    if (!thumbnailUrl) return "/placeholder.png";
+  const getThumbnailUrl = useCallback((thumbnailUrl?: string, thumbnailUrlEn?: string): string => {
+    // تحديد الرابط بناءً على اللغة
+    const url = language === 'ar' ? thumbnailUrl : thumbnailUrlEn;
+    
+    if (!url) return "/placeholder.png";
     
     // إذا كان الرابط نصياً، أرجعه كما هو
-    if (typeof thumbnailUrl === 'string') {
-      return thumbnailUrl;
+    if (typeof url === 'string') {
+      return url;
     }
     
     // إذا لم يكن نصياً، ارجع صورة افتراضية
     return "/placeholder.png";
-  }, []);
+  }, [language]);
   
   // دالة لتحديد ما إذا كان النص يحتوي على رابط فيديو
   const isVideoUrl = useCallback((text: string) => {
@@ -1668,7 +1672,7 @@ export default function EpisodeDetailPageClient() {
         }
         
         // Fetch episode with related articles
-        const episodeQuery = `*[_type == "episode" && slug.current == $slug && language == $language][0]{
+        const episodeQuery = `*[_type == "episode" && slug.current == $slug][0]{
           _id,
           title,
           titleEn,
@@ -1678,13 +1682,16 @@ export default function EpisodeDetailPageClient() {
           content,
           contentEn,
           videoUrl,
+          videoUrlEn,
           thumbnailUrl,
+          thumbnailUrlEn,
           season->{
             _id,
             title,
             titleEn,
             slug,
-            thumbnailUrl
+            thumbnailUrl,
+            thumbnailUrlEn
           },
           articles[]-> {
             _id,
@@ -1693,22 +1700,24 @@ export default function EpisodeDetailPageClient() {
             slug,
             excerpt,
             excerptEn,
-            featuredImageUrl
+            featuredImageUrl,
+            featuredImageUrlEn
           }
         }`;
-        const ep = await fetchFromSanity<Episode>(episodeQuery, { slug, language });
+        const ep = await fetchFromSanity<Episode>(episodeQuery, { slug });
         
         if (!ep) throw new Error(t.notFound);
         
         // Fetch suggested episodes
-        const suggestedQuery = `*[_type == "episode" && _id != $id && language == $language && !(_id in path("drafts.**"))][0...20]{
+        const suggestedQuery = `*[_type == "episode" && _id != $id][0...20]{
           _id,
           title,
           titleEn,
           slug,
-          thumbnailUrl
+          thumbnailUrl,
+          thumbnailUrlEn
         } | order(_createdAt desc)`;
-        const suggestedEpisodes = await fetchArrayFromSanity<Episode>(suggestedQuery, { id: ep._id, language });
+        const suggestedEpisodes = await fetchArrayFromSanity<Episode>(suggestedQuery, { id: ep._id });
         
         if (mounted) {
           setEpisode(ep);
@@ -1730,7 +1739,7 @@ export default function EpisodeDetailPageClient() {
     return () => {
       mounted = false;
     };
-  }, [slug, language, t.error, t.notFound]);
+  }, [slug, t.error, t.notFound]);
   
   // التحقق من حالة المفضلة
   useEffect(() => {
@@ -1792,14 +1801,16 @@ export default function EpisodeDetailPageClient() {
         ? episode.contentEn || ""
         : blocksToText(episode.contentEn || []));
   
-  const videoUrl = episode.videoUrl || "";
-  const embedUrl = toEmbed(videoUrl);
+  // تحديد رابط الفيديو بناءً على اللغة
+  const videoUrl = language === 'ar' ? episode.videoUrl : episode.videoUrlEn;
+  const embedUrl = toEmbed(videoUrl || "");
   const season = episode.season;
   const seasonTitle = getLocalizedText(season?.title, season?.titleEn, language) || t.noSeason;
   const seasonSlug = season?.slug?.current || season?._id;
   
-  const thumbnailUrl = getThumbnailUrl(episode.thumbnailUrl);
-  const seasonThumbnailUrl = getThumbnailUrl(season?.thumbnailUrl);
+  // تحديد رابط الصورة المصغرة بناءً على اللغة
+  const thumbnailUrl = getThumbnailUrl(episode.thumbnailUrl, episode.thumbnailUrlEn);
+  const seasonThumbnailUrl = getThumbnailUrl(season?.thumbnailUrl, season?.thumbnailUrlEn);
   
   // معالجة المحتوى
   const processedDescription = processContent(description);
@@ -2122,7 +2133,7 @@ export default function EpisodeDetailPageClient() {
                 >
                   {suggested.map((item) => {
                     const itemTitle = getLocalizedText(item.title, item.titleEn, language) || t.noTitle;
-                    const itemThumbnailUrl = getThumbnailUrl(item.thumbnailUrl);
+                    const itemThumbnailUrl = getThumbnailUrl(item.thumbnailUrl, item.thumbnailUrlEn);
                     
                     return (
                       <SwiperSlide key={item._id} className="overflow-visible px-1 md:px-2">
@@ -2198,7 +2209,7 @@ export default function EpisodeDetailPageClient() {
                 {articles.map((article) => {
                   const articleTitle = getLocalizedText(article.title, article.titleEn, language) || t.noTitle;
                   const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language) || t.readMore;
-                  const articleThumbnailUrl = getThumbnailUrl(article.featuredImageUrl);
+                  const articleThumbnailUrl = getThumbnailUrl(article.featuredImageUrl, article.featuredImageUrlEn);
                   const articleUrl = `/articles/${encodeURIComponent(String(article.slug.current))}`;
                   
                   return (

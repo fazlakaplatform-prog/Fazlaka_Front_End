@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useState, JSX } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -12,10 +11,19 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { useLanguage } from '@/components/LanguageProvider';
 import { getLocalizedText } from '@/lib/sanity';
-import { FaPlay, FaStar, FaFileAlt, FaGoogleDrive, FaComment, FaImage, FaFolder, FaVideo } from 'react-icons/fa';
 import { client } from '@/lib/sanity';
 import FavoriteButton from '@/components/FavoriteButton';
 import CommentsClient from '@/components/comments/CommentsClient';
+import { 
+  FaPlay, 
+  FaStar, 
+  FaFileAlt, 
+  FaImage, 
+  FaGoogleDrive, 
+  FaFolder, 
+  FaVideo,
+  FaComment
+} from 'react-icons/fa';
 
 // تعريفات الأنواع التي تم استيرادها سابقاً من '@/types/sanity'
 interface Comment {
@@ -55,6 +63,7 @@ interface Article {
     current: string;
   };
   featuredImageUrl?: string;
+  featuredImageUrlEn?: string;
   episode?: {
     _id: string;
     title: string;
@@ -63,6 +72,7 @@ interface Article {
       current: string;
     };
     thumbnailUrl?: string;
+    thumbnailUrlEn?: string;
   };
   season?: {
     _id: string;
@@ -72,6 +82,7 @@ interface Article {
       current: string;
     };
     thumbnailUrl?: string;
+    thumbnailUrlEn?: string;
   };
   language?: 'ar' | 'en';
 }
@@ -84,6 +95,7 @@ interface EpisodeItem {
     current: string;
   };
   thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
   language?: 'ar' | 'en';
 }
 
@@ -95,6 +107,7 @@ interface SeasonItem {
     current: string;
   };
   thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
   language?: 'ar' | 'en';
 }
 
@@ -536,41 +549,103 @@ export default function ArticleDetailPageClient() {
           return;
         }
         
+        console.log("Fetching article with slug:", slugOrId, "and language:", language);
+        
         // جلب المقال من Sanity مع الحلقات والمواسم المرتبطة، مع دعم اللغة
-        const query = `*[_type == "article" && slug.current == $slug && language == $language][0] {
+        // تعديل الاستعلام للبحث عن المقال في كل اللغات أولاً، ثم التحقق من اللغة
+        const query = `*[_type == "article" && slug.current == $slug][0]{
           _id,
           _type,
           title,
           titleEn,
+          slug,
           excerpt,
           excerptEn,
           content,
           contentEn,
           publishedAt,
-          slug,
           featuredImageUrl,
+          featuredImageUrlEn,
           episode-> {
             _id,
             title,
             titleEn,
             slug,
-            thumbnailUrl
+            thumbnailUrl,
+            thumbnailUrlEn
           },
           season-> {
             _id,
             title,
             titleEn,
             slug,
-            thumbnailUrl
+            thumbnailUrl,
+            thumbnailUrlEn
           },
           language
         }`;
         
-        const art = await client.fetch(query, { slug: slugOrId, language });
+        const art = await client.fetch(query, { slug: slugOrId });
+        
+        console.log("Article found:", art);
         
         if (!art) {
           console.error("Article not found for slug/ID:", slugOrId);
           throw new Error(t.notFound);
+        }
+        
+        // التحقق من أن المقال ينتمي للغة الحالية
+        if (art.language && art.language !== language) {
+          console.error("Article language mismatch. Expected:", language, "Got:", art.language);
+          
+          // محاولة البحث عن مقال بنفس الـ slug في اللغة الأخرى
+          const alternativeQuery = `*[_type == "article" && slug.current == $slug && language == $language][0]{
+            _id,
+            _type,
+            title,
+            titleEn,
+            slug,
+            excerpt,
+            excerptEn,
+            content,
+            contentEn,
+            publishedAt,
+            featuredImageUrl,
+            featuredImageUrlEn,
+            episode-> {
+              _id,
+              title,
+              titleEn,
+              slug,
+              thumbnailUrl,
+              thumbnailUrlEn
+            },
+            season-> {
+              _id,
+              title,
+              titleEn,
+              slug,
+              thumbnailUrl,
+              thumbnailUrlEn
+            },
+            language
+          }`;
+          
+          const alternativeArt = await client.fetch(alternativeQuery, { 
+            slug: slugOrId, 
+            language: language === 'ar' ? 'en' : 'ar' 
+          });
+          
+          if (alternativeArt) {
+            console.log("Found alternative article in different language:", alternativeArt);
+            // توجيه المستخدم إلى المقال باللغة الصحيحة
+            if (mounted) {
+              window.location.href = `/${language === 'ar' ? 'en' : 'ar'}/articles/${slugOrId}`;
+              return;
+            }
+          } else {
+            throw new Error(t.notFound);
+          }
         }
         
         // جلب الحلقات المرتبطة (إن وجدت)
@@ -669,17 +744,20 @@ export default function ArticleDetailPageClient() {
   const publishedAt = article.publishedAt;
   
   // دالة آمنة للحصول على رابط الصورة
-  const getImageUrl = (imageUrl?: string): string => {
-    if (!imageUrl) {
+  const getImageUrl = (imageUrl?: string, imageUrlEn?: string): string => {
+    // تحديد الرابط بناءً على اللغة
+    const url = language === 'ar' ? imageUrl : imageUrlEn;
+    
+    if (!url) {
       console.log("No image URL provided, using placeholder");
       return '/placeholder.png';
     }
     
-    console.log("Using image URL:", imageUrl);
-    return imageUrl;
+    console.log("Using image URL:", url);
+    return url;
   };
   
-  const featuredImageUrl = getImageUrl(article.featuredImageUrl);
+  const featuredImageUrl = getImageUrl(article.featuredImageUrl, article.featuredImageUrlEn);
   console.log("Final featuredImageUrl:", featuredImageUrl);
   
   // دالة للتحقق مما إذا كان النص يحتوي على رابط فيديو
@@ -1034,7 +1112,7 @@ export default function ArticleDetailPageClient() {
                       alt={alt || ''}
                       width={800}
                       height={450}
-                      className="w-full h-auto rounded-xl shadow-lg"
+                      className="w-full h-full rounded-xl shadow-lg"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   </div>
@@ -1291,7 +1369,7 @@ export default function ArticleDetailPageClient() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {seasons.map((season) => {
                   const seasonTitle = getLocalizedText(season.title, season.titleEn, language);
-                  const seasonImageUrl = getImageUrl(season.thumbnailUrl);
+                  const seasonImageUrl = getImageUrl(season.thumbnailUrl, season.thumbnailUrlEn);
                   console.log("Season image URL:", seasonImageUrl);
                   
                   return (
@@ -1367,7 +1445,7 @@ export default function ArticleDetailPageClient() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {episodes.map((episode) => {
                   const episodeTitle = getLocalizedText(episode.title, episode.titleEn, language);
-                  const episodeImageUrl = getImageUrl(episode.thumbnailUrl);
+                  const episodeImageUrl = getImageUrl(episode.thumbnailUrl, episode.thumbnailUrlEn);
                   console.log("Episode image URL:", episodeImageUrl);
                   
                   return (

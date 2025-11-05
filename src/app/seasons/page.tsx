@@ -1,9 +1,9 @@
-// SeasonsPageClient.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { fetchFromSanity, urlFor, getLocalizedText } from "@/lib/sanity";
+import { fetchSeasons } from "@/lib/sanity/seasons";
+import { fetchArrayFromSanity, getLocalizedText } from "@/lib/sanity"; // إضافة استيراد fetchArrayFromSanity
 import { useLanguage } from "@/components/LanguageProvider";
 import { 
   FaCalendarAlt, 
@@ -15,6 +15,7 @@ import {
   FaList,
   FaStar
 } from "react-icons/fa";
+import { urlFor } from "@/lib/sanity"; // Import urlFor function
 
 // تعريف الواجهات مع دعم اللغة
 interface Thumbnail {
@@ -38,6 +39,7 @@ interface Season {
   };
   thumbnail?: Thumbnail;
   thumbnailUrl?: string; // إضافة حقل رابط الصورة المباشر
+  thumbnailUrlEn?: string; // إضافة حقل رابط الصورة المباشر للغة الإنجليزية
   description?: string;
   descriptionEn?: string;
   publishedAt?: string;
@@ -130,35 +132,44 @@ const translations = {
   }
 };
 
-function buildMediaUrl(thumbnail?: Thumbnail, thumbnailUrl?: string) {
-  // إذا كان هناك رابط مباشر للصورة، استخدمه أولاً
+function buildMediaUrl(thumbnail?: Thumbnail, thumbnailUrl?: string, thumbnailUrlEn?: string, language: string = 'ar') {
+  // إذا كان هناك رابط مباشر للصورة، استخدمه أولاً مع مراعاة اللغة
+  if (language === 'en' && thumbnailUrlEn) {
+    return thumbnailUrlEn;
+  }
+  
   if (thumbnailUrl) {
     return thumbnailUrl;
   }
   
   // إذا لم يكن هناك رابط مباشر ولكن هناك أصل صورة من Sanity، استخدم urlFor
   if (thumbnail) {
-    const imageUrl = urlFor(thumbnail);
-    
-    // Handle if urlFor returns a string directly
-    if (typeof imageUrl === 'string') {
-      return imageUrl;
-    }
-    
-    // Handle if urlFor returns a builder object
-    if (typeof imageUrl === 'object' && imageUrl !== null) {
-      try {
-        // Cast to our builder type and use width method
-        const builder = imageUrl as ImageUrlBuilder;
-        return builder.width(500).url() || "/placeholder.png";
-      } catch {
-        // Fallback to direct url method if width fails
+    try {
+      const imageUrl = urlFor(thumbnail);
+      
+      // Handle if urlFor returns a string directly
+      if (typeof imageUrl === 'string') {
+        return imageUrl;
+      }
+      
+      // Handle if urlFor returns a builder object
+      if (typeof imageUrl === 'object' && imageUrl !== null) {
         try {
-          return (imageUrl as ImageUrlBuilder).url() || "/placeholder.png";
+          // Cast to our builder type and use width method
+          const builder = imageUrl as ImageUrlBuilder;
+          return builder.width(500).url() || "/placeholder.png";
         } catch {
-          return "/placeholder.png";
+          // Fallback to direct url method if width fails
+          try {
+            return (imageUrl as ImageUrlBuilder).url() || "/placeholder.png";
+          } catch {
+            return "/placeholder.png";
+          }
         }
       }
+    } catch (error) {
+      console.error("Error building image URL:", error);
+      return "/placeholder.png";
     }
   }
   
@@ -209,22 +220,7 @@ export default function SeasonsPageClient() {
         setLoading(true);
         
         // Fetch seasons from Sanity with language filter
-        const seasonsQuery = `*[_type == "season" && language == $language] | order(publishedAt desc) {
-          _id,
-          title,
-          titleEn,
-          name,
-          nameEn,
-          slug,
-          thumbnail,
-          thumbnailUrl, // إضافة حقل رابط الصورة المباشر
-          description,
-          descriptionEn,
-          publishedAt,
-          language
-        }`;
-        
-        const seasonsData: Season[] = await fetchFromSanity(seasonsQuery, { language });
+        const seasonsData: Season[] = await fetchSeasons(language);
         
         // Fetch episodes from Sanity with language filter
         const episodesQuery = `*[_type == "episode" && language == $language] {
@@ -234,7 +230,7 @@ export default function SeasonsPageClient() {
           season->{_id}
         }`;
         
-        const episodesData: Episode[] = await fetchFromSanity(episodesQuery, { language });
+        const episodesData: Episode[] = await fetchArrayFromSanity(episodesQuery, { language });
         
         // Fetch articles from Sanity with language filter
         const articlesQuery = `*[_type == "article" && language == $language] {
@@ -244,7 +240,7 @@ export default function SeasonsPageClient() {
           season->{_id}
         }`;
         
-        const articlesData: Article[] = await fetchFromSanity(articlesQuery, { language });
+        const articlesData: Article[] = await fetchArrayFromSanity(articlesQuery, { language });
         
         // Count episodes per season
         const counts: Record<string, number> = {};
@@ -522,46 +518,34 @@ export default function SeasonsPageClient() {
         {/* Search Results Section */}
         {isSearching ? (
           <div className="mb-10 sm:mb-12">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
-              <div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t.searchResults}</div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <span>«{debouncedSearch}»</span>
-                  <span className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full">
-                    {filtered.length} {t.results}
-                  </span>
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 dark:from-blue-800 dark:to-purple-900 rounded-xl p-4 mb-6 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <div className="text-sm text-blue-100 dark:text-blue-200">{t.searchResults}</div>
+                  <div className="text-lg font-semibold text-white">
+                    «{debouncedSearch}» <span className="text-sm text-blue-200 dark:text-blue-300">({filtered.length})</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <button
-                  onClick={() => { setSearchTerm(""); setDebouncedSearch(""); }}
-                  className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-300 font-medium text-sm"
-                >
+                <button onClick={() => setSearchTerm("")} className="px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-md text-sm hover:bg-white/30 text-white transition-colors self-start sm:self-auto">
                   {t.clearSearch}
-                </button>
-                <button
-                  onClick={() => { setSearchTerm(""); setDebouncedSearch(""); }}
-                  className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:opacity-90 transition-all duration-300 font-medium shadow-md hover:shadow-lg text-sm"
-                >
-                  {language === 'ar' ? 'عرض الكل' : 'View All'}
                 </button>
               </div>
             </div>
             
             {filtered.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 sm:p-12 text-center border border-gray-200 dark:border-gray-700">
-                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 dark:bg-gray-700 mb-4 sm:mb-6">
-                  <FaSearch className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+              <div className="p-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 text-center shadow-lg">
+                <div className="inline-block bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
+                  <FaSearch className="text-gray-400 dark:text-gray-500 text-2xl" />
                 </div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">{t.noResults}</h3>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">{t.tryDifferent}</p>
+                <div className="text-gray-500 dark:text-gray-400 mb-2">{t.noResults}.</div>
+                <div className="text-sm text-gray-400 dark:text-gray-500">{t.tryDifferent}</div>
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filtered.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
                   const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
-                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl); // تمرير كلا الحقلين
+                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl, season.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
                   const publishDate = formatDate(season.publishedAt);
@@ -624,7 +608,7 @@ export default function SeasonsPageClient() {
                 {filtered.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
                   const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
-                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl); // تمرير كلا الحقلين
+                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl, season.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
                   const publishDate = formatDate(season.publishedAt);
@@ -710,7 +694,7 @@ export default function SeasonsPageClient() {
                 {seasons.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
                   const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
-                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl); // تمرير كلا الحقلين
+                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl, season.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
                   const publishDate = formatDate(season.publishedAt);
@@ -773,7 +757,7 @@ export default function SeasonsPageClient() {
                 {seasons.map((season: Season) => {
                   const slug = season.slug?.current ?? season._id;
                   const title = getLocalizedText(season.title, season.titleEn, language) ?? getLocalizedText(season.name, season.nameEn, language) ?? (language === 'ar' ? "موسم" : "Season");
-                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl); // تمرير كلا الحقلين
+                  const thumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl, season.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
                   const episodeCount = episodeCounts[season._id] || 0;
                   const articleCount = articleCounts[season._id] || 0;
                   const publishDate = formatDate(season.publishedAt);

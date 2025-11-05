@@ -26,7 +26,8 @@ interface Episode {
   slug?: {
     current: string;
   };
-  thumbnailUrl?: string; // Changed from thumbnail to thumbnailUrl
+  thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
   season?: {
     _id: string;
     title: string;
@@ -36,7 +37,6 @@ interface Episode {
     };
   };
   publishedAt?: string;
-  language?: 'ar' | 'en';
 }
 
 interface Season {
@@ -48,8 +48,8 @@ interface Season {
   slug?: {
     current: string;
   };
-  thumbnailUrl?: string; // Changed from thumbnail to thumbnailUrl
-  language?: 'ar' | 'en';
+  thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
 }
 
 // كائن الترجمات
@@ -114,9 +114,12 @@ const translations = {
   }
 };
 
-function buildMediaUrl(imageUrl?: string) {
-  if (!imageUrl) return "/placeholder.png";
-  return urlFor(imageUrl) || "/placeholder.png";
+function buildMediaUrl(imageUrl?: string, imageUrlEn?: string, language?: string) {
+  // تحديد الرابط بناءً على اللغة
+  const url = language === 'ar' ? imageUrl : imageUrlEn;
+  
+  if (!url) return "/placeholder.png";
+  return urlFor(url) || "/placeholder.png";
 }
 
 function escapeRegExp(str = "") {
@@ -203,7 +206,7 @@ export default function EpisodesPageClient() {
         setLoading(true);
         setError(null);
         
-        // جلب الحلقات والمواسم حسب اللغة
+        // جلب الحلقات والمواسم
         const [episodesData, seasonsData] = await Promise.all([
           fetchEpisodes(language),
           fetchSeasons(language)
@@ -276,7 +279,7 @@ export default function EpisodesPageClient() {
       if (matches.length > 0) out[season] = matches;
     });
     return out;
-  }, [episodesBySeason, searchTerm, language, t.allEpisodes, filterSeason]);
+  }, [episodesBySeason, searchTerm, language, t.allEpisodes, t.episodesWithoutSeason, filterSeason]);
 
   // تم تعديل هذه الدالة لتجاهل قسم "جميع الحلقات" عند العد
   const totalResults = useMemo(
@@ -565,7 +568,7 @@ export default function EpisodesPageClient() {
                       const slug = episode.slug?.current || episode._id;
                       const title = getLocalizedText(episode.title, episode.titleEn, language);
                       const description = getLocalizedText(episode.description, episode.descriptionEn, language);
-                      const thumbnailUrl = episode.thumbnailUrl || "/placeholder.png";
+                      const thumbnailUrl = buildMediaUrl(episode.thumbnailUrl, episode.thumbnailUrlEn, language);
                       
                       return (
                         <motion.article
@@ -628,7 +631,7 @@ export default function EpisodesPageClient() {
                       const slug = episode.slug?.current || episode._id;
                       const title = getLocalizedText(episode.title, episode.titleEn, language);
                       const description = getLocalizedText(episode.description, episode.descriptionEn, language);
-                      const thumbnailUrl = episode.thumbnailUrl || "/placeholder.png";
+                      const thumbnailUrl = buildMediaUrl(episode.thumbnailUrl, episode.thumbnailUrlEn, language);
                       
                       return (
                         <motion.div
@@ -743,7 +746,7 @@ export default function EpisodesPageClient() {
                             const slug = episode.slug?.current || episode._id;
                             const title = getLocalizedText(episode.title, episode.titleEn, language);
                             const description = getLocalizedText(episode.description, episode.descriptionEn, language);
-                            const thumbnailUrl = episode.thumbnailUrl || "/placeholder.png";
+                            const thumbnailUrl = buildMediaUrl(episode.thumbnailUrl, episode.thumbnailUrlEn, language);
                             
                             return viewMode === "grid" ? (
                               <motion.article

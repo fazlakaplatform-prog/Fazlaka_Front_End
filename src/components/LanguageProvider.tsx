@@ -1,4 +1,4 @@
-// components/LanguageProvider.tsx (النسخة المعدلة والخالية من Clerk)
+// components/LanguageProvider.tsx 
 
 "use client";
 
@@ -28,6 +28,9 @@ export default function LanguageProvider({ children }: { children: React.ReactNo
     setLanguageState(lang);
     setIsRTL(lang === 'ar');
     localStorage.setItem('language', lang);
+    
+    // إعادة تحميل الصفحة لتحديث جميع المكونات باللغة الجديدة
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -35,11 +38,13 @@ export default function LanguageProvider({ children }: { children: React.ReactNo
     
     const savedLanguage = localStorage.getItem('language') as 'ar' | 'en' | null;
     if (savedLanguage && (savedLanguage === 'ar' || savedLanguage === 'en')) {
-      setLanguage(savedLanguage);
+      setLanguageState(savedLanguage);
+      setIsRTL(savedLanguage === 'ar');
     } else {
       const browserLang = navigator.language || (navigator as Navigator & { userLanguage?: string }).userLanguage || '';
       const shouldBeRTL = browserLang.includes('ar');
-      setLanguage(shouldBeRTL ? 'ar' : 'en');
+      setLanguageState(shouldBeRTL ? 'ar' : 'en');
+      setIsRTL(shouldBeRTL);
     }
   }, []);
 

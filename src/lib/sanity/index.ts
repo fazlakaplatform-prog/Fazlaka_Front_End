@@ -1,4 +1,4 @@
-// src/lib/sanity.ts
+// src/lib/sanity/index.ts
 
 // =================================================================
 // Client and Core Functions
@@ -9,9 +9,8 @@ export {
   fetchArrayFromSanity,
   createDocument,
   updateDocument,
-  deleteDocument,
-  uploadImage
-} from './sanity/client';
+  deleteDocument
+} from './client';
 
 // =================================================================
 // Types
@@ -37,7 +36,7 @@ export type {
   SanityFormat,
   TermsContent,
   PrivacyContent
-} from './sanity/types';
+} from './types';
 
 // =================================================================
 // Image Utilities
@@ -45,7 +44,7 @@ export type {
 export {
   urlFor,
   urlForImage
-} from './sanity/images';
+} from './images';
 
 // =================================================================
 // Utility Functions
@@ -61,41 +60,31 @@ export function getLocalizedText(arText?: string, enText?: string, language: str
 
 // --- Episodes ---
 export {
-  fetchEpisodesBySeason,
-  fetchEpisodeBySlug,
   fetchEpisodes,
-  getLocalizedText as getEpisodeLocalizedText // Kept for specific use cases if needed
-} from './sanity/episodes';
+  fetchEpisodeBySlug,
+  fetchSeasons,
+  fetchSeasonBySlug,
+  fetchEpisodesBySeason,
+  getLocalizedText as getEpisodeLocalizedText
+} from './episodes';
 
 // --- Articles ---
 export {
-  fetchArticleBySlug,
   fetchArticles,
-  getLocalizedText as getArticleLocalizedText // Kept for specific use cases if needed
-} from './sanity/articles';
+  fetchArticleBySlug,
+  getLocalizedText as getArticleLocalizedText
+} from './articles';
 
-// --- Seasons ---
-export {
-  fetchSeasons,
-  fetchSeasonBySlug,
-  fetchEpisodesBySeason as getEpisodesForSeason
-} from './sanity/seasons';
+// --- Other modules without conflicts ---
+export * from './seasons';
+export * from './playlists';
+export * from './favorites';
+export * from './team';
+export * from './social';
+export * from './hero';
+export * from './comments';
 
-// --- Team ---
-export {
-  fetchTeamMembers,
-  fetchTeamMemberBySlug
-} from './sanity/team';
-
-// --- Playlists ---
-export {
-  fetchPlaylists,
-  fetchPlaylistBySlug
-} from './sanity/playlists';
-
-// --- Other modules (using explicit exports to avoid conflicts) ---
-
-// FAQ module
+// --- FAQ module (using explicit exports to avoid conflicts) ---
 export {
   fetchFaqs,
   fetchFaqById,
@@ -104,9 +93,14 @@ export {
   deleteFaq,
   fetchCategories as getFaqCategories,
   fetchFaqsByCategory
-} from './sanity/faqs';
+} from './faqs';
 
-// Terms module - CORRECTED EXPORT NAMES
+// --- Notifications module (only exporting what's needed) ---
+export {
+  getAllNotifications
+} from './notifications';
+
+// --- Terms module (using explicit exports) ---
 export {
   getMainTerms,
   getLegalTerms,
@@ -117,9 +111,9 @@ export {
   createTermsContent,
   updateTermsContent,
   deleteTermsContent
-} from './sanity/terms';
+} from './terms';
 
-// Privacy module - CORRECTED EXPORT NAMES
+// --- Privacy module (using explicit exports) ---
 export {
   getPrivacyPolicy,
   getUserRights,
@@ -128,17 +122,4 @@ export {
   createPrivacyContent,
   updatePrivacyContent,
   deletePrivacyContent
-} from './sanity/privacy';
-
-// Favorites module
-export * from './sanity/favorites';
-
-// Notifications module
-export {
-  getAllNotifications
-} from './sanity/notifications';
-
-// Other modules without conflicts
-export * from './sanity/social';
-export * from './sanity/hero';
-export * from './sanity/comments';
+} from './privacy';

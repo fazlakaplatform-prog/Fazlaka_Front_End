@@ -18,11 +18,12 @@ import {
   FaSignInAlt,
   FaArrowRight
 } from "react-icons/fa";
-import { client, urlFor } from "@/lib/sanity";
+import { client } from "@/lib/sanity";
 
 // تعريف نوع موسع للتعامل مع الصور المختلفة
 type PlaylistWithImage = Playlist & {
   imageUrl?: string;
+  imageUrlEn?: string;
   titleEn?: string;
   descriptionEn?: string;
   language?: 'ar' | 'en';
@@ -37,6 +38,7 @@ interface SanityEpisode {
     current: string;
   };
   thumbnailUrl?: string;
+  thumbnailUrlEn?: string;
   duration?: number;
   publishedAt?: string;
   categories?: string[];
@@ -51,6 +53,7 @@ interface SanityArticle {
     current: string;
   };
   featuredImageUrl?: string;
+  featuredImageUrlEn?: string;
   publishedAt?: string;
   readTime?: number;
   categories?: string[];
@@ -74,12 +77,18 @@ function getItemUrl(item: FavoriteItem): string {
   }
 }
 
-// Helper function to get the image URL for a favorite item
-function getItemImageUrl(item: FavoriteItem): string {
+// Helper function to get the image URL for a favorite item with language support
+function getItemImageUrl(item: FavoriteItem, language: string = 'ar'): string {
   if (isEpisode(item)) {
-    return item.thumbnailUrl || "/placeholder.png";
+    return language === 'en' && item.thumbnailUrlEn 
+      ? item.thumbnailUrlEn 
+      : (item.thumbnailUrl || "/placeholder.png");
   } else {
-    return item.featuredImageUrl || "/placeholder.png";
+    const article = item as SanityArticle;
+    if (language === 'en' && article.featuredImageUrlEn) {
+      return article.featuredImageUrlEn;
+    }
+    return article.featuredImageUrl || "/placeholder.png";
   }
 }
 
@@ -298,7 +307,8 @@ const PlaylistsPage = () => {
             publishedAt,
             categories,
             language,
-            thumbnailUrl
+            thumbnailUrl,
+            thumbnailUrlEn
           }
         }`;
         
@@ -313,7 +323,8 @@ const PlaylistsPage = () => {
             publishedAt,
             categories,
             language,
-            featuredImageUrl
+            featuredImageUrl,
+            featuredImageUrlEn
           }
         }`;
         
@@ -451,13 +462,20 @@ const PlaylistsPage = () => {
     );
   }
 
-  // دالة للحصول على رابط الصورة من كائن Playlist
-  const getImageUrl = (playlist: Playlist): string | null => {
+  // دالة للحصول على رابط الصورة من كائن Playlist مع دعم اللغة
+  const getImageUrl = (playlist: Playlist, language: string): string | null => {
     const playlistWithImage = playlist as PlaylistWithImage;
     
-    if (playlistWithImage.imageUrl) return playlistWithImage.imageUrl;
+    if (language === 'en' && playlistWithImage.imageUrlEn) {
+      return playlistWithImage.imageUrlEn;
+    }
     
-    return null;
+    if (language === 'ar' && playlistWithImage.imageUrl) {
+      return playlistWithImage.imageUrl;
+    }
+    
+    // استخدم الصورة العربية كافتراضي إذا لم توجد صورة إنجليزية
+    return playlistWithImage.imageUrl || null;
   };
 
   // Hero Section Component
@@ -845,7 +863,8 @@ const PlaylistsPage = () => {
               
               {filteredPlaylists.map((playlist, index) => {
                 const playlistWithImage = playlist as PlaylistWithImage;
-                const imageUrl = getImageUrl(playlist);
+                // استخدام getImageUrl مع دعم اللغة
+                const imageUrl = getImageUrl(playlist, language);
                 // حساب عدد الحلقات والمقالات
                 const episodesCount = playlistWithImage.episodes?.length || 0;
                 const articlesCount = playlistWithImage.articles?.length || 0;
@@ -903,7 +922,8 @@ const PlaylistsPage = () => {
               
               {filteredPlaylists.map((playlist, index) => {
                 const playlistWithImage = playlist as PlaylistWithImage;
-                const imageUrl = getImageUrl(playlist);
+                // استخدام getImageUrl مع دعم اللغة
+                const imageUrl = getImageUrl(playlist, language);
                 // حساب عدد الحلقات والمقالات
                 const episodesCount = playlistWithImage.episodes?.length || 0;
                 const articlesCount = playlistWithImage.articles?.length || 0;

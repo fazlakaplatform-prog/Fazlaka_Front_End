@@ -1,4 +1,3 @@
-// app/playlists/[id]/page.tsx
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
@@ -39,7 +38,8 @@ interface Playlist {
   description?: string;
   descriptionEn?: string;
   imageUrl?: string;
-  image?: SanityImage; // تم التغيير من any إلى SanityImage
+  imageUrlEn?: string;
+  image?: SanityImage;
   episodes?: Episode[];
   articles?: Article[];
   language?: 'ar' | 'en';
@@ -51,9 +51,11 @@ interface Episode {
   title: string;
   titleEn?: string;
   thumbnailUrl?: string;
-  image?: SanityImage; // تم التغيير من any إلى SanityImage
+  thumbnailUrlEn?: string;
+  image?: SanityImage;
   content?: Record<string, unknown>;
   videoUrl?: string;
+  videoUrlEn?: string;
   publishedAt?: string;
   language?: 'ar' | 'en';
 }
@@ -64,7 +66,8 @@ interface Article {
   title: string;
   titleEn?: string;
   featuredImageUrl?: string;
-  image?: SanityImage; // تم التغيير من any إلى SanityImage
+  featuredImageUrlEn?: string;
+  image?: SanityImage;
   excerpt?: string;
   excerptEn?: string;
   content?: Record<string, unknown>;
@@ -128,8 +131,28 @@ const translations = {
   }
 };
 
-// دالة مساعدة لإنشاء رابط الصورة
-function buildMediaUrl(image?: SanityImage | string): string {
+// دالة مساعدة لإنشاء رابط الصورة مع دعم اللغة
+function buildMediaUrl(
+  image?: SanityImage | string, 
+  imageUrl?: string, 
+  imageUrlEn?: string, 
+  language: string = 'ar'
+): string {
+  // أولاً، تحقق من وجود رابط صورة مباشر بناءً على اللغة
+  if (language === 'en' && imageUrlEn) {
+    return imageUrlEn;
+  }
+  
+  if (language === 'ar' && imageUrl) {
+    return imageUrl;
+  }
+  
+  // إذا لم يكن هناك رابط صورة مباشر للغة المطلوبة، استخدم الرابط الافتراضي
+  if (imageUrl) {
+    return imageUrl;
+  }
+  
+  // إذا لم يكن هناك رابط صورة مباشر على الإطلاق، حاول استخدام كائن الصورة
   if (!image) return "/placeholder.png";
   
   try {
@@ -300,8 +323,13 @@ export default function PlaylistDetails({ params }: Props) {
     </div>
   );
   
-  // الحصول على رابط الصورة
-  const playlistImageUrl = buildMediaUrl(playlist.image || playlist.imageUrl);
+  // الحصول على رابط الصورة مع دعم اللغة
+  const playlistImageUrl = buildMediaUrl(
+    playlist.image, 
+    playlist.imageUrl, 
+    playlist.imageUrlEn, 
+    language
+  );
   
   // الحصول على العنوان والوصف المناسبين حسب اللغة
   const playlistTitle = getLocalizedText(playlist.title, playlist.titleEn, language);
@@ -819,8 +847,13 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض الحلقات */}
               {displayEpisodes && filteredEpisodes.map((ep, idx) => {
                 const slug = encodeURIComponent(ep.slug.current);
-                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
-                const thumbnailUrl = buildMediaUrl(ep.image || ep.thumbnailUrl);
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور مع دعم اللغة
+                const thumbnailUrl = buildMediaUrl(
+                  ep.image, 
+                  ep.thumbnailUrl, 
+                  ep.thumbnailUrlEn, 
+                  language
+                );
                 const episodeTitle = getLocalizedText(ep.title, ep.titleEn, language);
                 
                 return (
@@ -890,8 +923,13 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض المقالات */}
               {displayArticles && filteredArticles.map((article, idx) => {
                 const slug = encodeURIComponent(article.slug.current);
-                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
-                const thumbnailUrl = buildMediaUrl(article.image || article.featuredImageUrl);
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور مع دعم اللغة
+                const thumbnailUrl = buildMediaUrl(
+                  article.image, 
+                  article.featuredImageUrl, 
+                  article.featuredImageUrlEn, 
+                  language
+                );
                 const articleTitle = getLocalizedText(article.title, article.titleEn, language);
                 const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                 
@@ -964,8 +1002,13 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض الحلقات */}
               {displayEpisodes && filteredEpisodes.map((ep, idx) => {
                 const slug = encodeURIComponent(ep.slug.current);
-                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
-                const thumbnailUrl = buildMediaUrl(ep.image || ep.thumbnailUrl);
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور مع دعم اللغة
+                const thumbnailUrl = buildMediaUrl(
+                  ep.image, 
+                  ep.thumbnailUrl, 
+                  ep.thumbnailUrlEn, 
+                  language
+                );
                 const episodeTitle = getLocalizedText(ep.title, ep.titleEn, language);
                 
                 return (
@@ -1033,8 +1076,13 @@ export default function PlaylistDetails({ params }: Props) {
               {/* عرض المقالات */}
               {displayArticles && filteredArticles.map((article, idx) => {
                 const slug = encodeURIComponent(article.slug.current);
-                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور
-                const thumbnailUrl = buildMediaUrl(article.image || article.featuredImageUrl);
+                // استخدام buildMediaUrl للتعامل مع كل أنواع الصور مع دعم اللغة
+                const thumbnailUrl = buildMediaUrl(
+                  article.image, 
+                  article.featuredImageUrl, 
+                  article.featuredImageUrlEn, 
+                  language
+                );
                 const articleTitle = getLocalizedText(article.title, article.titleEn, language);
                 const articleExcerpt = getLocalizedText(article.excerpt, article.excerptEn, language);
                 

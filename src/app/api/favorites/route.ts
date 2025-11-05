@@ -1,3 +1,5 @@
+// app/api/favorites/route.ts
+
 import { NextResponse } from "next/server";
 import { client } from "@/lib/sanity";
 
@@ -52,7 +54,8 @@ export async function POST(request: Request) {
       [contentType]: {
         _type: "reference",
         _ref: contentId
-      }
+      },
+      createdAt: new Date().toISOString()
     });
 
     return NextResponse.json({ success: true, id: newFavorite._id });

@@ -1,4 +1,3 @@
-// SeasonPageClient.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { use } from "react";
@@ -6,6 +5,7 @@ import Link from "next/link";
 import FavoriteButton from "@/components/FavoriteButton";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import { fetchFromSanity, urlFor, getLocalizedText } from "@/lib/sanity";
+import { fetchSeasonBySlug, fetchEpisodesBySeason, fetchArticlesBySeason } from "@/lib/sanity/seasons";
 import { useLanguage } from "@/components/LanguageProvider";
 import { 
   FaCalendarAlt, 
@@ -85,8 +85,12 @@ const translations = {
   }
 };
 
-function buildMediaUrl(thumbnail?: SanityImage | null, thumbnailUrl?: string) {
-  // إذا كان هناك رابط مباشر للصورة، استخدمه أولاً
+function buildMediaUrl(thumbnail?: SanityImage, thumbnailUrl?: string, thumbnailUrlEn?: string, language: string = 'ar') {
+  // إذا كان هناك رابط مباشر للصورة، استخدمه أولاً مع مراعاة اللغة
+  if (language === 'en' && thumbnailUrlEn) {
+    return thumbnailUrlEn;
+  }
+  
   if (thumbnailUrl) {
     return thumbnailUrl;
   }
@@ -178,14 +182,16 @@ interface SeasonData {
   _type: "season";
   title?: string;
   titleEn?: string;
-  description?: string;
-  descriptionEn?: string;
   slug?: {
     current: string;
     _type: "slug";
   };
   thumbnail?: SanityImage;
   thumbnailUrl?: string; // إضافة حقل رابط الصورة المباشر
+  thumbnailUrlEn?: string; // إضافة حقل رابط الصورة المباشر للغة الإنجليزية
+  description?: string;
+  descriptionEn?: string;
+  publishedAt?: string;
   language?: 'ar' | 'en';
 }
 
@@ -206,6 +212,7 @@ interface EpisodeData {
   };
   thumbnail?: SanityImage;
   thumbnailUrl?: string; // إضافة حقل رابط الصورة المباشر
+  thumbnailUrlEn?: string; // إضافة حقل رابط الصورة المباشر للغة الإنجليزية
   publishedAt?: string;
   language?: 'ar' | 'en';
 }
@@ -223,6 +230,7 @@ interface ArticleData {
   };
   featuredImage?: SanityImage;
   featuredImageUrl?: string; // إضافة حقل رابط الصورة المباشر
+  featuredImageUrlEn?: string; // إضافة حقل رابط الصورة المباشر للغة الإنجليزية
   publishedAt?: string;
   language?: 'ar' | 'en';
 }
@@ -255,19 +263,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
         setLoading(true);
         
         // Fetch season from Sanity with language filter
-        const seasonQuery = `*[_type == "season" && slug.current == $slug && language == $language][0] {
-          _id,
-          title,
-          titleEn,
-          description,
-          descriptionEn,
-          slug,
-          thumbnail,
-          thumbnailUrl, // إضافة حقل رابط الصورة المباشر
-          language
-        }`;
-        
-        const seasonData = await fetchFromSanity(seasonQuery, { slug, language });
+        const seasonData = await fetchSeasonBySlug(slug, language);
         
         if (!seasonData) throw new Error("Season not found");
         
@@ -276,40 +272,10 @@ export default function SeasonPageClient({ params }: SeasonProps) {
         setSeason(typedSeasonData);
         
         // Fetch episodes for this season with language filter
-        const episodesQuery = `*[_type == "episode" && season._ref == $seasonId && language == $language] | order(publishedAt desc) {
-          _id,
-          title,
-          titleEn,
-          name,
-          nameEn,
-          description,
-          descriptionEn,
-          summary,
-          summaryEn,
-          slug,
-          thumbnail,
-          thumbnailUrl, // إضافة حقل رابط الصورة المباشر
-          publishedAt,
-          language
-        }`;
-        
-        const episodesData = await fetchFromSanity(episodesQuery, { seasonId: typedSeasonData._id, language });
+        const episodesData = await fetchEpisodesBySeason(typedSeasonData._id, language);
         
         // Fetch articles for this season with language filter
-        const articlesQuery = `*[_type == "article" && season._ref == $seasonId && language == $language] | order(publishedAt desc) {
-          _id,
-          title,
-          titleEn,
-          excerpt,
-          excerptEn,
-          slug,
-          featuredImage,
-          featuredImageUrl, // إضافة حقل رابط الصورة المباشر
-          publishedAt,
-          language
-        }`;
-        
-        const articlesData = await fetchFromSanity(articlesQuery, { seasonId: typedSeasonData._id, language });
+        const articlesData = await fetchArticlesBySeason(typedSeasonData._id, language);
         
         // Type assertion to ensure the data matches our interface
         setEpisodes((episodesData || []) as EpisodeData[]);
@@ -530,7 +496,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
   
   const seasonTitle = getLocalizedText(season.title, season.titleEn, language) ?? (language === 'ar' ? "موسم" : "Season");
   const seasonDescription = getLocalizedText(season.description, season.descriptionEn, language) ?? "";
-  const seasonThumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl); // تمرير كلا الحقلين
+  const seasonThumbnailUrl = buildMediaUrl(season.thumbnail, season.thumbnailUrl, season.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-16" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -847,7 +813,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredEpisodes.map((ep: EpisodeData, index) => {
                     const title = getLocalizedText(ep.title, ep.titleEn, language) ?? getLocalizedText(ep.name, ep.nameEn, language) ?? (language === 'ar' ? "حلقة" : "Episode");
-                    const thumbnailUrl = buildMediaUrl(ep.thumbnail, ep.thumbnailUrl); // تمرير كلا الحقلين
+                    const thumbnailUrl = buildMediaUrl(ep.thumbnail, ep.thumbnailUrl, ep.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
                     const slug = ep.slug?.current ?? ep._id;
                     const episodeDate = formatDate(ep.publishedAt);
                     
@@ -935,7 +901,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredEpisodes.map((ep: EpisodeData, index) => {
                     const title = getLocalizedText(ep.title, ep.titleEn, language) ?? getLocalizedText(ep.name, ep.nameEn, language) ?? (language === 'ar' ? "حلقة" : "Episode");
-                    const thumbnailUrl = buildMediaUrl(ep.thumbnail, ep.thumbnailUrl); // تمرير كلا الحقلين
+                    const thumbnailUrl = buildMediaUrl(ep.thumbnail, ep.thumbnailUrl, ep.thumbnailUrlEn, language); // تمرير كلا الحقول مع اللغة
                     const slug = ep.slug?.current ?? ep._id;
                     const episodeDate = formatDate(ep.publishedAt);
                     
@@ -1028,7 +994,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredArticles.map((art: ArticleData, index) => {
                     const title = getLocalizedText(art.title, art.titleEn, language) ?? (language === 'ar' ? "مقال" : "Article");
-                    const thumbnailUrl = buildMediaUrl(art.featuredImage, art.featuredImageUrl); // تمرير كلا الحقلين
+                    const thumbnailUrl = buildMediaUrl(art.featuredImage, art.featuredImageUrl, art.featuredImageUrlEn, language); // تمرير كلا الحقول مع اللغة
                     const slug = art.slug?.current ?? art._id;
                     const articleDate = formatDate(art.publishedAt);
                     
@@ -1098,7 +1064,7 @@ export default function SeasonPageClient({ params }: SeasonProps) {
                 >
                   {filteredArticles.map((art: ArticleData, index) => {
                     const title = getLocalizedText(art.title, art.titleEn, language) ?? (language === 'ar' ? "مقال" : "Article");
-                    const thumbnailUrl = buildMediaUrl(art.featuredImage, art.featuredImageUrl); // تمرير كلا الحقلين
+                    const thumbnailUrl = buildMediaUrl(art.featuredImage, art.featuredImageUrl, art.featuredImageUrlEn, language); // تمرير كلا الحقول مع اللغة
                     const slug = art.slug?.current ?? art._id;
                     const articleDate = formatDate(art.publishedAt);
                     
