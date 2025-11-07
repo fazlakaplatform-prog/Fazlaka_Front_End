@@ -162,8 +162,6 @@ const translations = {
     liked: "تم الإعجاب",
     shareEpisode: "مشاركة الحلقة",
     commentEpisode: "تعليق على الحلقة",
-    saveEpisode: "حفظ الحلقة",
-    savedEpisode: "تم الحفظ",
     interactWithEpisode: "تفاعل مع الحلقة"
   },
   en: {
@@ -221,8 +219,6 @@ const translations = {
     liked: "Liked",
     shareEpisode: "Share Episode",
     commentEpisode: "Comment on Episode",
-    saveEpisode: "Save Episode",
-    savedEpisode: "Saved",
     interactWithEpisode: "Interact with Episode"
   }
 };
@@ -1024,7 +1020,7 @@ function FavoriteButton({ contentId, contentType, isFavorite, onToggle }: {
   );
 }
 
-// مكون الأزرار المحسّن
+// مكون الأزرار المحسّن بدون زر الحفظ
 function ActionButtons({ 
   contentId, 
   contentType, 
@@ -1042,8 +1038,6 @@ function ActionButtons({
 }) {
   const { data: session } = useSession();
   const { language } = useLanguage();
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   const handleShare = () => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -1056,18 +1050,6 @@ function ActionButtons({
       navigator.clipboard.writeText(window.location.href);
       alert("تم نسخ الرابط إلى الحافظة");
     }
-  };
-
-  const handleBookmark = () => {
-    if (!session?.user || bookmarkLoading) return;
-    
-    setBookmarkLoading(true);
-    
-    // محاكاة عملية الحفظ
-    setTimeout(() => {
-      setIsBookmarked(!isBookmarked);
-      setBookmarkLoading(false);
-    }, 1000);
   };
 
   return (
@@ -1148,56 +1130,6 @@ function ActionButtons({
           </button>
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {translations[language].commentEpisode}
-          </span>
-        </div>
-        
-        {/* زر الحفظ */}
-        <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={handleBookmark}
-            disabled={bookmarkLoading || !session?.user}
-            className="group relative flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full transition-all duration-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 overflow-hidden disabled:opacity-50"
-          >
-            {/* خلفية متدرجة */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${isBookmarked ? 'from-emerald-500 to-emerald-600' : 'from-slate-400 to-slate-500'} transition-all duration-500`}></div>
-            
-            {/* تأثير اللمعان */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            
-            {/* تأثير الحركة عند التفعيل */}
-            {isBookmarked && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-full h-full rounded-full bg-emerald-500/30 animate-ping"></div>
-              </div>
-            )}
-            
-            {/* الأيقونة */}
-            <div className="relative z-10 flex items-center justify-center">
-              {bookmarkLoading ? (
-                <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg 
-                  className={`w-5 h-5 md:w-6 md:h-6 transition-all duration-300 text-white`} 
-                  fill={isBookmarked ? "currentColor" : "none"} 
-                  stroke="white"
-                  strokeWidth={isBookmarked ? 0 : 2}
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
-                </svg>
-              )}
-            </div>
-            
-            {/* تأثير النبض عند التفعيل */}
-            {isBookmarked && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-            )}
-          </button>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {isBookmarked ? translations[language].savedEpisode : translations[language].saveEpisode}
           </span>
         </div>
       </div>
