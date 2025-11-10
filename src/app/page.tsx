@@ -868,13 +868,15 @@ const AboutSection = () => {
           </p>
           
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
-            <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+            {/* تم تعديل الزر الأول ليكون شفاف ويوجه إلى /about */}
+            <Link 
+              href="/about"
+              className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:bg-white/30 transition-all duration-300"
+            >
               {t.knowMore}
-            </button>
+            </Link>
             
-            <button className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:bg-white/30 transition-all duration-300">
-              {t.contactUs}
-            </button>
+            {/* تم حذف زر تواصل معنا حسب الطلب */}
           </div>
         </div>
       </div>
