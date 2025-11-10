@@ -3,7 +3,7 @@
 "use client";
 
 import Image from 'next/image';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Autoplay } from 'swiper/modules';
@@ -362,6 +362,18 @@ const TypingAnimation = ({ text, className = "", speed = 50, deleteSpeed = 25, i
   );
 };
 
+// مكون مؤشر التحميل المحسّن
+const VideoLoader = () => {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
+      <div className="relative">
+        <div className="w-16 h-16 rounded-full border-4 border-gray-200"></div>
+        <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-transparent border-t-cyan-400 border-r-blue-500 animate-spin"></div>
+        <div className="absolute inset-2 rounded-full border-4 border-transparent border-b-blue-500 border-l-cyan-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+      </div>
+    </div>
+  );
+};
 
 // مكون سلايدر المحتوى المميز - بدون أنيميشن وبدون واجهة يوتيوب
 const HeroSliderComponent = () => {
@@ -548,12 +560,106 @@ const HeroSliderComponent = () => {
   );
 };
 
+// مكون الفيديو المحسّن مع مؤشر تحميل
+const OptimizedVideo = ({ 
+  src, 
+  poster, 
+  className = "", 
+  autoPlay = true, 
+  muted = true, 
+  loop = true, 
+  playsInline = true,
+  priority = false,
+  onCanPlay 
+}: { 
+  src: string, 
+  poster?: string, 
+  className?: string, 
+  autoPlay?: boolean, 
+  muted?: boolean, 
+  loop?: boolean, 
+  playsInline?: boolean,
+  priority?: boolean,
+  onCanPlay?: () => void 
+}) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      setIsLoaded(true);
+      if (onCanPlay) onCanPlay();
+    };
+
+    const handleLoadStart = () => {
+      setIsLoading(true);
+      setIsLoaded(false);
+    };
+
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('loadstart', handleLoadStart);
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('loadstart', handleLoadStart);
+    };
+  }, [onCanPlay]);
+
+  useEffect(() => {
+    if (priority && videoRef.current) {
+      videoRef.current.load();
+    }
+  }, [priority]);
+
+  return (
+    <div className={`relative ${className}`}>
+      {isLoading && (
+        <div className="absolute inset-0 z-10">
+          <VideoLoader />
+        </div>
+      )}
+      
+      {/* عرض الصورة البديلة أثناء تحميل الفيديو */}
+      {!isLoaded && poster && (
+        <Image
+          src={poster}
+          alt="Video poster"
+          fill
+          className="object-cover"
+          priority={priority}
+          sizes="100vw"
+        />
+      )}
+      
+      <video
+        ref={videoRef}
+        className={`w-full h-full object-cover transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
+        playsInline={playsInline}
+        poster={poster}
+        preload={priority ? "auto" : "metadata"}
+      >
+        <source src={src} type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  );
+};
+
 // مكون الهيرو - تم تعديله لإخفاء السلايدر على الموبايل
 const HeroSection = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
   const [isMobile, setIsMobile] = useState(false);
   const [currentDescriptionIndex, setCurrentDescriptionIndex] = useState(0);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -591,15 +697,16 @@ const HeroSection = () => {
             />
           </div>
         ) : (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className={`hero-video absolute inset-0 w-full h-full object-cover ${!isRTL ? 'video-mirror' : ''}`}
+          <OptimizedVideo
             src="/hero.mp4"
             poster="/hero.png"
-            preload="metadata"
+            className={`hero-video absolute inset-0 w-full h-full object-cover ${!isRTL ? 'video-mirror' : ''}`}
+            autoPlay={true}
+            muted={true}
+            loop={true}
+            playsInline={true}
+            priority={true}
+            onCanPlay={() => setVideoLoaded(true)}
           />
         )}
         
@@ -705,6 +812,7 @@ const AboutSection = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
   const [isMobile, setIsMobile] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -732,14 +840,16 @@ const AboutSection = () => {
             />
           </div>
         ) : (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
+          <OptimizedVideo
             src="/R.mp4"
             poster="/RM.png"
+            className="absolute inset-0 w-full h-full object-cover"
+            autoPlay={true}
+            muted={true}
+            loop={true}
+            playsInline={true}
+            priority={false}
+            onCanPlay={() => setVideoLoaded(true)}
           />
         )}
         <div className="absolute inset-0 bg-black/60"></div>
