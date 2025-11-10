@@ -1,17 +1,15 @@
 // src/app/page.tsx
 
-"use client"; // هذا السطر ضروري جداً لجعل المكون يعمل على المتصفح (Client-Side)
+"use client";
 
 import Image from 'next/image';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, Autoplay, Parallax } from 'swiper/modules';
+import { Pagination, Autoplay } from 'swiper/modules';
 import { useSession } from 'next-auth/react';
-import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'framer-motion';
 import "swiper/css";
 import "swiper/css/pagination";
-import "swiper/css/parallax";
 
 // استيراد الأيقونات المستخدمة فقط
 import {
@@ -19,9 +17,6 @@ import {
   FaInstagram,
   FaFacebookF,
   FaTiktok,
-  FaPlay,
-  FaPause,
-  FaChevronDown,
 } from 'react-icons/fa';
 
 // استيراد دوال Sanity
@@ -31,7 +26,7 @@ import {
 
 // استيراد الأنواع
 import { 
-  HeroSlider as SanityHeroSlider // تم تغيير الاسم لتجنب التعارض
+  HeroSlider as SanityHeroSlider 
 } from '@/lib/sanity';
 
 import { useLanguage } from '@/components/LanguageProvider';
@@ -147,7 +142,6 @@ const translations = {
     scrollDown: "مرر لأسفل",
     newContentTitle: "المحتوى الجديد",
     newContentDescription: "استكشف أحدث وأهم المحتويات التي نقدمها لك",
-    // الوصفوف الديناميكية للأنيميشن
     dynamicDescriptions: [
       "اكتشف عالماً من المعرفة المبسطة والممتعة",
       "تعلم المفاهيم المعقدة بطريقة سهلة ومبسطة",
@@ -256,7 +250,6 @@ const translations = {
     scrollDown: "Scroll Down",
     newContentTitle: "New Content",
     newContentDescription: "Explore the latest and most important content we offer you",
-    // Dynamic descriptions for animation
     dynamicDescriptions: [
       "Discover a world of simplified and enjoyable knowledge",
       "Learn complex concepts in an easy and simplified way",
@@ -272,14 +265,12 @@ const translations = {
 
 // دالة مساعدة لاستخراج معرف الفيديو من رابط YouTube أو Vimeo
 function extractVideoId(url: string): string | null {
-  // YouTube
   const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/;
   const youtubeMatch = url.match(youtubeRegex);
   if (youtubeMatch) {
     return youtubeMatch[1];
   }
   
-  // Vimeo
   const vimeoRegex = /vimeo\.com\/(\d+)/;
   const vimeoMatch = url.match(vimeoRegex);
   if (vimeoMatch) {
@@ -289,12 +280,6 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
-// دالة للتحقق إذا كان النص يحتوي على HTML
-const hasHtml = (text: string): boolean => {
-  if (!text) return false;
-  return /<[^>]*>/g.test(text);
-};
-
 // دالة محسنة للحصول على النص المترجم
 function getLocalizedTextEnhanced(arText?: string, enText?: string, language?: string): string {
   if (language === 'en') {
@@ -303,89 +288,82 @@ function getLocalizedTextEnhanced(arText?: string, enText?: string, language?: s
   return arText || enText || '';
 }
 
-// مكون أنيميشن الكتابة المحسن
-const TypingAnimation = ({ text, className = "", speed = 50, delay = 0 }: { text: string, className?: string, speed?: number, delay?: number }) => {
+// === مكون أنيميشن الكتابة مع أنيميشن حذف محسّن ===
+const TypingAnimation = ({ text, className = "", speed = 50, deleteSpeed = 25, initialDelay = 0 }: { text: string, className?: string, speed?: number, deleteSpeed?: number, initialDelay?: number }) => {
   const [displayedText, setDisplayedText] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
+  const [targetText, setTargetText] = useState(text);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
 
+  // التأثير الأولي لبدء الأنيميشن
   useEffect(() => {
-    const startTyping = () => {
-      setIsTyping(true);
-      setDisplayedText('');
-      setCurrentIndex(0);
-      setIsDeleting(false);
+    const startTimeout = setTimeout(() => {
+      setTargetText(text);
+      setHasStarted(true);
+    }, initialDelay);
+    return () => clearTimeout(startTimeout);
+  }, [initialDelay]);
+
+  // التأثير الذي يستمع لتغيير الـ `text` prop
+  useEffect(() => {
+    if (!hasStarted) return;
+    if (text === targetText) return;
+
+    // إذا كان النص الجديد هو استمرار للنص الحالي، فقط استمر في الكتابة
+    if (!isDeleting && text.startsWith(displayedText)) {
+      setTargetText(text);
+    } else {
+      // وإلا، ابدأ عملية الحذف
+      setIsDeleting(true);
+    }
+  }, [text, targetText, isDeleting, displayedText, hasStarted]);
+
+  // التأثير الرئيسي للكتابة والحذف
+  useEffect(() => {
+    if (!hasStarted) return;
+
+    const handleTick = () => {
+      setDisplayedText(current => {
+        if (isDeleting) {
+          // عملية الحذف
+          if (current.length > 0) {
+            return current.substring(0, current.length - 1);
+          }
+        } else {
+          // عملية الكتابة
+          if (current.length < targetText.length) {
+            return targetText.substring(0, current.length + 1);
+          }
+        }
+        return current;
+      });
     };
 
-    const timeoutId = setTimeout(startTyping, delay);
-    return () => clearTimeout(timeoutId);
-  }, [text, delay]);
+    const currentSpeed = isDeleting ? deleteSpeed : speed;
+    const timeout = setTimeout(handleTick, currentSpeed);
+    return () => clearTimeout(timeout);
+  }, [displayedText, targetText, isDeleting, speed, deleteSpeed, hasStarted]);
 
+  // التأثير الذي يتحقق من نهاية الحذف لبدء الكتابة الجديدة
   useEffect(() => {
-    if (isTyping && !isDeleting && currentIndex < text.length) {
-      const timeout = setTimeout(() => {
-        setDisplayedText(prev => prev + text[currentIndex]);
-        setCurrentIndex(prev => prev + 1);
-      }, speed);
-
-      return () => clearTimeout(timeout);
+    if (isDeleting && displayedText === '') {
+      setIsDeleting(false);
+      setTargetText(text); // حدد النص الهدف الجديد بعد انتهاء الحذف
     }
-  }, [currentIndex, isTyping, isDeleting, text, speed]);
+  }, [isDeleting, displayedText, text]);
 
   return (
     <span className={className}>
       {displayedText}
-      <span className="inline-block w-0.5 h-5 bg-cyan-400 animate-pulse"></span>
+      {(isDeleting || displayedText.length < targetText.length) && (
+        <span className="inline-block w-0.5 h-5 bg-cyan-400 animate-pulse"></span>
+      )}
     </span>
   );
 };
 
-// مكون تأثير الزهور الخلفية
-const FlowerBackground = () => {
-  const flowers = useMemo(() => {
-    return Array.from({ length: 15 }, (_, i) => ({
-      id: i,
-      size: Math.random() * 30 + 10,
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      animationDuration: `${Math.random() * 20 + 10}s`,
-      animationDelay: `${Math.random() * 5}s`,
-      opacity: Math.random() * 0.4 + 0.1,
-    }));
-  }, []);
 
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {flowers.map((flower) => (
-        <motion.div
-          key={flower.id}
-          className="absolute rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-500/20 blur-xl"
-          style={{
-            width: `${flower.size}px`,
-            height: `${flower.size}px`,
-            left: flower.left,
-            top: flower.top,
-            opacity: flower.opacity,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            rotate: [0, 10, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: parseFloat(flower.animationDuration),
-            repeat: Infinity,
-            delay: parseFloat(flower.animationDelay),
-            ease: "easeInOut",
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-// مكون سلايدر المحتوى المميز - صغير جداً وبنسبة 16:9 مع تحسينات
+// مكون سلايدر المحتوى المميز - بدون أنيميشن وبدون واجهة يوتيوب
 const HeroSliderComponent = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
@@ -393,8 +371,18 @@ const HeroSliderComponent = () => {
   const [sliders, setSliders] = useState<SanityHeroSlider[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const loadSliders = async () => {
@@ -403,7 +391,6 @@ const HeroSliderComponent = () => {
         const data = await fetchHeroSliders(language);
         console.log('Featured sliders loaded:', data);
         setSliders(data);
-        setIsLoaded(true);
       } catch (error) {
         console.error('Error loading featured hero sliders:', error);
       } finally {
@@ -435,18 +422,13 @@ const HeroSliderComponent = () => {
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.8, delay: 0.3 }}
-      className="w-full h-full max-w-lg"
-    >
+    <div className="w-full h-full max-w-lg">
       <Swiper
-        modules={[Autoplay, Pagination, Parallax]}
+        modules={[Autoplay, Pagination]}
         spaceBetween={0}
         slidesPerView={1}
         autoplay={{
-          delay: 5000,
+          delay: isMobile ? 7000 : 5000,
           disableOnInteraction: false,
           pauseOnMouseEnter: true,
         }}
@@ -455,23 +437,14 @@ const HeroSliderComponent = () => {
           dynamicBullets: true,
         }}
         onSlideChange={(swiper) => setActiveSlide(swiper.activeIndex)}
-        onAutoplayPause={() => setIsPaused(true)}
-        onAutoplayResume={() => setIsPaused(false)}
         className="hero-slider w-full h-full"
       >
         {sliders.map((slider, index) => (
           <SwiperSlide key={slider._id} className="relative">
-            {/* حاوية بنسبة 16:9 */}
             <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
               <div className="absolute inset-0 rounded-lg overflow-hidden shadow-lg">
-                {/* الخلفية - تظهر دائماً */}
                 {slider.mediaType === 'image' && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: isLoaded ? 1 : 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="absolute inset-0"
-                  >
+                  <div className="absolute inset-0">
                     <Image
                       src={language === 'ar' 
                         ? (slider.image || '/placeholder.png')
@@ -481,9 +454,9 @@ const HeroSliderComponent = () => {
                       fill
                       className="object-cover"
                       priority={index === 0}
-                      onLoad={() => setIsLoaded(true)}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
-                  </motion.div>
+                  </div>
                 )}
                 
                 {slider.mediaType === 'video' && (
@@ -492,7 +465,7 @@ const HeroSliderComponent = () => {
                       <>
                         {slider.videoUrl.includes('youtube.com') || slider.videoUrl.includes('youtu.be') ? (
                           <iframe
-                            src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&fs=0&playsinline=1`}
+                            src={`https://www.youtube.com/embed/${extractVideoId(slider.videoUrl)}?autoplay=1&mute=1&loop=1&playlist=${extractVideoId(slider.videoUrl)}&controls=0&showinfo=0&modestbranding=1&rel=0&iv_load_policy=3&cc_load_policy=0&fs=0&playsinline=1&disablekb=1`}
                             className="absolute inset-0 w-full h-full"
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -514,6 +487,7 @@ const HeroSliderComponent = () => {
                             muted
                             loop
                             playsInline
+                            preload="metadata"
                           />
                         )}
                       </>
@@ -525,85 +499,30 @@ const HeroSliderComponent = () => {
                   </div>
                 )}
                 
-                {/* طبقة التعتيم المحسنة */}
+                {/* طبقة التعتيم */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
                 
-                {/* المحتوى - يظهر فقط للشريحة النشطة */}
-                <AnimatePresence>
-                  {activeSlide === index && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      transition={{ duration: 0.7 }}
-                      className="absolute inset-0 flex flex-col justify-end p-2 md:p-3"
-                    >
-                      <motion.h3 
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                        className="text-xs md:text-sm font-bold text-white mb-1 drop-shadow-lg"
+                {/* المحتوى فوق السلايدر */}
+                <div className="absolute inset-0 flex flex-col justify-end p-2 md:p-3">
+                  <h3 className="text-xs md:text-sm font-bold text-white mb-1 drop-shadow-lg">
+                    {getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
+                  </h3>
+                  
+                  <p className="text-xs text-white/90 mb-2 drop-shadow-md line-clamp-1">
+                    {getLocalizedTextEnhanced(slider.description, slider.descriptionEn, language)}
+                  </p>
+                  
+                  <div className="flex gap-1">
+                    {slider.link?.url && slider.link?.text && (
+                      <Link
+                        href={slider.link.url}
+                        className="inline-flex items-center gap-1 bg-white text-indigo-600 px-1.5 py-0.5 rounded-full font-bold shadow-lg hover:bg-indigo-50 transition-all duration-300 text-xs"
                       >
-                        {getLocalizedTextEnhanced(slider.title, slider.titleEn, language)}
-                      </motion.h3>
-                      
-                      <motion.p 
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                        className="text-xs text-white/90 mb-2 drop-shadow-md line-clamp-1"
-                      >
-                        {getLocalizedTextEnhanced(slider.description, slider.descriptionEn, language)}
-                      </motion.p>
-                      
-                      <motion.div 
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                        className="flex gap-1"
-                      >
-                        {slider.link?.url && slider.link?.text && (
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <Link
-                              href={slider.link.url}
-                              className="inline-flex items-center gap-1 bg-white text-indigo-600 px-1.5 py-0.5 rounded-full font-bold shadow-lg hover:bg-indigo-50 transition-all duration-300 text-xs"
-                            >
-                              {getLocalizedTextEnhanced(slider.link.text, slider.link.textEn, language)}
-                            </Link>
-                          </motion.div>
-                        )}
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                
-                {/* مؤشر الشرائح - يظهر فقط للشريحة النشطة */}
-                {activeSlide === index && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.5 }}
-                    className="absolute top-1 right-1 bg-black/30 backdrop-blur-sm text-white text-xs px-1.5 py-0.5 rounded-full"
-                  >
-                    {index + 1} / {sliders.length}
-                  </motion.div>
-                )}
-                
-                {/* أيقونة التشغيل/الإيقاف */}
-                {slider.mediaType === 'video' && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: 0.6 }}
-                    className="absolute bottom-1 right-1 bg-black/30 backdrop-blur-sm text-white p-1 rounded-full cursor-pointer"
-                    onClick={() => setIsPaused(!isPaused)}
-                  >
-                    {isPaused ? <FaPlay className="text-xs" /> : <FaPause className="text-xs" />}
-                  </motion.div>
-                )}
+                        {getLocalizedTextEnhanced(slider.link.text, slider.link.textEn, language)}
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </SwiperSlide>
@@ -625,43 +544,168 @@ const HeroSliderComponent = () => {
           opacity: 1;
         }
       `}</style>
-    </motion.div>
+    </div>
   );
 };
 
-// مكون الانتقال السلس بين الأقسام
-const SectionTransition = ({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      transition={{ duration: 0.8, delay }}
-      className="w-full"
-    >
-      {children}
-    </motion.div>
-  );
-};
-
-// مكون الهيرو الجديد مع الفيديو والسلايدر الصغير جداً مع تحسينات
+// مكون الهيرو - تم تعديله لإخفاء السلايدر على الموبايل
 const HeroSection = () => {
   const { language, isRTL } = useLanguage();
   const t = translations[language];
-  
-  const { scrollY } = useScroll();
   const [isMobile, setIsMobile] = useState(false);
   const [currentDescriptionIndex, setCurrentDescriptionIndex] = useState(0);
-  const [isLoaded, setIsLoaded] = useState(false);
   
-  // تحريك العناصر بناءً على التمرير
-  const contentOpacity = useTransform(scrollY, [0, 300], [1, 0]);
-  const contentY = useTransform(scrollY, [0, 300], [0, -50]);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // تغيير الوصف بشكل دوري
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDescriptionIndex((prev) => (prev + 1) % t.dynamicDescriptions.length);
+    }, isMobile ? 6000 : 4000);
+
+    return () => clearInterval(interval);
+  }, [t.dynamicDescriptions.length, isMobile]);
   
-  // الكشف عن حجم الشاشة
+  return (
+    <div className="hero-container relative z-10">
+      <div className="video-wrapper relative w-full h-screen overflow-hidden">
+        {isMobile ? (
+          <div className="absolute inset-0">
+            <Image
+              src="/heroMM.png"
+              alt={t.platformName}
+              fill
+              className="object-cover"
+              priority
+              sizes="100vw"
+              quality={85}
+            />
+          </div>
+        ) : (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className={`hero-video absolute inset-0 w-full h-full object-cover ${!isRTL ? 'video-mirror' : ''}`}
+            src="/hero.mp4"
+            poster="/hero.png"
+            preload="metadata"
+          />
+        )}
+        
+        <div className="absolute inset-0 bg-black/40"></div>
+        
+        <div className="absolute inset-0 flex flex-col p-8 md:p-16">
+          {isMobile && (
+            <>
+              <div className="flex flex-col items-center justify-center text-center text-white mb-12 mt-16">
+                <h1 className={`hero-title text-5xl font-bold mb-6 ${isRTL ? 'font-arabic' : ''}`}>
+                  {t.platformName}
+                </h1>
+                
+                <div className="text-lg opacity-90 drop-shadow-md h-8">
+                  <TypingAnimation 
+                    text={t.dynamicDescriptions[currentDescriptionIndex]} 
+                    className="hero-description"
+                    speed={40}
+                    deleteSpeed={20}
+                    initialDelay={500}
+                  />
+                </div>
+              </div>
+
+              {/* تم حذف السلايدر من هنا على الموبايل */}
+            </>
+          )}
+          
+          {!isMobile && (
+            <>
+              <div className="flex-grow"></div>
+
+              <div className="w-full flex justify-start mt-4 mb-16">
+                <div className="max-w-lg flex flex-col items-start">
+                  <div className="w-full text-center mb-6">
+                    <h1 className={`hero-title text-3xl md:text-4xl font-bold mb-4 ${isRTL ? 'font-arabic' : ''}`}>
+                      {t.platformName}
+                    </h1>
+                    
+                    <div className="text-base md:text-lg opacity-90 drop-shadow-md h-6">
+                      <TypingAnimation 
+                        text={t.dynamicDescriptions[currentDescriptionIndex]} 
+                        className="hero-description"
+                        speed={40}
+                        deleteSpeed={20}
+                        initialDelay={500}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="w-full">
+                    <HeroSliderComponent />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// === القسم الجديد "ما الجديد" مع خلفية الصورة ===
+const NewContentSection = () => {
+  const { language, isRTL } = useLanguage();
+  const t = translations[language];
+
+  return (
+    <section className="relative w-full py-16 md:py-24">
+      {/* خلفية الصورة */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/A.png"
+          alt={t.newContentTitle}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority
+        />
+        {/* طبقة تعتيم لجعل النص مقروء */}
+        <div className="absolute inset-0 bg-black/60"></div>
+      </div>
+
+      {/* المحتوى */}
+      <div className="relative z-10 container mx-auto px-4 md:px-8">
+        <div className="text-center">
+          <h2 className={`text-3xl md:text-4xl font-bold mb-4 ${isRTL ? 'font-arabic' : ''} hero-title`}>
+            {t.newContentTitle}
+          </h2>
+          <div className="w-24 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 mx-auto mb-8 md:mb-12"></div>
+          <div className="w-full max-w-4xl mx-auto">
+            <HeroSliderComponent />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// مكون قسم "من نحن" - بدون أنيميشن
+const AboutSection = () => {
+  const { language, isRTL } = useLanguage();
+  const t = translations[language];
+  const [isMobile, setIsMobile] = useState(false);
+  
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -673,188 +717,56 @@ const HeroSection = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  // تغيير الوصف بشكل دوري
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDescriptionIndex((prev) => (prev + 1) % t.dynamicDescriptions.length);
-    }, 8000); // تغيير الوصف كل 8 ثواني
-
-    return () => clearInterval(interval);
-  }, [t.dynamicDescriptions.length]);
-  
-  // تحميل العناصر
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
   return (
-    <div className="hero-container relative z-10">
-      {/* تأثير الزهور الخلفية */}
-      <FlowerBackground />
-      
-      <div className="video-wrapper relative w-full h-screen overflow-hidden">
-        {/* الفيديو الخلفية للكمبيوتر أو الصورة للموبايل */}
+    <div className="relative w-full h-screen overflow-hidden">
+      <div className="absolute inset-0 z-0">
         {isMobile ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isLoaded ? 1 : 0 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0"
-          >
+          <div className="absolute inset-0">
             <Image
-              src="/heroMM.png"
-              alt={t.platformName}
+              src="/RM.png"
+              alt={t.aboutUs}
               fill
               className="object-cover"
+              sizes="100vw"
               priority
-              onLoad={() => setIsLoaded(true)}
             />
-          </motion.div>
+          </div>
         ) : (
-          <motion.video
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isLoaded ? 1 : 0 }}
-            transition={{ duration: 1 }}
+          <video
             autoPlay
             muted
             loop
             playsInline
-            className={`hero-video absolute inset-0 w-full h-full object-cover ${!isRTL ? 'video-mirror' : ''}`}
-            src="/hero.mp4"
-            poster="/hero.png"
-            onLoadedData={() => setIsLoaded(true)}
+            className="absolute inset-0 w-full h-full object-cover"
+            src="/R.mp4"
+            poster="/RM.png"
           />
         )}
-        
-        {/* طبقة التعتيم الخفيفة */}
-        <div className="absolute inset-0 bg-black/40"></div>
-        
-        {/* المحتوى - مختلف للكمبيوتر والموبايل */}
-        <motion.div 
-          className="absolute inset-0 flex flex-col p-8 md:p-16"
-          style={{
-            opacity: contentOpacity,
-            y: contentY,
-          }}
-        >
-          {/* في الموبايل: العنوان في الأعلى والسلايدر في الأسفل */}
-          {isMobile && (
-            <>
-              <div className="flex flex-col items-center justify-center text-center text-white mb-12 mt-16">
-                <motion.h1
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
-                  className={`text-5xl font-bold mb-6 drop-shadow-lg bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent ${isRTL ? 'font-arabic' : ''}`}
-                >
-                  {t.platformName}
-                </motion.h1>
-                
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                  className="text-lg opacity-90 drop-shadow-md h-8"
-                >
-                  <TypingAnimation 
-                    text={t.dynamicDescriptions[currentDescriptionIndex]} 
-                    className="text-cyan-200"
-                    speed={40}
-                    delay={1200}
-                  />
-                </motion.div>
-              </div>
-
-              {/* مساحة مرنة لدفع السلايدر للأسفل */}
-              <div className="flex-1"></div>
-              
-              {/* السلايدر في الموبايل - في الأسفل */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.8 }}
-                className="w-full max-w-lg mx-auto mb-8"
-              >
-                <HeroSliderComponent />
-              </motion.div>
-            </>
-          )}
+        <div className="absolute inset-0 bg-black/60"></div>
+      </div>
+      
+      <div className="relative z-10 container mx-auto px-4 md:px-8 h-full flex items-center justify-center">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className={`text-3xl md:text-5xl font-bold text-white mb-6 ${isRTL ? 'font-arabic' : ''}`}>
+            {t.aboutUs}
+          </h2>
           
-          {/* في الكمبيوتر: العنوان والوصف والسلايدر متجمعين على الجانب */}
-          {!isMobile && (
-            <>
-              {/* This empty div acts as a spacer to push the content down from the top */}
-              <div className="flex-grow"></div>
-
-              {/* This wrapper will contain both the title and the slider. Using justify-start and items-start to rely on browser's RTL/LTR behavior. Added mt-16 for top spacing. */}
-              <div className="w-full flex justify-start mt-4 mb-16">
-                {/* This group contains the title and slider, aligned vertically */}
-                <div className="max-w-lg flex flex-col items-start">
-                  {/* Wrapper for title and description to center them horizontally */}
-                  <div className="w-full text-center mb-6">
-                    <motion.h1
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.8, delay: 0.2 }}
-                      className={`text-3xl md:text-4xl font-bold mb-4 drop-shadow-lg bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent ${isRTL ? 'font-arabic' : ''}`}
-                    >
-                      {t.platformName}
-                    </motion.h1>
-                    
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.8, delay: 0.5 }}
-                      className="text-base md:text-lg opacity-90 drop-shadow-md h-6"
-                    >
-                      <TypingAnimation 
-                        text={t.dynamicDescriptions[currentDescriptionIndex]} 
-                        className="text-cyan-200"
-                        speed={40}
-                        delay={1200}
-                      />
-                    </motion.div>
-                  </div>
-
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, delay: 0.8 }}
-                    className="w-full"
-                  >
-                    <HeroSliderComponent />
-                  </motion.div>
-                </div>
-              </div>
-            </>
-          )}
+          <div className="w-24 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 mx-auto mb-8"></div>
           
-          {/* زر التمرير لأسفل */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.2 }}
-            className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white"
-          >
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="cursor-pointer"
-              onClick={() => {
-                window.scrollTo({
-                  top: window.innerHeight,
-                  behavior: 'smooth'
-                });
-              }}
-            >
-              <FaChevronDown className="text-2xl" />
-            </motion.div>
-          </motion.div>
-        </motion.div>
+          <p className="text-lg md:text-xl text-white/90 leading-relaxed mb-8">
+            {t.aboutUsMessage}
+          </p>
+          
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
+            <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+              {t.knowMore}
+            </button>
+            
+            <button className="px-6 py-3 bg-white/20 backdrop-blur-sm text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:bg-white/30 transition-all duration-300">
+              {t.contactUs}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -862,55 +774,34 @@ const HeroSection = () => {
 
 export default function Home() {
   const { language, isRTL } = useLanguage();
-  const t = translations[language];
   const { data: session } = useSession();
   
-  // حالات المكون
   const [isClient, setIsClient] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
-  // التأكد من أننا في بيئة العميل
   useEffect(() => {
     setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
   return (
     <div className="antialiased bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col" dir={isRTL ? "rtl" : "ltr"}>
-      {/* ====== HERO مع الفيديو والسلايدر الصغير جداً ====== */}
       <HeroSection />
+      {isMobile && <NewContentSection />} {/* يظهر فقط على الموبايل */}
+      <AboutSection />
       
-      {/* أنماط مخصصة للهيرو */}
       <style jsx global>{`
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.4; }
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 4s cubic-bezier(0.4, 0, 6, 1) infinite;
-        }
-        @keyframes bounceSlow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-        .animate-bounceSlow {
-          animation: bounceSlow 2s infinite;
-        }
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
-        }
-        @keyframes progress {
-          0% { background-position: 0% 0%; }
-          100% { background-position: 100% 0%; }
-        }
-        .animate-progress {
-          background-size: 200% 100%;
-          animation: progress 2s linear infinite;
-        }
-        
-        /* أنماط الهيرو المحسنة مع الفيديو */
+        /* أنماط الهيرو */
         .hero-container {
           position: relative;
           width: 100%;
@@ -932,23 +823,37 @@ export default function Home() {
           height: 100%;
         }
         
-        /* إضافة كلاس لعكس الفيديو في اللغة الإنجليزية */
         .video-mirror {
           transform: scaleX(-1);
         }
         
-        /* تحسين الخط العربي */
         .font-arabic {
           font-family: 'Noto Kufi Arabic', 'Cairo', sans-serif;
           letter-spacing: 0.02em;
         }
         
-        /* تحسينات الأنيميشن */
         .line-clamp-1 {
           overflow: hidden;
           display: -webkit-box;
           -webkit-line-clamp: 1;
           -webkit-box-orient: vertical;
+        }
+
+        /* === أنماط العنوان والوصف الجديدة === */
+        .hero-title {
+          background: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow: 2px 2px 0px rgba(59, 130, 246, 0.5), 4px 4px 0px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-description {
+          background: linear-gradient(90deg, #a5f3fc, #93c5fd);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
       `}</style>
     </div>
